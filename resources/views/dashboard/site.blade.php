@@ -1,0 +1,667 @@
+@extends('layouts.dashboard')
+
+@section('page-title', $site->name)
+@section('page-crumb', 'Site Detail')
+
+@push('styles')
+<style>
+.detail-tabs-bar{display:flex;background:#fff;border-bottom:2px solid #e4e8ef;margin:-20px -20px 20px;padding:0 20px;overflow-x:auto;scrollbar-width:none}
+.d-tab{font-family:'DM Sans',sans-serif !important;font-size:13px;font-weight:500;padding:11px 15px;border:0 !important;border-bottom:3px solid transparent !important;background:none !important;cursor:pointer;color:#64748b;margin-bottom:-2px;transition:color .15s,border-color .15s;white-space:nowrap;flex-shrink:0;outline:none !important;box-shadow:none !important}
+.d-tab.active{color:#1d6ed8 !important;border-bottom:3px solid #1d6ed8 !important}
+.d-tab:hover:not(.active){color:#0d1321}
+.tab-panel{display:none}.tab-panel.active{display:block}
+.d-kpis{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.badge-nominal{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd)}
+.badge-nominal::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block}
+.badge-warn-sm{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd)}
+.badge-warn-sm::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--amber);display:inline-block}
+.chart-section{margin-bottom:14px}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:16px}
+.cc-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.cc-title{font-size:13px;font-weight:600}
+.charts-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.charts-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.raw-table{width:100%;border-collapse:collapse;font-size:12px}
+.raw-table th{background:var(--bg);border:1px solid var(--border);padding:7px 10px;text-align:left;font-weight:600;font-size:11px;color:var(--muted)}
+.raw-table td{border:1px solid var(--border);padding:6px 10px;font-family:'DM Mono',monospace;font-size:11.5px}
+.raw-table tr:hover td{background:#f8fafc}
+.ag-input{font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);width:100%}
+.ag-input:focus{outline:none;border-color:var(--blue);background:#fff}
+.ag-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+textarea.ag-input{resize:vertical;min-height:60px}
+select.ag-input{cursor:pointer}
+.api-key-box{background:#0f1929;border:1px solid #1e2d45;border-radius:9px;padding:12px 16px;display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.api-key-val{font-family:'DM Mono',monospace;font-size:13px;color:#93c5fd;flex:1;word-break:break-all}
+.btn-copy{font-size:11px;padding:4px 10px;border:1px solid #1e2d45;background:#1a2640;color:#94a3b8;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif}
+.btn-copy:hover{background:#1e3254;color:#fff}
+.dl-btn{font-family:'DM Sans',sans-serif;font-size:11px;padding:3px 10px;border:1px solid var(--border);background:var(--surface);border-radius:5px;cursor:pointer;color:var(--muted)}
+.dl-btn:hover{background:var(--bg)}
+.dl-row{display:flex;gap:5px;flex-shrink:0}
+</style>
+@endpush
+
+@section('content')
+
+@php
+  $categories = $site->activeCategories ?? collect();
+  $firstSlug  = $categories->first()?->slug ?? 'raw';
+  $COLORS = ['#15803d','#1d6ed8','#7c3aed','#b45309','#0891b2','#be123c','#0f766e','#7e22ce'];
+@endphp
+
+{{-- TABS --}}
+<div style="display:flex;background:#fff;border-bottom:2px solid #e4e8ef;margin:-20px -20px 20px;padding:0 20px;overflow-x:auto;scrollbar-width:none">
+  @forelse($categories as $cat)
+    <button onclick="switchTab('{{ $cat->slug }}',this)" data-tab="{{ $cat->slug }}"
+      style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:11px 16px;border:none;border-bottom:{{ $loop->first ? '3px solid #1d6ed8' : '3px solid transparent' }};background:none;cursor:pointer;color:{{ $loop->first ? '#1d6ed8' : '#64748b' }};margin-bottom:-2px;white-space:nowrap;flex-shrink:0;outline:none;transition:color .15s">
+      {{ $cat->icon }} {{ $cat->name }}
+    </button>
+  @empty
+    <button onclick="switchTab('raw',this)" data-tab="raw"
+      style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:11px 16px;border:none;border-bottom:3px solid #1d6ed8;background:none;cursor:pointer;color:#1d6ed8;margin-bottom:-2px;white-space:nowrap;flex-shrink:0;outline:none">
+      📋 Data
+    </button>
+  @endforelse
+  <button onclick="switchTab('raw',this)" data-tab="raw"
+    style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:11px 16px;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#64748b;margin-bottom:-2px;white-space:nowrap;flex-shrink:0;outline:none">
+    📋 Raw Data
+  </button>
+  <div style="margin-left:auto;display:flex">
+    @if(($hasManual ?? false) && auth()->user()->role !== 'observateur')
+    <button onclick="switchTab('manual-input',this)" data-tab="manual-input"
+      style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:11px 16px;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#64748b;margin-bottom:-2px;white-space:nowrap;flex-shrink:0;outline:none">
+      ✏ Manual Input
+    </button>
+    @endif
+    @if(auth()->user()->isAdmin() || (auth()->id() === $site->user_id && auth()->user()->role !== 'observateur'))
+    <button onclick="switchTab('apikey',this)" data-tab="apikey"
+      style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:11px 16px;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#64748b;margin-bottom:-2px;white-space:nowrap;flex-shrink:0;outline:none">
+      🔑 API Key
+    </button>
+    @endif
+  </div>
+</div>
+
+{{-- DYNAMIC CATEGORY TABS --}}
+@foreach($categories as $catIndex => $category)
+@php
+  $params     = $category->activeParameters ?? collect();
+  $dashParams = $params->where('show_on_dashboard', true)->values();
+  $catColor   = $category->color ?? $COLORS[$catIndex % count($COLORS)];
+  $readings = [];
+  foreach ($params as $param) {
+    if ($param->input_type === 'manual') {
+      $latest = \App\Models\ManualReading::where('site_id', $site->id)
+        ->where('site_parameter_id', $param->id)
+        ->latest('reading_date')->first();
+      if ($latest) $readings[$param->slug] = $latest->value;
+    } else {
+      $latest = \App\Models\SensorReading::where('site_id', $site->id)
+        ->where('site_parameter_id', $param->id)
+        ->latest('read_at')->first();
+      if ($latest) $readings[$param->slug] = $latest->value ?? $latest->value_text;
+    }
+  }
+@endphp
+
+<div class="tab-panel {{ $catIndex === 0 ? 'active' : '' }}" id="tab-{{ $category->slug }}">
+
+  @php
+    $sensorDashParams = $dashParams->filter(fn($p) => ($p->input_type ?? 'sensor') === 'sensor');
+    $manualDashParams = $dashParams->filter(fn($p) => ($p->input_type ?? 'sensor') === 'manual');
+  @endphp
+
+  @if($sensorDashParams->count() > 0)
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+    @foreach($sensorDashParams as $param)
+    @php
+      $val = $readings[$param->slug] ?? null;
+      $isWarn = $val !== null && $param->warning_threshold && $val <= $param->warning_threshold;
+      $isBool = $param->data_type === 'boolean';
+      $displayVal = $isBool ? ($val ? 'ON' : 'OFF') : ($val !== null ? (is_numeric($val) ? number_format((float)$val, $param->data_type === 'integer' ? 0 : 1) : $val) : '—');
+    @endphp
+    <div style="background:var(--surface);border:1px solid {{ $isWarn ? 'var(--amber-bd)' : 'var(--border)' }};border-radius:var(--r);box-shadow:var(--shadow);padding:12px 14px;min-width:110px;max-width:150px;flex:1">
+      <div style="font-family:'DM Mono',monospace;font-size:20px;font-weight:500;line-height:1.1;color:{{ $isWarn ? 'var(--amber)' : 'var(--text)' }}">
+        {{ $displayVal }}
+        @if($param->unit && !$isBool)<span style="font-size:12px;color:var(--muted)"> {{ $param->unit }}</span>@endif
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $param->name }}</div>
+      <div style="margin-top:6px">
+        <span class="{{ $isWarn ? 'badge-warn-sm' : 'badge-nominal' }}">
+          {{ $isWarn ? 'Warning' : ($isBool ? ($val ? 'Open' : 'Closed') : 'Sensor') }}
+        </span>
+      </div>
+    </div>
+    @endforeach
+  </div>
+  @endif
+
+  @if($manualDashParams->count() > 0)
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+    @foreach($manualDashParams as $param)
+    @php $manVal = $readings[$param->slug] ?? null; @endphp
+    <div style="background:var(--surface);border:1px dashed var(--blue-bd);border-radius:var(--r);box-shadow:var(--shadow);padding:12px 14px;min-width:110px;max-width:150px;flex:1">
+      <div style="font-family:'DM Mono',monospace;font-size:20px;font-weight:500;line-height:1.1;color:var(--text)">
+        {{ $manVal ?? '—' }}
+        @if($param->unit)<span style="font-size:12px;color:var(--muted)"> {{ $param->unit }}</span>@endif
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $param->name }}</div>
+      <div style="margin-top:6px">
+        <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:500;padding:2px 7px;border-radius:20px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bd)">
+          ✏ Manual
+        </span>
+      </div>
+    </div>
+    @endforeach
+  </div>
+  @endif
+
+  @php $allManualParams = $params->filter(fn($p) => ($p->input_type ?? 'sensor') === 'manual'); @endphp
+  @if($allManualParams->count() > 0 && ($hasManual ?? false) && auth()->user()->role !== 'observateur')
+  <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:8px;margin-bottom:14px;font-size:12px;color:var(--blue)">
+    <span>✏</span>
+    <span>{{ $allManualParams->count() }} manual parameter(s) in this category.</span>
+    <button onclick="switchTab('manual-input', document.querySelector('[data-tab=manual-input]'))"
+            style="margin-left:auto;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:4px 12px;border:1px solid var(--blue-bd);border-radius:6px;background:#fff;color:var(--blue);cursor:pointer">
+      ✏ Go to Manual Input →
+    </button>
+  </div>
+  @endif
+
+  {{-- Charts admin --}}
+  @php $adminCharts = $category->activeCharts ?? collect(); @endphp
+  @if($adminCharts->count() > 0)
+    @php
+      $fullCharts  = $adminCharts->where('col_span', 'full');
+      $halfCharts  = $adminCharts->where('col_span', 'half');
+      $thirdCharts = $adminCharts->where('col_span', 'third');
+    @endphp
+    @foreach($fullCharts as $chart)
+    <div class="chart-card chart-section">
+      <div class="cc-head">
+        <div>
+          <div class="cc-title">{{ $chart->title }}</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+            @foreach($chart->parameters as $p)
+            <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)">
+              <span style="width:10px;height:{{ $p->pivot->dashed ? '0' : '3' }}px;{{ $p->pivot->dashed ? 'border-top:2px dashed '.$p->pivot->color : 'background:'.$p->pivot->color }};display:inline-block;border-radius:2px"></span>
+              {{ $p->name }}@if($p->unit) ({{ $p->unit }})@endif
+            </span>
+            @endforeach
+          </div>
+        </div>
+      </div>
+      <div style="position:relative;height:{{ $chart->height }}px">
+        <canvas id="admin-chart-{{ $chart->id }}" data-site="{{ $site->slug }}" data-category="{{ $category->slug }}"></canvas>
+      </div>
+    </div>
+    @endforeach
+    @if($halfCharts->count() > 0)
+    <div class="charts-2">
+      @foreach($halfCharts as $chart)
+      <div class="chart-card chart-section">
+        <div class="cc-head">
+          <div class="cc-title">{{ $chart->title }}</div>
+        </div>
+        <div style="position:relative;height:{{ $chart->height }}px">
+          <canvas id="admin-chart-{{ $chart->id }}" data-site="{{ $site->slug }}" data-category="{{ $category->slug }}"></canvas>
+        </div>
+      </div>
+      @endforeach
+    </div>
+    @endif
+    @if($thirdCharts->count() > 0)
+    <div class="charts-3">
+      @foreach($thirdCharts as $chart)
+      <div class="chart-card chart-section">
+        <div class="cc-head">
+          <div class="cc-title">{{ $chart->title }}</div>
+        </div>
+        <div style="position:relative;height:{{ $chart->height }}px">
+          <canvas id="admin-chart-{{ $chart->id }}" data-site="{{ $site->slug }}" data-category="{{ $category->slug }}"></canvas>
+        </div>
+      </div>
+      @endforeach
+    </div>
+    @endif
+  @else
+  @php $chartParams = $params->where('data_type','!=','string')->where('data_type','!=','boolean')->values(); @endphp
+  @if($chartParams->count() > 0)
+  <div class="chart-card chart-section">
+    <div class="cc-head">
+      <div><div class="cc-title">{{ $category->icon }} {{ $category->name }} — Trends</div></div>
+    </div>
+    <div style="position:relative;height:220px">
+      <canvas id="chart-main-{{ $category->slug }}"></canvas>
+    </div>
+  </div>
+  @endif
+  @endif
+
+  {{-- Saved Records pour cette categorie --}}
+  @include('dashboard.partials.manual-records', ['category' => $category, 'site' => $site])
+
+</div>
+@endforeach
+
+{{-- MANUAL INPUT TAB --}}
+<div class="tab-panel" id="tab-manual-input">
+  <div style="margin-bottom:18px">
+    <div style="font-size:16px;font-weight:600">Manual Data Entry</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:3px">Enter field measurements for all categories</div>
+  </div>
+  @if(session('success'))
+  <div style="background:var(--green-bg);border:1px solid var(--green-bd);color:var(--green);border-radius:7px;padding:8px 14px;margin-bottom:16px;font-size:13px">
+    ✓ {{ session('success') }}
+  </div>
+  @endif
+  @foreach($site->activeCategories as $manCat)
+  @php
+    $manParams     = $manCat->activeParameters->where('input_type', 'manual');
+    $manGrouped    = $manParams->filter(fn($p) => !empty($p->group_name))->groupBy('group_name');
+    $manStandalone = $manParams->filter(fn($p) => empty($p->group_name));
+    $totalCards    = $manGrouped->count() + $manStandalone->count();
+    $manIndex      = 0;
+    if($manParams->count() === 0) continue;
+  @endphp
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;margin-top:20px">
+    <span style="font-size:18px">{{ $manCat->icon }}</span>
+    <span style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">{{ $manCat->name }}</span>
+    <hr style="flex:1;border:none;border-top:1px solid var(--border)">
+  </div>
+  <div style="display:grid;grid-template-columns:repeat({{ min($totalCards, 4) }},1fr);gap:14px;margin-bottom:14px">
+    @foreach($manGrouped as $gName => $gParams)
+    <div class="chart-card" style="border-left:3px solid {{ $manCat->color ?? 'var(--blue)' }}">
+      <div style="margin-bottom:12px">
+        <div class="cc-title">{{ $gName }}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">{{ $gParams->count() }} parameter(s)</div>
+      </div>
+      <form method="POST" action="{{ route('manual-readings.store', $site) }}">
+        @csrf
+        <div style="margin-bottom:10px">
+          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Date *</label>
+          <input type="date" name="reading_date" value="{{ date('Y-m-d') }}"
+                 style="width:100%;margin-top:4px;font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text)" required>
+        </div>
+        @foreach($gParams as $p)
+        @php $pi = $manIndex++; @endphp
+        <div style="margin-bottom:8px">
+          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">
+            {{ $p->name }}@if($p->unit) ({{ $p->unit }})@endif
+          </label>
+          <input type="hidden" name="readings[{{ $pi }}][param_id]" value="{{ $p->id }}">
+          @if($p->data_type === 'boolean')
+            <select name="readings[{{ $pi }}][value]" style="width:100%;margin-top:4px;font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text)">
+              <option value="">—</option><option value="1">Yes</option><option value="0">No</option>
+            </select>
+          @elseif($p->data_type === 'string')
+            <input type="text" name="readings[{{ $pi }}][value]" placeholder="Enter value..."
+                   style="width:100%;margin-top:4px;font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text)">
+          @else
+            <input type="number" name="readings[{{ $pi }}][value]" step="any" placeholder="0"
+                   style="width:100%;margin-top:4px;font-family:'DM Mono',monospace;font-size:18px;font-weight:500;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text)">
+          @endif
+        </div>
+        @endforeach
+        <div style="margin-top:10px">
+          <input type="text" name="notes" placeholder="Notes (optional)..."
+                 style="width:100%;font-family:'DM Sans',sans-serif;font-size:12px;padding:6px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);margin-bottom:8px">
+          <button type="submit" class="btn btn-blue" style="width:100%;justify-content:center">+ Save {{ $gName }}</button>
+        </div>
+      </form>
+    </div>
+    @endforeach
+    @foreach($manStandalone as $p)
+    @php $pi = $manIndex++; @endphp
+    <div class="chart-card" style="border-left:3px solid var(--muted)">
+      <div style="margin-bottom:12px">
+        <div class="cc-title">{{ $p->name }}</div>
+        @if($p->unit)<div style="font-size:11px;color:var(--muted);margin-top:2px">{{ $p->unit }}</div>@endif
+      </div>
+      <form method="POST" action="{{ route('manual-readings.store', $site) }}">
+        @csrf
+        <div style="margin-bottom:10px">
+          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Date *</label>
+          <input type="date" name="reading_date" value="{{ date('Y-m-d') }}"
+                 style="width:100%;margin-top:4px;font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text)" required>
+        </div>
+        <input type="hidden" name="readings[{{ $pi }}][param_id]" value="{{ $p->id }}">
+        @if($p->data_type === 'boolean')
+          <select name="readings[{{ $pi }}][value]" style="width:100%;font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);margin-bottom:10px">
+            <option value="">—</option><option value="1">Yes</option><option value="0">No</option>
+          </select>
+        @elseif($p->data_type === 'string')
+          <input type="text" name="readings[{{ $pi }}][value]" placeholder="Enter value..."
+                 style="width:100%;font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);margin-bottom:10px">
+        @else
+          <input type="number" name="readings[{{ $pi }}][value]" step="any" placeholder="0"
+                 style="width:100%;font-family:'DM Mono',monospace;font-size:22px;font-weight:500;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);margin-bottom:10px">
+        @endif
+        <input type="text" name="notes" placeholder="Notes..."
+               style="width:100%;font-family:'DM Sans',sans-serif;font-size:12px;padding:6px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);margin-bottom:8px">
+        <button type="submit" class="btn btn-blue" style="width:100%;justify-content:center">+ Save</button>
+      </form>
+    </div>
+    @endforeach
+  </div>
+  @endforeach
+</div>
+
+{{-- RAW DATA TAB --}}
+<div class="tab-panel" id="tab-raw">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <div style="display:flex;gap:6px" id="raw-period-btns">
+      @foreach(['1h'=>'1H','6h'=>'6H','24h'=>'24H','7d'=>'7D','30d'=>'30D'] as $val=>$lbl)
+      <button onclick="setRawPeriod('{{ $val }}', this)" data-period="{{ $val }}"
+        style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid {{ $val==='1h' ? '#1d6ed8' : 'var(--border)' }};background:{{ $val==='1h' ? '#1d6ed8' : 'var(--surface)' }};color:{{ $val==='1h' ? '#fff' : 'var(--muted)' }}">
+        {{ $lbl }}
+      </button>
+      @endforeach
+    </div>
+    <div style="display:flex;gap:8px">
+      <a href="/export/{{ $site->slug }}/all/csv?hours=1" id="btn-all-csv" class="btn" style="text-decoration:none">⬇ All CSV</a>
+      <a href="/export/{{ $site->slug }}/all/excel?hours=1" id="btn-all-excel" class="btn btn-blue" style="text-decoration:none">⬇ All Excel</a>
+    </div>
+  </div>
+
+  <div id="raw-data-container">
+    @php
+      $rawFrom    = now()->subHour();
+      $rawPerPage = 20;
+      $rawPage    = 1;
+    @endphp
+    @foreach($categories as $category)
+    @php
+      $params       = $category->activeParameters ?? collect();
+      $sensorParams = $params->where('input_type', 'sensor');
+      $manualParams = $params->where('input_type', 'manual');
+      $sensorReadings = \App\Models\SensorReading::where('site_id', $site->id)
+        ->whereIn('site_parameter_id', $sensorParams->pluck('id'))
+        ->where('read_at', '>=', $rawFrom)
+        ->orderBy('read_at', 'desc')->get();
+      $sensorGrouped = $sensorReadings->groupBy(fn($r) => $r->read_at->format('Y-m-d H:i:s'));
+      $manualReadings = \App\Models\ManualReading::where('site_id', $site->id)
+        ->whereIn('site_parameter_id', $manualParams->pluck('id'))
+        ->where('reading_date', '>=', $rawFrom)
+        ->orderBy('reading_date', 'desc')->get();
+      $manualGrouped = $manualReadings->groupBy(fn($r) => \Carbon\Carbon::parse($r->reading_date)->format('Y-m-d H:i:s'));
+      $totalSensor = $sensorGrouped->count();
+      $totalManual = $manualGrouped->count();
+      $hasData     = $totalSensor > 0 || $totalManual > 0;
+      $totalPages  = max(1, (int) ceil(max($totalSensor, $totalManual) / $rawPerPage));
+      $sensorPaged = $sensorGrouped->take($rawPerPage);
+      $manualPaged = $manualGrouped->take($rawPerPage);
+    @endphp
+    @if($hasData)
+    @include('dashboard.partials.raw-table', compact('category','sensorParams','manualParams','sensorPaged','manualPaged','totalSensor','totalManual','totalPages','rawPage'))
+    @endif
+    @endforeach
+  </div>
+
+  {{-- Manual Records par categorie --}}
+  @foreach($categories as $rawCat)
+  @php
+    $hasGroups = $rawCat->activeParameters
+      ->where('input_type','manual')
+      ->filter(fn($p) => !empty($p->group_name))->isNotEmpty();
+  @endphp
+  @if($hasGroups)
+  <div style="margin-top:20px;display:flex;align-items:center;gap:8px;margin-bottom:-6px">
+    <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">{{ $rawCat->icon }} {{ $rawCat->name }}</span>
+    <hr style="flex:1;border:none;border-top:1px solid var(--border)">
+  </div>
+  @include('dashboard.partials.manual-records', ['category' => $rawCat, 'site' => $site])
+  @endif
+  @endforeach
+
+</div>
+
+{{-- API KEY TAB --}}
+@if(auth()->user()->isAdmin() || (auth()->id() === $site->user_id && auth()->user()->role !== 'observateur'))
+<div class="tab-panel" id="tab-apikey">
+  <div class="chart-card" style="margin-bottom:14px">
+    <div class="cc-title" style="margin-bottom:10px">API Key — {{ $site->name }}</div>
+    <div class="api-key-box">
+      <div class="api-key-val" id="api-key-val">{{ $site->api_key }}</div>
+      <button class="btn-copy" onclick="copyKey()">Copy</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted)">
+      Use in the <code style="font-family:'DM Mono',monospace;background:var(--bg);padding:1px 5px;border-radius:4px">X-API-Key</code> header when posting sensor data.
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="cc-title" style="margin-bottom:10px">Dynamic Endpoints</div>
+    <table class="raw-table">
+      <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>POST</td><td>/api/sensors/{{ $site->slug }}/{category}</td><td>Send sensor readings</td></tr>
+        <tr><td>GET</td><td>/api/sensors/{{ $site->slug }}/{category}/latest</td><td>Get latest readings</td></tr>
+        <tr><td>GET</td><td>/api/sensors/{{ $site->slug }}/status</td><td>Check all categories status</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:14px">
+      <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">Available categories & parameters:</div>
+      @foreach($categories as $cat)
+      <div style="margin-bottom:8px;padding:10px 12px;background:var(--bg);border-radius:7px;border:1px solid var(--border)">
+        <div style="font-size:12px;font-weight:600;margin-bottom:4px">{{ $cat->slug }}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          @foreach($cat->activeParameters->where('input_type','sensor') as $p)
+          <code style="font-family:'DM Mono',monospace;font-size:11px;background:var(--surface);padding:2px 7px;border-radius:4px;border:1px solid var(--border)">{{ $p->slug }}</code>
+          @endforeach
+        </div>
+      </div>
+      @endforeach
+    </div>
+  </div>
+</div>
+@endif
+
+@endsection
+
+@push('scripts')
+<script>
+const COLORS = ['#15803d','#1d6ed8','#7c3aed','#b45309','#0891b2','#be123c','#0f766e','#7e22ce'];
+const SITE_SLUG = '{{ $site->slug }}';
+const HOURS = {{ match($range ?? '1h') { '6h' => 6, '24h' => 24, '7d' => 168, '30d' => 720, default => 1 } }};
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('[data-tab]').forEach(b => {
+    b.style.borderBottom = '3px solid transparent';
+    b.style.color = '#64748b';
+  });
+  const panel = document.getElementById('tab-' + tab);
+  if (panel) panel.classList.add('active');
+  const activeBtn = btn || document.querySelector('[data-tab="' + tab + '"]');
+  if (activeBtn) {
+    activeBtn.style.borderBottom = '3px solid #1d6ed8';
+    activeBtn.style.color = '#1d6ed8';
+  }
+  const cat = (typeof catCharts !== 'undefined') ? catCharts.find(c => c.slug === tab) : null;
+  if (cat) setTimeout(() => { buildMainChart(cat); buildLegend(cat); }, 60);
+}
+
+function copyKey() {
+  const val = document.getElementById('api-key-val')?.textContent?.trim();
+  if (val) { navigator.clipboard.writeText(val); alert('API Key copied!'); }
+}
+
+const baseOpts = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{legend:{display:false}},
+  scales:{
+    x:{ticks:{font:{size:10},color:'#94a3b8',maxTicksLimit:6},grid:{color:'#f1f5f9'}},
+    y:{ticks:{font:{size:10,family:'DM Mono'},color:'#94a3b8'},grid:{color:'#f1f5f9'}}
+  }
+};
+
+@php
+$catChartsData = $categories->map(function($cat, $catIdx) use ($COLORS) {
+  $params = $cat->activeParameters->where('data_type','!=','string')->where('data_type','!=','boolean')->values();
+  return [
+    'slug'   => $cat->slug,
+    'dbData' => [],
+    'params' => $params->map(function($p, $i) use ($COLORS) {
+      return [
+        'slug'       => $p->slug,
+        'name'       => $p->name,
+        'unit'       => $p->unit,
+        'color'      => $COLORS[$i % count($COLORS)],
+        'show'       => (bool)$p->show_on_dashboard,
+        'input_type' => $p->input_type ?? 'sensor',
+      ];
+    })->values()
+  ];
+})->values();
+@endphp
+const catCharts = @json($catChartsData);
+const activeParams = {};
+
+async function loadCategoryData(cat) {
+  try {
+    const res = await fetch(`/dashboard/${SITE_SLUG}/${cat.slug}/chart-data?hours=${HOURS}`);
+    const json = await res.json();
+    if (json.success && json.datasets && json.datasets.length > 0) {
+      const lbls = json.labels;
+      cat.dbData = lbls.map((t, i) => {
+        const row = { t };
+        json.datasets.forEach(ds => { row[ds.slug] = ds.data[i] ?? null; });
+        return row;
+      });
+    } else { cat.dbData = []; }
+  } catch(e) { cat.dbData = []; }
+  buildMainChart(cat);
+  buildLegend(cat);
+}
+
+catCharts.forEach(cat => {
+  activeParams[cat.slug] = {};
+  cat.params.forEach(p => { activeParams[cat.slug][p.slug] = p.show; });
+  loadCategoryData(cat);
+});
+
+@if(session('active_tab'))
+setTimeout(() => {
+  const tab = '{{ session("active_tab") }}';
+  const btn = document.querySelector('[data-tab="' + tab + '"]');
+  switchTab(tab, btn);
+}, 150);
+@endif
+
+function buildMainChart(cat) {
+  const ctx = document.getElementById('chart-main-' + cat.slug);
+  if (!ctx) return;
+  if (ctx._chartInstance) ctx._chartInstance.destroy();
+  const activeList = cat.params.filter(p => activeParams[cat.slug][p.slug]);
+  if (activeList.length === 0) { ctx._chartInstance = null; return; }
+  const dbData = cat.dbData || [];
+  if (!dbData.length) {
+    ctx.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px">No data for selected period</div>';
+    return;
+  }
+  const chartLabels = dbData.map(r => r.t);
+  let needSecondAxis = false, secParam = null;
+  if (activeList.length > 1) {
+    const maxes = activeList.map(p => Math.max(...dbData.map(r => r[p.slug] ?? 0).filter(v => v !== null)));
+    const maxVal = Math.max(...maxes), minVal = Math.min(...maxes.filter(v => v > 0));
+    if (maxVal / (minVal || 1) > 8) { needSecondAxis = true; secParam = activeList[maxes.indexOf(maxVal)]; }
+  }
+  const datasets = activeList.map(p => {
+    const isSecondary = needSecondAxis && secParam && p.slug === secParam.slug;
+    return {
+      label: p.name + (p.unit ? ' ('+p.unit+')' : ''),
+      data: dbData.map(r => r[p.slug] !== undefined ? r[p.slug] : null),
+      borderColor: p.color, backgroundColor: p.color + '15',
+      borderWidth: 2, pointRadius: dbData.length <= 20 ? 3 : 0,
+      pointHoverRadius: 5, tension: .4, fill: activeList.length === 1,
+      yAxisID: isSecondary ? 'y2' : 'y', borderDash: isSecondary ? [5,4] : [], spanGaps: true,
+    };
+  });
+  const scales = { x: baseOpts.scales.x, y: { ...baseOpts.scales.y, position: 'left' } };
+  if (needSecondAxis && secParam) {
+    scales.y2 = { position:'right', ticks:{font:{size:10,family:'DM Mono'},color:'#94a3b8'}, grid:{drawOnChartArea:false} };
+  }
+  ctx._chartInstance = new Chart(ctx, {
+    type: 'line', data: { labels: chartLabels, datasets },
+    options: { ...baseOpts, scales, plugins: { ...baseOpts.plugins, tooltip: { mode:'index', intersect:false } } }
+  });
+}
+
+function buildLegend(cat) {
+  const leg = document.getElementById('legend-' + cat.slug);
+  if (!leg) return;
+  leg.innerHTML = cat.params.filter(p => activeParams[cat.slug][p.slug])
+    .map(p => `<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)">
+      <span style="width:10px;height:3px;background:${p.color};display:inline-block;border-radius:2px"></span>
+      ${p.name}${p.unit ? ' ('+p.unit+')' : ''}</span>`).join('');
+}
+
+// Admin charts via fetch
+@foreach($site->activeCategories ?? [] as $cat)
+  @foreach($cat->activeCharts ?? [] as $chart)
+  (function() {
+    const ctx = document.getElementById('admin-chart-{{ $chart->id }}');
+    if (!ctx) return;
+    const catSlug = '{{ $cat->slug }}';
+    const hasSecondAxis = {{ $chart->parameters->where('pivot.axis','right')->count() > 0 ? 'true' : 'false' }};
+    const paramConfigs = [
+      @foreach($chart->parameters as $p)
+      { slug: '{{ $p->slug }}', label: '{{ addslashes($p->name) }}{{ $p->unit ? " (".$p->unit.")" : "" }}', color: '{{ $p->pivot->color }}', fill: {{ $p->pivot->fill ? 'true' : 'false' }}, dashed: {{ $p->pivot->dashed ? 'true' : 'false' }}, axis: '{{ $p->pivot->axis === "right" ? "y2" : "y" }}' },
+      @endforeach
+    ];
+    fetch(`/dashboard/${SITE_SLUG}/${catSlug}/chart-data?hours=${HOURS}`)
+      .then(r => r.json())
+      .then(json => {
+        if (!json.success || !json.datasets || !json.datasets.length) {
+          ctx.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px">No data for selected period</div>';
+          return;
+        }
+        const chartLabels = json.labels;
+        const dataMap = {};
+        json.datasets.forEach(ds => { dataMap[ds.slug] = ds.data; });
+        const datasets = paramConfigs.map(p => ({
+          label: p.label, data: dataMap[p.slug] || Array(chartLabels.length).fill(null),
+          borderColor: p.color, backgroundColor: p.color + (p.fill ? '22' : '00'),
+          borderWidth: 2, pointRadius: chartLabels.length <= 20 ? 3 : 0,
+          tension: .4, fill: p.fill, borderDash: p.dashed ? [5,4] : [], yAxisID: p.axis, spanGaps: true,
+        }));
+        const scales = { x: baseOpts.scales.x, y: { ...baseOpts.scales.y, position: 'left' } };
+        if (hasSecondAxis) scales.y2 = { position:'right', ticks:{font:{size:10,family:'DM Mono'},color:'#94a3b8'}, grid:{drawOnChartArea:false} };
+        new Chart(ctx, {
+          type: '{{ $chart->chart_type === "area" ? "line" : $chart->chart_type }}',
+          data: { labels: chartLabels, datasets },
+          options: { ...baseOpts, scales, plugins: { legend: { display: {{ $chart->show_legend ? 'true' : 'false' }} } } }
+        });
+      }).catch(() => {});
+  })();
+  @endforeach
+@endforeach
+
+let rawCurrentHours = 1, rawCurrentPage = 1;
+
+function setRawPeriod(period, btn) {
+  document.querySelectorAll('#raw-period-btns button').forEach(b => {
+    b.style.background = 'var(--surface)'; b.style.color = 'var(--muted)'; b.style.borderColor = 'var(--border)';
+  });
+  btn.style.background = '#1d6ed8'; btn.style.color = '#fff'; btn.style.borderColor = '#1d6ed8';
+  const map = {'1h':1,'6h':6,'24h':24,'7d':168,'30d':720};
+  rawCurrentHours = map[period] || 1; rawCurrentPage = 1;
+  const csvBtn = document.getElementById('btn-all-csv');
+  const excelBtn = document.getElementById('btn-all-excel');
+  if (csvBtn)   csvBtn.href   = `/export/${SITE_SLUG}/all/csv?hours=${rawCurrentHours}`;
+  if (excelBtn) excelBtn.href = `/export/${SITE_SLUG}/all/excel?hours=${rawCurrentHours}`;
+  fetchRawData();
+}
+
+function fetchRawData(page) {
+  if (page) rawCurrentPage = page;
+  const container = document.getElementById('raw-data-container');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">Loading...</div>';
+  fetch(`/dashboard/sites/${SITE_SLUG}/raw-data?hours=${rawCurrentHours}&page=${rawCurrentPage}`)
+    .then(r => r.text()).then(html => { container.innerHTML = html; })
+    .catch(() => { container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Error loading data</div>'; });
+}
+
+setInterval(() => { catCharts.forEach(cat => loadCategoryData(cat)); }, 30000);
+</script>
+@endpush
