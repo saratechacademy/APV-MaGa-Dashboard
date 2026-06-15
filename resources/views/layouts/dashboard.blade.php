@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
 <title>APV-MaGa — @yield('page-title', 'Dashboard')</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,7 +12,7 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --sidebar-w:224px;--topbar-h:56px;
-  --sidebar-bg:#0f1929;--sidebar-hover:#1a2640;--sidebar-active:#1e3254;
+  --sidebar-bg:#0f1929;--sidebar-hover:#16243a;--sidebar-active:rgba(34,197,94,.12);
   --bg:#f0f3f8;--surface:#fff;--border:#e4e8ef;
   --text:#0d1321;--muted:#64748b;
   --green:#15803d;--green-bg:#f0fdf4;--green-bd:#bbf7d0;
@@ -25,22 +24,22 @@
 }
 body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;height:100vh;overflow:hidden;display:flex}
 
-/* SIDEBAR */
+/* SIDEBAR — light, green accents */
 .sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--sidebar-bg);color:#e2e8f0;display:flex;flex-direction:column;height:100vh;overflow-y:auto;overflow-x:hidden;transition:transform .25s ease;z-index:1000}
 .sb-logo{padding:16px 16px 12px;border-bottom:1px solid #1e2d45}
-.sb-logo-name{font-weight:600;font-size:15px;color:#fff;letter-spacing:-.2px}
-.sb-logo-sub{font-size:11px;color:#475569;margin-top:1px}
+.sb-logo-name{font-weight:800;font-size:17px;color:#4ade80;letter-spacing:-.3px}
+.sb-logo-sub{font-size:11px;color:#7c8ba1;margin-top:1px}
 .sb-section{padding:14px 10px 6px}
-.sb-label{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#475569;padding:0 6px;margin-bottom:4px}
-.sb-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:13px;color:#94a3b8;transition:background .15s,color .15s;user-select:none;white-space:nowrap;text-decoration:none}
-.sb-item:hover{background:var(--sidebar-hover);color:#e2e8f0}
-.sb-item.active{background:var(--sidebar-active);color:#fff}
+.sb-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#7c8ba1;padding:0 6px;margin-bottom:4px}
+.sb-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:13px;color:#cbd5e1;transition:background .15s,color .15s;user-select:none;white-space:nowrap;text-decoration:none;border-left:3px solid transparent}
+.sb-item:hover{background:var(--sidebar-hover);color:#f8fafc}
+.sb-item.active{background:var(--sidebar-active);color:#4ade80;font-weight:600;border-left-color:#22c55e}
 .sb-icon{font-size:14px;width:16px;text-align:center;flex-shrink:0}
 .site-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .d-ok{background:#4ade80}.d-warn{background:#fbbf24}.d-err{background:#f87171}
 .sb-divider{border:none;border-top:1px solid #1e2d45;margin:4px 10px}
 .sb-user{padding:12px 14px;border-top:1px solid #1e2d45;margin-top:auto;display:flex;align-items:center;gap:8px}
-.sb-avatar{width:28px;height:28px;border-radius:50%;background:#1e3254;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#93c5fd;flex-shrink:0}
+.sb-avatar{width:28px;height:28px;border-radius:50%;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.25);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#4ade80;flex-shrink:0}
 .sb-user-info{min-width:0}
 .sb-user-name{font-size:12px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-user-role{font-size:10px;color:#475569}
@@ -351,6 +350,11 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
     <a href="{{ route('help') }}" onclick="closeSidebar()" class="sb-item {{ request()->routeIs('help') ? 'active' : '' }}">
       <span class="sb-icon">📖</span> Help
     </a>
+    @if(auth()->user()->isAdmin())
+    <a href="{{ route('docs') }}" onclick="closeSidebar()" class="sb-item {{ request()->routeIs('docs') ? 'active' : '' }}">
+      <span class="sb-icon">🧩</span> Docs
+    </a>
+    @endif
   </div>
 
   <div class="sb-user" style="flex-direction:column;align-items:stretch;padding:0;margin-top:auto">
@@ -365,8 +369,8 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
         <button type="submit" style="background:none;border:none;padding:4px;cursor:pointer;color:#475569;font-size:14px" title="Logout">⏻</button>
       </form>
     </div>
-    <div style="padding:8px 14px 10px;font-size:10px;color:#2d3f55;text-align:center;line-height:1.7;border-top:1px solid #1e2d45">
-      © 2026 APV-MaGa · Developed by <span style="color:#3d5a7a;font-weight:600">Saratech</span><br>All rights reserved.
+    <div style="padding:8px 14px 10px;font-size:10px;color:#7c8ba1;text-align:center;line-height:1.7;border-top:1px solid #1e2d45">
+      © 2026 APV-MaGa · Developed by <span style="color:#4ade80;font-weight:600">Saratech</span><br>All rights reserved.
     </div>
   </div>
 </aside>
