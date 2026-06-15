@@ -37,6 +37,43 @@ select.ag-input{cursor:pointer}
 .dl-btn{font-family:'DM Sans',sans-serif;font-size:11px;padding:3px 10px;border:1px solid var(--border);background:var(--surface);border-radius:5px;cursor:pointer;color:var(--muted)}
 .dl-btn:hover{background:var(--bg)}
 .dl-row{display:flex;gap:5px;flex-shrink:0}
+
+/* Actuator switch card */
+.switch-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:12px 14px;min-width:140px;max-width:180px;flex:1}
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.toggle{position:relative;display:inline-block;width:38px;height:22px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background-color:#cbd5e1;transition:.2s;border-radius:22px}
+.toggle-slider:before{position:absolute;content:"";height:16px;width:16px;left:3px;bottom:3px;background-color:#fff;transition:.2s;border-radius:50%}
+.toggle input:checked + .toggle-slider{background-color:var(--green)}
+.toggle input:checked + .toggle-slider:before{transform:translateX(16px)}
+.toggle input:disabled + .toggle-slider{opacity:.5;cursor:not-allowed}
+.sync-pill{font-size:10px;font-weight:500;padding:2px 7px;border-radius:20px;display:inline-flex;align-items:center;gap:4px}
+.sync-ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd)}
+.sync-pending{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd)}
+.sync-unknown{background:var(--bg);color:var(--muted);border:1px solid var(--border)}
+.sync-stale{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd)}
+.badge-nodata{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;background:var(--bg);color:var(--muted);border:1px dashed var(--border)}
+.badge-nodata::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--muted);display:inline-block}
+
+
+/* Actuator confirm modal */
+.actuator-modal-overlay{display:none;position:fixed;inset:0;background:rgba(13,19,33,.5);z-index:2000;align-items:center;justify-content:center}
+.actuator-modal-overlay.open{display:flex}
+.actuator-modal{background:var(--surface);border-radius:var(--r);box-shadow:0 12px 32px rgba(0,0,0,.18);padding:24px;width:100%;max-width:340px;text-align:center}
+.actuator-modal-icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:22px;font-weight:700}
+.actuator-modal-icon.on{background:var(--green-bg);color:var(--green)}
+.actuator-modal-icon.off{background:var(--bg);color:var(--muted)}
+.actuator-modal-title{font-size:15px;font-weight:600;margin-bottom:6px}
+.actuator-modal-text{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5}
+.actuator-modal-actions{display:flex;gap:10px}
+.actuator-modal-actions button{flex:1;padding:9px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border)}
+.actuator-modal-cancel{background:var(--surface);color:var(--text)}
+.actuator-modal-cancel:hover{background:var(--bg)}
+.actuator-modal-confirm{background:var(--blue);color:#fff;border-color:var(--blue)}
+.actuator-modal-confirm:hover{background:#1a5fc0}
+.actuator-modal-confirm.danger{background:var(--red);border-color:var(--red)}
+.actuator-modal-confirm.danger:hover{background:#9f0f30}
 </style>
 @endpush
 
@@ -46,6 +83,7 @@ select.ag-input{cursor:pointer}
   $categories = $site->activeCategories ?? collect();
   $firstSlug  = $categories->first()?->slug ?? 'raw';
   $COLORS = ['#15803d','#1d6ed8','#7c3aed','#b45309','#0891b2','#be123c','#0f766e','#7e22ce'];
+  $canControl = auth()->user()->isAdmin() || auth()->user()->role !== 'observateur';
 @endphp
 
 {{-- TABS --}}
@@ -58,24 +96,24 @@ select.ag-input{cursor:pointer}
   @empty
     <button onclick="switchTab('raw',this)" data-tab="raw"
       style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:11px 16px;border:none;border-bottom:3px solid #1d6ed8;background:none;cursor:pointer;color:#1d6ed8;margin-bottom:-2px;white-space:nowrap;flex-shrink:0;outline:none">
-      📋 Data
+      Data
     </button>
   @endforelse
   <button onclick="switchTab('raw',this)" data-tab="raw"
     style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:11px 16px;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#64748b;margin-bottom:-2px;white-space:nowrap;flex-shrink:0;outline:none">
-    📋 Raw Data
+    Raw Data
   </button>
   <div style="margin-left:auto;display:flex">
     @if(($hasManual ?? false) && auth()->user()->role !== 'observateur')
     <button onclick="switchTab('manual-input',this)" data-tab="manual-input"
       style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:11px 16px;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#64748b;margin-bottom:-2px;white-space:nowrap;flex-shrink:0;outline:none">
-      ✏ Manual Input
+      Manual Input
     </button>
     @endif
     @if(auth()->user()->isAdmin() || (auth()->id() === $site->user_id && auth()->user()->role !== 'observateur'))
     <button onclick="switchTab('apikey',this)" data-tab="apikey"
       style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:11px 16px;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#64748b;margin-bottom:-2px;white-space:nowrap;flex-shrink:0;outline:none">
-      🔑 API Key
+      API Key
     </button>
     @endif
   </div>
@@ -86,8 +124,13 @@ select.ag-input{cursor:pointer}
 @php
   $params     = $category->activeParameters ?? collect();
   $dashParams = $params->where('show_on_dashboard', true)->values();
+  // Au-delà de ce délai sans donnée capteur, un paramètre est "No data"/"Stale".
+  $offlineThresholdMinutes = $category->offline_threshold_minutes ?? 5;
   $catColor   = $category->color ?? $COLORS[$catIndex % count($COLORS)];
   $readings = [];
+  $readingsAt = [];
+  $actuators = [];
+  $latestSensorAt = null;
   foreach ($params as $param) {
     if ($param->input_type === 'manual') {
       $latest = \App\Models\ManualReading::where('site_id', $site->id)
@@ -98,9 +141,20 @@ select.ag-input{cursor:pointer}
       $latest = \App\Models\SensorReading::where('site_id', $site->id)
         ->where('site_parameter_id', $param->id)
         ->latest('read_at')->first();
-      if ($latest) $readings[$param->slug] = $latest->value ?? $latest->value_text;
+      if ($latest) {
+        $readings[$param->slug] = $latest->value ?? $latest->value_text;
+        $readingsAt[$param->slug] = $latest->read_at;
+        if (!$latestSensorAt || $latest->read_at->gt($latestSensorAt)) {
+          $latestSensorAt = $latest->read_at;
+        }
+      }
+    }
+    if ($param->isControllable()) {
+      $actuators[$param->slug] = \App\Models\ActuatorCommand::where('site_parameter_id', $param->id)->first();
     }
   }
+
+  $isOnline = $latestSensorAt && $latestSensorAt->diffInMinutes(now()) <= $offlineThresholdMinutes;
 @endphp
 
 <div class="tab-panel {{ $catIndex === 0 ? 'active' : '' }}" id="tab-{{ $category->slug }}">
@@ -115,22 +169,104 @@ select.ag-input{cursor:pointer}
     @foreach($sensorDashParams as $param)
     @php
       $val = $readings[$param->slug] ?? null;
+      $paramAt = $readingsAt[$param->slug] ?? null;
+      $paramOnline = $paramAt && $paramAt->diffInMinutes(now()) <= $offlineThresholdMinutes;
       $isWarn = $val !== null && $param->warning_threshold && $val <= $param->warning_threshold;
+      $isSwitch = $param->data_type === 'switch';
       $isBool = $param->data_type === 'boolean';
-      $displayVal = $isBool ? ($val ? 'ON' : 'OFF') : ($val !== null ? (is_numeric($val) ? number_format((float)$val, $param->data_type === 'integer' ? 0 : 1) : $val) : '—');
+      // Pour un switch readonly, on affiche ON/OFF comme un boolean
+      $displayVal = ($isBool || $isSwitch) ? ($val ? 'ON' : 'OFF') : ($val !== null ? (is_numeric($val) ? number_format((float)$val, $param->data_type === 'integer' ? 0 : 1) : $val) : '—');
     @endphp
-    <div style="background:var(--surface);border:1px solid {{ $isWarn ? 'var(--amber-bd)' : 'var(--border)' }};border-radius:var(--r);box-shadow:var(--shadow);padding:12px 14px;min-width:110px;max-width:150px;flex:1">
-      <div style="font-family:'DM Mono',monospace;font-size:20px;font-weight:500;line-height:1.1;color:{{ $isWarn ? 'var(--amber)' : 'var(--text)' }}">
+
+    @if($isSwitch && $param->isControllable())
+      @php
+        $cmd = $actuators[$param->slug] ?? null;
+        $desired  = $cmd?->desired_state ?? 0;
+        $reported = $cmd?->reported_state;
+        $synced   = $cmd?->isSynced();
+      @endphp
+      <div class="switch-card">
+        <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px">{{ $param->name }}</div>
+        <div class="switch-row">
+          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:600;color:{{ $desired ? 'var(--green)' : 'var(--muted)' }}">
+            {{ $desired ? 'ON' : 'OFF' }}
+          </span>
+          <form method="POST" action="{{ route('actuators.toggle', [$site, $param]) }}" style="display:flex" onsubmit="return false">
+            @csrf
+            <input type="hidden" name="state" value="{{ $desired ? 0 : 1 }}">
+            <label class="toggle">
+              <input type="checkbox" {{ $desired ? 'checked' : '' }}
+                     {{ $canControl ? '' : 'disabled' }}
+                     onchange="openActuatorModal(this, '{{ addslashes($param->name) }}', {{ $desired ? 0 : 1 }}, {{ $isOnline ? 'true' : 'false' }})">
+              <span class="toggle-slider"></span>
+            </label>
+          </form>
+        </div>
+        <div style="margin-top:6px">
+          @if($synced === true && !$isOnline)
+            <span class="sync-pill sync-stale" title="Last report {{ $cmd->reported_at?->diffForHumans() }}">Stale</span>
+          @elseif($synced === true)
+            <span class="sync-pill sync-ok">Synced</span>
+          @elseif($synced === false)
+            <span class="sync-pill sync-pending">Pending…</span>
+          @else
+            <span class="sync-pill sync-unknown">No device report</span>
+          @endif
+        </div>
+      </div>
+    @elseif($isSwitch)
+      {{-- Readonly switch: ON/OFF state reported automatically by the sensor, toggle disabled --}}
+      <div class="switch-card">
+        <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px">{{ $param->name }}</div>
+        <div class="switch-row">
+          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:600;color:{{ $val === null ? 'var(--muted)' : ($val ? 'var(--green)' : 'var(--muted)') }}">
+            {{ $val === null ? '—' : ($val ? 'ON' : 'OFF') }}
+          </span>
+          <label class="toggle">
+            <input type="checkbox" {{ $val ? 'checked' : '' }} disabled>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div style="margin-top:6px" title="{{ $paramAt ? 'Last data: '.$paramAt->diffForHumans() : '' }}">
+          @if($val === null)
+            <span class="badge-nodata">No data</span>
+          @elseif(!$paramOnline)
+            <span class="sync-pill sync-stale">Stale ({{ $paramAt->diffForHumans(null, true) }})</span>
+          @else
+            <span class="sync-pill sync-unknown">Auto (sensor)</span>
+          @endif
+        </div>
+      </div>
+    @else
+    @php
+      $noData = $val === null;
+      $isStale = !$noData && !$paramOnline;
+      $cardBd = $noData ? 'var(--border)' : ($isWarn ? 'var(--amber-bd)' : ($isStale ? 'var(--amber-bd)' : 'var(--border)'));
+      $valColor = $noData ? 'var(--muted)' : ($isWarn ? 'var(--amber)' : ($isStale ? 'var(--amber)' : ($isSwitch && $val ? 'var(--green)' : 'var(--text)')));
+    @endphp
+    <div style="background:var(--surface);border:1px solid {{ $cardBd }};{{ $noData ? 'border-style:dashed;' : '' }}border-radius:var(--r);box-shadow:var(--shadow);padding:12px 14px;min-width:110px;max-width:150px;flex:1">
+      <div style="font-family:'DM Mono',monospace;font-size:20px;font-weight:500;line-height:1.1;color:{{ $valColor }}">
         {{ $displayVal }}
-        @if($param->unit && !$isBool)<span style="font-size:12px;color:var(--muted)"> {{ $param->unit }}</span>@endif
+        @if($param->unit && !$isBool && !$isSwitch)<span style="font-size:12px;color:var(--muted)"> {{ $param->unit }}</span>@endif
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $param->name }}</div>
-      <div style="margin-top:6px">
-        <span class="{{ $isWarn ? 'badge-warn-sm' : 'badge-nominal' }}">
-          {{ $isWarn ? 'Warning' : ($isBool ? ($val ? 'Open' : 'Closed') : 'Sensor') }}
-        </span>
+      <div style="margin-top:6px" title="{{ $paramAt ? 'Last data: '.$paramAt->diffForHumans() : '' }}">
+        @if($noData)
+          <span class="badge-nodata">No data</span>
+        @elseif($isStale)
+          <span class="badge-warn-sm">Stale ({{ $paramAt->diffForHumans(null, true) }})</span>
+        @elseif($isWarn)
+          <span class="badge-warn-sm">Warning</span>
+        @elseif($isBool)
+          <span class="badge-nominal">{{ $val ? 'Open' : 'Closed' }}</span>
+        @elseif($isSwitch)
+          <span class="badge-nominal">{{ $val ? 'ON' : 'OFF' }}</span>
+        @else
+          <span class="badge-nominal">Sensor</span>
+        @endif
       </div>
     </div>
+    @endif
     @endforeach
   </div>
   @endif
@@ -147,7 +283,7 @@ select.ag-input{cursor:pointer}
       <div style="font-size:11px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $param->name }}</div>
       <div style="margin-top:6px">
         <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:500;padding:2px 7px;border-radius:20px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bd)">
-          ✏ Manual
+          Manual
         </span>
       </div>
     </div>
@@ -158,11 +294,10 @@ select.ag-input{cursor:pointer}
   @php $allManualParams = $params->filter(fn($p) => ($p->input_type ?? 'sensor') === 'manual'); @endphp
   @if($allManualParams->count() > 0 && ($hasManual ?? false) && auth()->user()->role !== 'observateur')
   <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:8px;margin-bottom:14px;font-size:12px;color:var(--blue)">
-    <span>✏</span>
     <span>{{ $allManualParams->count() }} manual parameter(s) in this category.</span>
     <button onclick="switchTab('manual-input', document.querySelector('[data-tab=manual-input]'))"
             style="margin-left:auto;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:4px 12px;border:1px solid var(--blue-bd);border-radius:6px;background:#fff;color:var(--blue);cursor:pointer">
-      ✏ Go to Manual Input →
+      Go to Manual Input →
     </button>
   </div>
   @endif
@@ -224,7 +359,7 @@ select.ag-input{cursor:pointer}
     </div>
     @endif
   @else
-  @php $chartParams = $params->where('data_type','!=','string')->where('data_type','!=','boolean')->values(); @endphp
+  @php $chartParams = $params->where('data_type','!=','string')->where('data_type','!=','boolean')->where('data_type','!=','switch')->values(); @endphp
   @if($chartParams->count() > 0)
   <div class="chart-card chart-section">
     <div class="cc-head">
@@ -251,7 +386,7 @@ select.ag-input{cursor:pointer}
   </div>
   @if(session('success'))
   <div style="background:var(--green-bg);border:1px solid var(--green-bd);color:var(--green);border-radius:7px;padding:8px 14px;margin-bottom:16px;font-size:13px">
-    ✓ {{ session('success') }}
+    {{ session('success') }}
   </div>
   @endif
   @foreach($site->activeCategories as $manCat)
@@ -358,8 +493,8 @@ select.ag-input{cursor:pointer}
       @endforeach
     </div>
     <div style="display:flex;gap:8px">
-      <a href="/export/{{ $site->slug }}/all/csv?hours=1" id="btn-all-csv" class="btn" style="text-decoration:none">⬇ All CSV</a>
-      <a href="/export/{{ $site->slug }}/all/excel?hours=1" id="btn-all-excel" class="btn btn-blue" style="text-decoration:none">⬇ All Excel</a>
+      <a href="/export/{{ $site->slug }}/all/csv?hours=1" id="btn-all-csv" class="btn" style="text-decoration:none">All CSV</a>
+      <a href="/export/{{ $site->slug }}/all/excel?hours=1" id="btn-all-excel" class="btn btn-blue" style="text-decoration:none">All Excel</a>
     </div>
   </div>
 
@@ -436,6 +571,7 @@ select.ag-input{cursor:pointer}
         <tr><td>POST</td><td>/api/sensors/{{ $site->slug }}/{category}</td><td>Send sensor readings</td></tr>
         <tr><td>GET</td><td>/api/sensors/{{ $site->slug }}/{category}/latest</td><td>Get latest readings</td></tr>
         <tr><td>GET</td><td>/api/sensors/{{ $site->slug }}/status</td><td>Check all categories status</td></tr>
+        <tr><td>GET</td><td>/api/commands/{{ $site->slug }}/{category}</td><td>Get actuator commands (switches)</td></tr>
       </tbody>
     </table>
     <div style="margin-top:14px">
@@ -445,7 +581,7 @@ select.ag-input{cursor:pointer}
         <div style="font-size:12px;font-weight:600;margin-bottom:4px">{{ $cat->slug }}</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px">
           @foreach($cat->activeParameters->where('input_type','sensor') as $p)
-          <code style="font-family:'DM Mono',monospace;font-size:11px;background:var(--surface);padding:2px 7px;border-radius:4px;border:1px solid var(--border)">{{ $p->slug }}</code>
+          <code style="font-family:'DM Mono',monospace;font-size:11px;background:var(--surface);padding:2px 7px;border-radius:4px;border:1px solid var(--border);{{ $p->isControllable() ? 'border-color:var(--blue-bd);color:var(--blue)' : '' }}">{{ $p->slug }}{{ $p->isControllable() ? ' (switch)' : '' }}</code>
           @endforeach
         </div>
       </div>
@@ -454,6 +590,19 @@ select.ag-input{cursor:pointer}
   </div>
 </div>
 @endif
+
+{{-- Actuator confirm modal --}}
+<div class="actuator-modal-overlay" id="actuator-modal-overlay">
+  <div class="actuator-modal">
+    <div class="actuator-modal-icon" id="actuator-modal-icon">!</div>
+    <div class="actuator-modal-title" id="actuator-modal-title">Confirm action</div>
+    <div class="actuator-modal-text" id="actuator-modal-text"></div>
+    <div class="actuator-modal-actions">
+      <button class="actuator-modal-cancel" onclick="closeActuatorModal(false)">Cancel</button>
+      <button class="actuator-modal-confirm" id="actuator-modal-confirm" onclick="closeActuatorModal(true)">Confirm</button>
+    </div>
+  </div>
+</div>
 
 @endsection
 
@@ -485,6 +634,52 @@ function copyKey() {
   if (val) { navigator.clipboard.writeText(val); alert('API Key copied!'); }
 }
 
+let actuatorPendingCheckbox = null;
+
+function openActuatorModal(checkbox, paramName, newState, isOnline) {
+  actuatorPendingCheckbox = checkbox;
+
+  const isOn = newState === 1;
+  const icon    = document.getElementById('actuator-modal-icon');
+  const title   = document.getElementById('actuator-modal-title');
+  const text    = document.getElementById('actuator-modal-text');
+  const confirm = document.getElementById('actuator-modal-confirm');
+
+  icon.textContent = isOn ? 'ON' : 'OFF';
+  icon.className = 'actuator-modal-icon ' + (isOn ? 'on' : 'off');
+  title.textContent = (isOn ? 'Turn ON ' : 'Turn OFF ') + paramName + '?';
+
+  let msg = isOn
+    ? `The device will activate "${paramName}" on its next check-in.`
+    : `The device will deactivate "${paramName}" on its next check-in.`;
+
+  if (!isOnline) {
+    msg += ` Note: this device has not reported data recently and may be offline — the command will be applied once it reconnects.`;
+  }
+  text.textContent = msg;
+
+  confirm.textContent = isOn ? 'Turn ON' : 'Turn OFF';
+  confirm.className = 'actuator-modal-confirm' + (isOn ? '' : ' danger');
+
+  document.getElementById('actuator-modal-overlay').classList.add('open');
+}
+
+function closeActuatorModal(confirmed) {
+  const overlay = document.getElementById('actuator-modal-overlay');
+  overlay.classList.remove('open');
+
+  const checkbox = actuatorPendingCheckbox;
+  actuatorPendingCheckbox = null;
+  if (!checkbox) return;
+
+  if (confirmed) {
+    checkbox.closest('form').submit();
+  } else {
+    // Revert toggle to previous state
+    checkbox.checked = !checkbox.checked;
+  }
+}
+
 const baseOpts = {
   responsive:true, maintainAspectRatio:false,
   plugins:{legend:{display:false}},
@@ -496,7 +691,7 @@ const baseOpts = {
 
 @php
 $catChartsData = $categories->map(function($cat, $catIdx) use ($COLORS) {
-  $params = $cat->activeParameters->where('data_type','!=','string')->where('data_type','!=','boolean')->values();
+  $params = $cat->activeParameters->where('data_type','!=','string')->where('data_type','!=','boolean')->where('data_type','!=','switch')->values();
   return [
     'slug'   => $cat->slug,
     'dbData' => [],

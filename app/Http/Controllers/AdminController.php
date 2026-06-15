@@ -9,6 +9,10 @@ use App\Models\SiteParameter;
 use App\Models\SiteChart;
 use App\Models\SiteChartParameter;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\WelcomeUserMail;
+use App\Mail\AccountApprovedMail;
+use App\Mail\SiteAccessMail;
 
 class AdminController extends Controller
 {
@@ -32,6 +36,13 @@ class AdminController extends Controller
     public function approveUser(User $user)
     {
         $user->update(['status' => 'active']);
+
+        try {
+            Mail::to($user->email)->send(new AccountApprovedMail($user));
+        } catch (\Throwable $e) {
+            \Log::warning("Failed to send approval email to {$user->email}: " . $e->getMessage());
+        }
+
         return back()->with('success', "User {$user->name} approved.");
     }
 
@@ -168,17 +179,30 @@ class AdminController extends Controller
     public function storeParameter(Request $request, Site $site, SiteCategory $category)
     {
         $request->validate([
-            'name'      => 'required|string|max:100',
-            'unit'      => 'nullable|string|max:20',
-            'data_type' => 'required|in:float,integer,boolean,string',
+            'name'         => 'required|string|max:100',
+            'unit'         => 'nullable|string|max:20',
+            'data_type'    => 'required|in:float,integer,boolean,string,switch',
+            'control_type' => 'nullable|in:readonly,controllable',
         ]);
+
+        // control_type ne s'applique qu'aux paramètres data_type = switch.
+        // Pour tout autre type, on force 'readonly' (valeur par défaut, sans effet).
+        $controlType = $request->data_type === 'switch'
+            ? ($request->control_type ?? 'readonly')
+            : 'readonly';
+
+        // Les switches sont toujours pilotés par l'API (ESP32) : input_type = sensor.
+        $inputType = $request->data_type === 'switch'
+            ? 'sensor'
+            : ($request->input_type ?? 'sensor');
 
         $category->parameters()->create([
             'name'               => $request->name,
             'slug'               => \Str::slug($request->name, '_'),
             'unit'               => $request->unit,
             'data_type'          => $request->data_type,
-            'input_type'         => $request->input_type ?? 'sensor',
+            'input_type'         => $inputType,
+            'control_type'       => $controlType,
             'group_name'         => $request->group_name ?: null,
             'min_value'          => $request->min_value,
             'max_value'          => $request->max_value,
@@ -287,7 +311,7 @@ public function storeUser(Request $request)
         'status'       => 'required|in:active,pending,suspended',
     ]);
 
-    User::create([
+    $user = User::create([
         'name'         => $request->name,
         'email'        => $request->email,
         'password'     => bcrypt($request->password),
@@ -296,6 +320,12 @@ public function storeUser(Request $request)
         'country'      => $request->country,
         'status'       => $request->status,
     ]);
+
+    try {
+        Mail::to($user->email)->send(new WelcomeUserMail($user));
+    } catch (\Throwable $e) {
+        \Log::warning("Failed to send welcome email to {$user->email}: " . $e->getMessage());
+    }
 
     return redirect()->route('admin.users')
                      ->with('success', "User {$request->name} created successfully.");
@@ -320,6 +350,16 @@ public function addUserToSite(Request $request, Site $site)
     $site->users()->syncWithoutDetaching([
         $request->user_id => ['role' => $request->role]
     ]);
+
+    $user = User::find($request->user_id);
+    if ($user) {
+        try {
+            Mail::to($user->email)->send(new SiteAccessMail($user, $site, $request->role));
+        } catch (\Throwable $e) {
+            \Log::warning("Failed to send site access email to {$user->email}: " . $e->getMessage());
+        }
+    }
+
     return back()->with('success', 'User added to site successfully.');
 }
 
@@ -330,22 +370,43 @@ public function removeUserFromSite(Site $site, User $user)
 }
 public function updateCategory(Request $request, Site $site, SiteCategory $category)
 {
+    $request->validate([
+        'offline_threshold_minutes' => 'nullable|integer|min:1',
+    ]);
+
     $category->update([
-        'name'        => $request->name,
-        'icon'        => $request->icon,
-        'color'       => $request->color,
-        'description' => $request->description,
+        'name'                      => $request->name,
+        'icon'                      => $request->icon,
+        'color'                     => $request->color,
+        'description'               => $request->description,
+        'offline_threshold_minutes' => $request->offline_threshold_minutes ?: 5,
     ]);
     return back()->with('success', "Category {$category->name} updated.");
 }
 
 public function updateParameter(Request $request, Site $site, SiteCategory $category, SiteParameter $parameter)
 {
+    $request->validate([
+        'data_type'    => 'required|in:float,integer,boolean,string,switch',
+        'control_type' => 'nullable|in:readonly,controllable',
+    ]);
+
+    // control_type ne s'applique qu'aux paramètres data_type = switch.
+    $controlType = $request->data_type === 'switch'
+        ? ($request->control_type ?? 'readonly')
+        : 'readonly';
+
+    // Les switches sont toujours pilotés par l'API (ESP32) : input_type = sensor.
+    $inputType = $request->data_type === 'switch'
+        ? 'sensor'
+        : $request->input_type;
+
     $parameter->update([
         'name'              => $request->name,
         'unit'              => $request->unit,
         'data_type'         => $request->data_type,
-        'input_type'        => $request->input_type,
+        'input_type'        => $inputType,
+        'control_type'      => $controlType,
         'group_name'        => $request->group_name,
         'warning_threshold' => $request->warning_threshold,
         'show_on_dashboard' => $request->boolean('show_on_dashboard'),

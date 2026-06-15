@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class SiteParameter extends Model
 {
     protected $fillable = [
-        'site_category_id', 'name', 'slug', 'unit', 'data_type', 'input_type', 'group_name',
+        'site_category_id', 'name', 'slug', 'unit', 'data_type', 'input_type', 'control_type', 'group_name',
         'min_value', 'max_value', 'warning_threshold', 'critical_threshold',
         'description', 'is_active', 'show_on_dashboard', 'sort_order',
     ];
@@ -27,6 +27,16 @@ class SiteParameter extends Model
     public function isSensor() { return $this->input_type === 'sensor'; }
     public function isManual() { return $this->input_type === 'manual'; }
 
+    public function actuatorCommand() { return $this->hasOne(ActuatorCommand::class); }
+
+    /**
+     * True if this parameter is a remotely controllable switch (relay, valve, pump, fan...).
+     */
+    public function isControllable(): bool
+    {
+        return ($this->control_type ?? 'readonly') === 'controllable';
+    }
+
     public static function defaultsFor(string $categorySlug): array
     {
         return match($categorySlug) {
@@ -39,15 +49,17 @@ class SiteParameter extends Model
             'water' => [
                 ['name'=>'Borehole level',    'slug'=>'borehole_level',    'unit'=>'m',    'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true,  'warning_threshold'=>5],
                 ['name'=>'Tank fill level',   'slug'=>'tank_fill_level',   'unit'=>'%',    'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true,  'warning_threshold'=>20],
+                ['name'=>'Water pump',        'slug'=>'water_pump',        'unit'=>null,   'data_type'=>'switch',  'input_type'=>'sensor', 'control_type'=>'controllable', 'show_on_dashboard'=>true],
             ],
             'irrigation' => [
                 ['name'=>'Flow rate',         'slug'=>'flow_rate',         'unit'=>'L/min','data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
                 ['name'=>'Zone A moisture',   'slug'=>'zone_a_moisture',   'unit'=>'%',    'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
                 ['name'=>'Zone B moisture',   'slug'=>'zone_b_moisture',   'unit'=>'%',    'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
                 ['name'=>'Zone C moisture',   'slug'=>'zone_c_moisture',   'unit'=>'%',    'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
-                ['name'=>'Valve 1',           'slug'=>'valve_1',           'unit'=>null,   'data_type'=>'integer', 'input_type'=>'sensor', 'show_on_dashboard'=>true],
-                ['name'=>'Valve 2',           'slug'=>'valve_2',           'unit'=>null,   'data_type'=>'integer', 'input_type'=>'sensor', 'show_on_dashboard'=>true],
-                ['name'=>'Valve 3',           'slug'=>'valve_3',           'unit'=>null,   'data_type'=>'integer', 'input_type'=>'sensor', 'show_on_dashboard'=>true],
+                ['name'=>'Valve 1',           'slug'=>'valve_1',           'unit'=>null,   'data_type'=>'switch',  'input_type'=>'sensor', 'control_type'=>'controllable', 'show_on_dashboard'=>true],
+                ['name'=>'Valve 2',           'slug'=>'valve_2',           'unit'=>null,   'data_type'=>'switch',  'input_type'=>'sensor', 'control_type'=>'controllable', 'show_on_dashboard'=>true],
+                ['name'=>'Valve 3',           'slug'=>'valve_3',           'unit'=>null,   'data_type'=>'switch',  'input_type'=>'sensor', 'control_type'=>'controllable', 'show_on_dashboard'=>true],
+                ['name'=>'Cooling fan',       'slug'=>'cooling_fan',       'unit'=>null,   'data_type'=>'switch',  'input_type'=>'sensor', 'control_type'=>'controllable', 'show_on_dashboard'=>true],
             ],
             'weather' => [
                 ['name'=>'Temperature',       'slug'=>'temperature',       'unit'=>'°C',   'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],

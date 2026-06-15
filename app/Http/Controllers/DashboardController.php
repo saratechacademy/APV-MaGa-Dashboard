@@ -94,7 +94,7 @@ class DashboardController extends Controller
         $datasets = [];
 
         foreach ($parameters as $param) {
-            if (in_array($param->data_type, ['string', 'boolean'])) continue;
+            if (in_array($param->data_type, ['string', 'boolean', 'switch'])) continue;
 
             if ($param->input_type === 'sensor') {
                 $rows = \App\Models\SensorReading::where('site_id', $site->id)

@@ -66,8 +66,8 @@
     <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)">
       <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Language</div>
       <div class="lang-toggle">
-        <button class="lang-btn {{ $lang==='fr' ? 'active' : '' }}" onclick="setLang('fr')">🇫🇷 FR</button>
-        <button class="lang-btn {{ $lang==='en' ? 'active' : '' }}" onclick="setLang('en')">🇬🇧 EN</button>
+        <button class="lang-btn {{ $lang==='fr' ? 'active' : '' }}" onclick="setLang('fr')">FR</button>
+        <button class="lang-btn {{ $lang==='en' ? 'active' : '' }}" onclick="setLang('en')">EN</button>
       </div>
     </div>
 
@@ -75,31 +75,31 @@
     <div class="help-nav" id="help-nav">
       @php
         $sections = $lang === 'fr' ? [
-          ['1', '📘', 'Introduction'],
-          ['2', '🔐', 'Connexion & Rôles'],
-          ['3', '🏠', 'Dashboard'],
-          ['4', '📊', 'Détail d\'un Site'],
-          ['5', '✏', 'Saisie Manuelle'],
-          ['6', '📋', 'Raw Data & Export'],
-          ['7', '⚡', 'API ESP32'],
-          ['8', '⚙', 'Administration'],
-          ['9', '❓', 'FAQ'],
+          ['1', 'Introduction'],
+          ['2', 'Connexion & Rôles'],
+          ['3', 'Dashboard'],
+          ['4', 'Détail d\'un Site'],
+          ['5', 'Saisie Manuelle'],
+          ['6', 'Raw Data & Export'],
+          ['7', 'API ESP32'],
+          ['8', 'Administration'],
+          ['9', 'FAQ'],
         ] : [
-          ['1', '📘', 'Introduction'],
-          ['2', '🔐', 'Login & Roles'],
-          ['3', '🏠', 'Dashboard'],
-          ['4', '📊', 'Site Detail'],
-          ['5', '✏', 'Manual Input'],
-          ['6', '📋', 'Raw Data & Export'],
-          ['7', '⚡', 'ESP32 API'],
-          ['8', '⚙', 'Administration'],
-          ['9', '❓', 'FAQ'],
+          ['1', 'Introduction'],
+          ['2', 'Login & Roles'],
+          ['3', 'Dashboard'],
+          ['4', 'Site Detail'],
+          ['5', 'Manual Input'],
+          ['6', 'Raw Data & Export'],
+          ['7', 'ESP32 API'],
+          ['8', 'Administration'],
+          ['9', 'FAQ'],
         ];
       @endphp
       @foreach($sections as $i => $s)
       <button class="help-nav-item {{ $i===0 ? 'active' : '' }}" onclick="showSection({{ $i }}, this)">
         <span class="nav-num">{{ $s[0] }}</span>
-        <span>{{ $s[1] }} {{ $s[2] }}</span>
+        <span>{{ $s[1] }}</span>
       </button>
       @endforeach
     </div>
@@ -112,7 +112,7 @@
       <a href="/docs/apv-maga-manual-{{ $lang }}.pdf" target="_blank"
          style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);text-decoration:none;font-size:12px;font-weight:500;transition:all .15s"
          onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='var(--bg)'">
-        📄 {{ $lang==='fr' ? 'Manuel PDF' : 'PDF Manual' }} ({{ strtoupper($lang) }})
+        {{ $lang==='fr' ? 'Manuel PDF' : 'PDF Manual' }} ({{ strtoupper($lang) }})
       </a>
     </div>
   </div>
@@ -123,7 +123,7 @@
     {{-- SECTION 1 — INTRODUCTION --}}
     <div class="help-section active" id="section-0">
       <div class="help-card">
-        <div class="help-h1">📘 {{ $lang==='fr' ? 'Introduction à APV-MaGa' : 'Introduction to APV-MaGa' }}</div>
+        <div class="help-h1">{{ $lang==='fr' ? 'Introduction à APV-MaGa' : 'Introduction to APV-MaGa' }}</div>
         <p class="help-p">
           @if($lang==='fr')
           APV-MaGa est un tableau de bord de monitoring développé par <strong>Saratech</strong> pour la collecte
@@ -153,27 +153,26 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           @php
           $features = $lang==='fr' ? [
-            ['⚡', 'Temps réel', 'Données actualisées automatiquement toutes les 30 secondes'],
-            ['📡', 'API dynamique', 'Endpoint REST pour chaque catégorie de capteur'],
-            ['📊', 'Graphiques', 'Visualisation Chart.js avec filtre de période'],
-            ['✏', 'Saisie manuelle', 'Formulaires structurés pour les données terrain'],
-            ['📋', 'Export', 'CSV et Excel par catégorie ou site complet'],
-            ['👥', 'Multi-utilisateurs', 'Rôles Admin, Agent, Observateur'],
+            ['Temps réel', 'Données actualisées automatiquement toutes les 30 secondes'],
+            ['API dynamique', 'Endpoint REST pour chaque catégorie de capteur'],
+            ['Graphiques', 'Visualisation Chart.js avec filtre de période'],
+            ['Saisie manuelle', 'Formulaires structurés pour les données terrain'],
+            ['Export', 'CSV et Excel par catégorie ou site complet'],
+            ['Multi-utilisateurs', 'Rôles Admin, Agent, Observateur'],
           ] : [
-            ['⚡', 'Real-time', 'Data automatically refreshed every 30 seconds'],
-            ['📡', 'Dynamic API', 'REST endpoint for each sensor category'],
-            ['📊', 'Charts', 'Chart.js visualization with period filter'],
-            ['✏', 'Manual entry', 'Structured forms for field data'],
-            ['📋', 'Export', 'CSV and Excel by category or full site'],
-            ['👥', 'Multi-user', 'Admin, Agent, Observer roles'],
+            ['Real-time', 'Data automatically refreshed every 30 seconds'],
+            ['Dynamic API', 'REST endpoint for each sensor category'],
+            ['Charts', 'Chart.js visualization with period filter'],
+            ['Manual entry', 'Structured forms for field data'],
+            ['Export', 'CSV and Excel by category or full site'],
+            ['Multi-user', 'Admin, Agent, Observer roles'],
           ];
           @endphp
           @foreach($features as $f)
           <div style="display:flex;gap:10px;padding:12px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
-            <span style="font-size:20px;flex-shrink:0">{{ $f[0] }}</span>
             <div>
-              <div style="font-size:12px;font-weight:600;margin-bottom:2px">{{ $f[1] }}</div>
-              <div style="font-size:11px;color:var(--muted)">{{ $f[2] }}</div>
+              <div style="font-size:12px;font-weight:600;margin-bottom:2px">{{ $f[0] }}</div>
+              <div style="font-size:11px;color:var(--muted)">{{ $f[1] }}</div>
             </div>
           </div>
           @endforeach
@@ -195,7 +194,7 @@
     {{-- SECTION 2 — LOGIN & ROLES --}}
     <div class="help-section" id="section-1">
       <div class="help-card">
-        <div class="help-h1">🔐 {{ $lang==='fr' ? 'Connexion & Rôles' : 'Login & Roles' }}</div>
+        <div class="help-h1">{{ $lang==='fr' ? 'Connexion & Rôles' : 'Login & Roles' }}</div>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Connexion' : 'Login' }}</div>
         <p class="help-p">{{ $lang==='fr' ? 'Accédez à la plateforme via votre navigateur et entrez vos identifiants.' : 'Access the platform via your browser and enter your credentials.' }}</p>
@@ -203,7 +202,6 @@
 
         <div class="help-h2">{{ $lang==='fr' ? 'Rôles utilisateurs' : 'User Roles' }}</div>
         <div class="role-card" style="background:var(--blue-bg);border-color:var(--blue-bd)">
-          <div class="role-icon" style="background:var(--blue)">👑</div>
           <div>
             <div style="font-size:13px;font-weight:600;color:var(--blue)">Admin</div>
             <div style="font-size:12px;color:var(--muted);margin-top:2px">
@@ -212,7 +210,6 @@
           </div>
         </div>
         <div class="role-card" style="background:var(--green-bg);border-color:var(--green-bd)">
-          <div class="role-icon" style="background:var(--green)">🧑‍🌾</div>
           <div>
             <div style="font-size:13px;font-weight:600;color:var(--green)">Agent</div>
             <div style="font-size:12px;color:var(--muted);margin-top:2px">
@@ -221,7 +218,6 @@
           </div>
         </div>
         <div class="role-card">
-          <div class="role-icon" style="background:var(--bg);border:1px solid var(--border)">👁</div>
           <div>
             <div style="font-size:13px;font-weight:600">{{ $lang==='fr' ? 'Observateur' : 'Observer' }}</div>
             <div style="font-size:12px;color:var(--muted);margin-top:2px">
@@ -235,7 +231,7 @@
     {{-- SECTION 3 — DASHBOARD --}}
     <div class="help-section" id="section-2">
       <div class="help-card">
-        <div class="help-h1">🏠 {{ $lang==='fr' ? 'Dashboard — Vue d\'ensemble' : 'Dashboard — Overview' }}</div>
+        <div class="help-h1">{{ $lang==='fr' ? 'Dashboard — Vue d\'ensemble' : 'Dashboard — Overview' }}</div>
         <p class="help-p">{{ $lang==='fr' ? 'La page d\'accueil affiche tous vos sites avec leurs indicateurs clés en temps réel.' : 'The home page displays all your sites with their real-time key indicators.' }}</p>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Éléments de l\'interface' : 'Interface Elements' }}</div>
@@ -244,13 +240,13 @@
           <tbody>
             @php
             $ui = $lang==='fr' ? [
-              ['Sidebar', 'Liste des sites avec statut coloré (● vert=actif, ● orange=alerte)'],
+              ['Sidebar', 'Liste des sites avec statut coloré (vert=actif, orange=alerte)'],
               ['Topbar', 'Titre, horloge UTC, filtre période 1H/6H/24H/7D, boutons CSV/Excel'],
               ['Carte de site', 'KPIs : puissance solaire, niveau forage, remplissage cuve, température'],
               ['Sparkline', 'Mini-graphique de la dernière heure'],
               ['Cross-Site Trends', 'Graphiques comparatifs entre tous les sites'],
             ] : [
-              ['Sidebar', 'Sites list with colored status (● green=active, ● orange=alert)'],
+              ['Sidebar', 'Sites list with colored status (green=active, orange=alert)'],
               ['Topbar', 'Title, UTC clock, period filter 1H/6H/24H/7D, CSV/Excel buttons'],
               ['Site Card', 'KPIs: solar power, borehole level, tank fill, temperature'],
               ['Sparkline', 'Mini-chart of the last hour'],
@@ -264,7 +260,6 @@
         </table>
 
         <div class="help-tip">
-          <span>💡</span>
           <span>{{ $lang==='fr' ? 'Les données se rafraîchissent automatiquement toutes les 30 secondes sans recharger la page.' : 'Data refreshes automatically every 30 seconds without reloading the page.' }}</span>
         </div>
       </div>
@@ -273,21 +268,21 @@
     {{-- SECTION 4 — SITE DETAIL --}}
     <div class="help-section" id="section-3">
       <div class="help-card">
-        <div class="help-h1">📊 {{ $lang==='fr' ? 'Détail d\'un Site' : 'Site Detail' }}</div>
+        <div class="help-h1">{{ $lang==='fr' ? 'Détail d\'un Site' : 'Site Detail' }}</div>
         <p class="help-p">{{ $lang==='fr' ? 'Cliquez sur un site dans la sidebar pour accéder à son tableau de bord détaillé.' : 'Click on a site in the sidebar to access its detailed dashboard.' }}</p>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Onglets disponibles' : 'Available Tabs' }}</div>
         @php
         $tabs = $lang==='fr' ? [
-          ['🌞 Solar, 💧 Water...', 'Onglets par catégorie configurée dans l\'Admin Panel'],
-          ['📋 Raw Data', 'Données brutes groupées par horodatage avec filtre et pagination'],
-          ['✏ Manual Input', 'Formulaires de saisie manuelle (si paramètres manuels configurés)'],
-          ['🔑 API Key', 'Clé API et documentation des endpoints pour ESP32'],
+          ['Solar, Water...', 'Onglets par catégorie configurée dans l\'Admin Panel'],
+          ['Raw Data', 'Données brutes groupées par horodatage avec filtre et pagination'],
+          ['Manual Input', 'Formulaires de saisie manuelle (si paramètres manuels configurés)'],
+          ['API Key', 'Clé API et documentation des endpoints pour ESP32'],
         ] : [
-          ['🌞 Solar, 💧 Water...', 'Tabs per category configured in the Admin Panel'],
-          ['📋 Raw Data', 'Raw data grouped by timestamp with filter and pagination'],
-          ['✏ Manual Input', 'Manual entry forms (if manual parameters configured)'],
-          ['🔑 API Key', 'API key and endpoint documentation for ESP32'],
+          ['Solar, Water...', 'Tabs per category configured in the Admin Panel'],
+          ['Raw Data', 'Raw data grouped by timestamp with filter and pagination'],
+          ['Manual Input', 'Manual entry forms (if manual parameters configured)'],
+          ['API Key', 'API key and endpoint documentation for ESP32'],
         ];
         @endphp
         <table class="help-table">
@@ -302,13 +297,124 @@
         <div class="help-h2">KPI Cards</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <div style="padding:12px;border-radius:8px;border:1px solid var(--green-bd);background:var(--green-bg)">
-            <div style="font-size:11px;font-weight:600;color:var(--green);margin-bottom:4px">● Sensor</div>
+            <div style="font-size:11px;font-weight:600;color:var(--green);margin-bottom:4px">Sensor</div>
             <div style="font-size:12px;color:var(--muted)">{{ $lang==='fr' ? 'Dernière valeur reçue du capteur ESP32' : 'Latest value received from ESP32 sensor' }}</div>
           </div>
           <div style="padding:12px;border-radius:8px;border:1px solid var(--blue-bd);background:var(--blue-bg)">
-            <div style="font-size:11px;font-weight:600;color:var(--blue);margin-bottom:4px">✏ Manual</div>
+            <div style="font-size:11px;font-weight:600;color:var(--blue);margin-bottom:4px">Manual</div>
             <div style="font-size:12px;color:var(--muted)">{{ $lang==='fr' ? 'Dernière valeur saisie manuellement' : 'Latest manually entered value' }}</div>
           </div>
+        </div>
+
+        <div class="help-h2">{{ $lang==='fr' ? 'Statut des données (No data / Stale)' : 'Data status (No data / Stale)' }}</div>
+        <p class="help-p">
+          @if($lang==='fr')
+          Chaque carte indique aussi la fraîcheur de la donnée. Si un paramètre n'a jamais reçu de donnée, ou si la dernière donnée est trop ancienne, un badge le signale directement sur la carte :
+          @else
+          Each card also shows how fresh its data is. If a parameter has never received data, or if the latest data is too old, a badge appears directly on the card:
+          @endif
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="padding:12px;border-radius:8px;border:1px dashed var(--border);background:var(--bg)">
+            <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px">No data</div>
+            <div style="font-size:12px;color:var(--muted)">{{ $lang==='fr' ? 'Aucune donnée n\'a jamais été reçue pour ce paramètre' : 'No data has ever been received for this parameter' }}</div>
+          </div>
+          <div style="padding:12px;border-radius:8px;border:1px solid var(--amber-bd);background:var(--amber-bg)">
+            <div style="font-size:11px;font-weight:600;color:var(--amber);margin-bottom:4px">Stale (Xm)</div>
+            <div style="font-size:12px;color:var(--muted)">{{ $lang==='fr' ? 'Une donnée existe mais date de plus longtemps que le seuil configuré (5 min par défaut)' : 'Data exists but is older than the configured threshold (5 min by default)' }}</div>
+          </div>
+        </div>
+        <div class="help-tip">
+          <span>{{ $lang==='fr' ? 'Survolez le badge pour voir l\'horodatage exact de la dernière donnée reçue ("Last data: X ago"). Le seuil "Stale" est configurable par catégorie dans Admin Panel → Categories → Edit.' : 'Hover the badge to see the exact timestamp of the latest data ("Last data: X ago"). The "Stale" threshold is configurable per category in Admin Panel → Categories → Edit.' }}</span>
+        </div>
+
+        <div class="help-h2">{{ $lang==='fr' ? 'Switches & actionneurs (vannes, pompes, ventilateurs)' : 'Switches & actuators (valves, pumps, fans)' }}</div>
+        <p class="help-p">
+          @if($lang==='fr')
+          Certains paramètres (type <span class="help-code-inline">Switch</span>) s'affichent comme un interrupteur ON/OFF au lieu d'une valeur numérique. Il existe deux variantes :
+          @else
+          Some parameters (type <span class="help-code-inline">Switch</span>) display as an ON/OFF toggle instead of a numeric value. There are two variants:
+          @endif
+        </p>
+
+        <div class="role-card" style="background:var(--bg)">
+          <div>
+            <div style="font-size:13px;font-weight:600">{{ $lang==='fr' ? 'Lecture seule (readonly)' : 'Read-only' }}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px">
+              @if($lang==='fr')
+              L'interrupteur est grisé et <strong>non cliquable</strong>. Son état ON/OFF reflète automatiquement la dernière donnée envoyée par le capteur. Badge : <strong>"Auto (sensor)"</strong>.
+              @else
+              The toggle is grayed out and <strong>not clickable</strong>. Its ON/OFF state automatically reflects the latest data sent by the sensor. Badge: <strong>"Auto (sensor)"</strong>.
+              @endif
+            </div>
+          </div>
+        </div>
+        <div class="role-card" style="background:var(--blue-bg);border-color:var(--blue-bd)">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--blue)">{{ $lang==='fr' ? 'Pilotable (controllable)' : 'Controllable' }}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px">
+              @if($lang==='fr')
+              L'interrupteur est <strong>cliquable</strong> (Admin et Agent uniquement — pas Observateur). Cliquer ouvre une fenêtre de confirmation, puis envoie une commande à l'appareil.
+              @else
+              The toggle is <strong>clickable</strong> (Admin and Agent only — not Observer). Clicking opens a confirmation popup, then sends a command to the device.
+              @endif
+            </div>
+          </div>
+        </div>
+
+        <div class="help-h3">{{ $lang==='fr' ? 'Activer/désactiver un switch pilotable' : 'Turning a controllable switch on/off' }}</div>
+        <ol class="help-steps">
+          @php
+          $switchSteps = $lang==='fr' ? [
+            'Cliquez sur l\'interrupteur sur la carte du paramètre (ex: "Valve 1")',
+            'Une fenêtre de confirmation s\'affiche : "Turn ON/OFF [nom] ?"',
+            'Cliquez sur <strong>Confirm</strong> pour envoyer la commande, ou <strong>Cancel</strong> pour annuler (l\'interrupteur revient à son état précédent)',
+            'L\'appareil applique le changement à sa prochaine connexion (quelques secondes à quelques minutes selon l\'appareil)',
+          ] : [
+            'Click the toggle on the parameter\'s card (e.g. "Valve 1")',
+            'A confirmation popup appears: "Turn ON/OFF [name]?"',
+            'Click <strong>Confirm</strong> to send the command, or <strong>Cancel</strong> to abort (the toggle reverts to its previous state)',
+            'The device applies the change on its next check-in (a few seconds to a few minutes depending on the device)',
+          ];
+          @endphp
+          @foreach($switchSteps as $step)
+          <li>{!! $step !!}</li>
+          @endforeach
+        </ol>
+
+        <div class="help-h3">{{ $lang==='fr' ? 'Indicateurs de synchronisation' : 'Sync indicators' }}</div>
+        <p class="help-p">
+          @if($lang==='fr')
+          Sous chaque switch pilotable, un badge indique si la commande a bien été appliquée par l'appareil :
+          @else
+          Below each controllable switch, a badge shows whether the command was actually applied by the device:
+          @endif
+        </p>
+        <table class="help-table">
+          <thead><tr><th>{{ $lang==='fr' ? 'Badge' : 'Badge' }}</th><th>{{ $lang==='fr' ? 'Signification' : 'Meaning' }}</th></tr></thead>
+          <tbody>
+            @php
+            $sync = $lang==='fr' ? [
+              ['Synced', 'L\'appareil a confirmé le même état que celui demandé.'],
+              ['Pending…', 'La commande a été envoyée mais l\'appareil n\'a pas encore confirmé — attendez sa prochaine connexion.'],
+              ['No device report', 'Aucune donnée n\'a jamais été reçue de l\'appareil pour ce paramètre — impossible de confirmer.'],
+              ['Stale', 'L\'état confirmé correspond à la commande, mais le dernier rapport date de trop longtemps — l\'appareil est peut-être hors ligne.'],
+            ] : [
+              ['Synced', 'The device confirmed the same state that was requested.'],
+              ['Pending…', 'The command was sent but the device hasn\'t confirmed yet — wait for its next check-in.'],
+              ['No device report', 'No data has ever been received from the device for this parameter — cannot confirm.'],
+              ['Stale', 'The confirmed state matches the command, but the last report is too old — the device may be offline.'],
+            ];
+            @endphp
+            @foreach($sync as $row)
+            <tr><td><span class="help-code-inline">{{ $row[0] }}</span></td><td>{{ $row[1] }}</td></tr>
+            @endforeach
+          </tbody>
+        </table>
+
+        <div class="help-warn">
+          <span>⚠</span>
+          <span>{{ $lang==='fr' ? 'Si l\'appareil semble hors ligne, la fenêtre de confirmation affiche un avertissement avant d\'envoyer la commande — celle-ci sera quand même mise en attente et appliquée dès la reconnexion.' : 'If the device appears offline, the confirmation popup shows a warning before sending the command — it will still be queued and applied once the device reconnects.' }}</span>
         </div>
       </div>
     </div>
@@ -316,14 +422,14 @@
     {{-- SECTION 5 — MANUAL INPUT --}}
     <div class="help-section" id="section-4">
       <div class="help-card">
-        <div class="help-h1">✏ {{ $lang==='fr' ? 'Saisie Manuelle' : 'Manual Input' }}</div>
+        <div class="help-h1">{{ $lang==='fr' ? 'Saisie Manuelle' : 'Manual Input' }}</div>
         <p class="help-p">{{ $lang==='fr' ? 'Permet aux agents de saisir des données de terrain qui ne proviennent pas de capteurs automatiques.' : 'Allows agents to enter field data that does not come from automatic sensors.' }}</p>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Comment saisir des données' : 'How to Enter Data' }}</div>
         <ol class="help-steps">
           @php
           $steps = $lang==='fr' ? [
-            'Cliquez sur l\'onglet <span class="help-code-inline">✏ Manual Input</span> dans la barre d\'onglets',
+            'Cliquez sur l\'onglet <span class="help-code-inline">Manual Input</span> dans la barre d\'onglets',
             'Sélectionnez la <strong>date</strong> de la mesure terrain',
             'Entrez les <strong>valeurs numériques</strong> pour chaque paramètre',
             'Ajoutez des <strong>notes</strong> optionnelles pour contextualiser',
@@ -331,7 +437,7 @@
             'La page se recharge automatiquement sur <strong>Manual Input</strong>',
             'Les <strong>KPI cards</strong> se mettent à jour immédiatement',
           ] : [
-            'Click the <span class="help-code-inline">✏ Manual Input</span> tab in the tab bar',
+            'Click the <span class="help-code-inline">Manual Input</span> tab in the tab bar',
             'Select the <strong>date</strong> of the field measurement',
             'Enter <strong>numeric values</strong> for each parameter',
             'Add optional <strong>notes</strong> for context',
@@ -355,7 +461,7 @@
     {{-- SECTION 6 — RAW DATA & EXPORT --}}
     <div class="help-section" id="section-5">
       <div class="help-card">
-        <div class="help-h1">📋 Raw Data & Export</div>
+        <div class="help-h1">Raw Data & Export</div>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Fonctionnalités Raw Data' : 'Raw Data Features' }}</div>
         <table class="help-table">
@@ -365,13 +471,13 @@
             $rd = $lang==='fr' ? [
               ['Filtre période', '1H, 6H, 24H, 7D, 30D — sans recharger la page'],
               ['Groupement', '1 ligne par horodatage d\'envoi capteur'],
-              ['Badge type', '📡 Sensor (vert) ou ✏ Manual (bleu)'],
+              ['Badge type', 'Sensor (vert) ou Manual (bleu)'],
               ['Pagination', '20 enregistrements par page'],
               ['Export par catégorie', 'CSV ou XLS pour chaque catégorie'],
             ] : [
               ['Period filter', '1H, 6H, 24H, 7D, 30D — without reloading the page'],
               ['Grouping', '1 row per sensor send timestamp'],
-              ['Type badge', '📡 Sensor (green) or ✏ Manual (blue)'],
+              ['Type badge', 'Sensor (green) or Manual (blue)'],
               ['Pagination', '20 records per page'],
               ['Per-category export', 'CSV or XLS for each category'],
             ];
@@ -386,15 +492,15 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           @php
           $exports = $lang==='fr' ? [
-            ['⬇ CSV', 'Catégorie', 'Données d\'une catégorie au format CSV (UTF-8)'],
-            ['⬇ XLS', 'Catégorie', 'Données d\'une catégorie en Excel (headers colorés)'],
-            ['⬇ All CSV', 'Site', 'Toutes les catégories en un fichier CSV'],
-            ['⬇ All Excel', 'Site', 'Toutes les catégories en feuilles Excel séparées'],
+            ['CSV', 'Catégorie', 'Données d\'une catégorie au format CSV (UTF-8)'],
+            ['XLS', 'Catégorie', 'Données d\'une catégorie en Excel (headers colorés)'],
+            ['All CSV', 'Site', 'Toutes les catégories en un fichier CSV'],
+            ['All Excel', 'Site', 'Toutes les catégories en feuilles Excel séparées'],
           ] : [
-            ['⬇ CSV', 'Category', 'Category data as CSV (UTF-8)'],
-            ['⬇ XLS', 'Category', 'Category data as Excel (colored headers)'],
-            ['⬇ All CSV', 'Site', 'All categories in one CSV file'],
-            ['⬇ All Excel', 'Site', 'All categories as separate Excel sheets'],
+            ['CSV', 'Category', 'Category data as CSV (UTF-8)'],
+            ['XLS', 'Category', 'Category data as Excel (colored headers)'],
+            ['All CSV', 'Site', 'All categories in one CSV file'],
+            ['All Excel', 'Site', 'All categories as separate Excel sheets'],
           ];
           @endphp
           @foreach($exports as $e)
@@ -429,12 +535,12 @@
               ['Filtre groupe', 'Dropdown pour afficher un groupe spécifique (ex: Yield Data, Plant Measurements)'],
               ['Compteur', 'Nombre d\'enregistrements pour le groupe sélectionné'],
               ['Colonnes dynamiques', 'Les colonnes correspondent aux paramètres du groupe sélectionné'],
-              ['⬇ CSV / XLS', 'Exporte uniquement les données du groupe actuellement sélectionné'],
+              ['CSV / XLS', 'Exporte uniquement les données du groupe actuellement sélectionné'],
             ] : [
               ['Group filter', 'Dropdown to display a specific group (e.g. Yield Data, Plant Measurements)'],
               ['Counter', 'Number of records for the selected group'],
               ['Dynamic columns', 'Columns correspond to the parameters of the selected group'],
-              ['⬇ CSV / XLS', 'Exports only the data for the currently selected group'],
+              ['CSV / XLS', 'Exports only the data for the currently selected group'],
             ];
             @endphp
             @foreach($sr as $row)
@@ -449,7 +555,7 @@
     {{-- SECTION 7 — API ESP32 --}}
     <div class="help-section" id="section-6">
       <div class="help-card">
-        <div class="help-h1">⚡ {{ $lang==='fr' ? 'API ESP32' : 'ESP32 API' }}</div>
+        <div class="help-h1">{{ $lang==='fr' ? 'API ESP32' : 'ESP32 API' }}</div>
         <p class="help-p">{{ $lang==='fr' ? 'API REST dynamique pour connecter vos capteurs ESP32/Arduino.' : 'Dynamic REST API for connecting your ESP32/Arduino sensors.' }}</p>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Endpoints disponibles' : 'Available Endpoints' }}</div>
@@ -468,6 +574,21 @@
             <span class="method-badge method-get">GET</span>
             <span class="help-code-inline">/api/sensors/{site}/status</span>
             <span style="color:var(--muted);font-size:11px">{{ $lang==='fr' ? 'Statut global' : 'Global status' }}</span>
+          </div>
+          <div class="endpoint-row">
+            <span class="method-badge method-get">GET</span>
+            <span class="help-code-inline">/api/commands/{site}/{category}</span>
+            <span style="color:var(--muted);font-size:11px">{{ $lang==='fr' ? 'Commandes des switches (vannes, pompes...)' : 'Switch commands (valves, pumps...)' }}</span>
+          </div>
+          <div class="endpoint-row">
+            <span class="method-badge method-get">GET</span>
+            <span class="help-code-inline">/api/sensors/{site}/{category}/history</span>
+            <span style="color:var(--muted);font-size:11px">{{ $lang==='fr' ? 'Données brutes sur une période (recherche)' : 'Raw data over a date range (research)' }}</span>
+          </div>
+          <div class="endpoint-row">
+            <span class="method-badge method-get">GET</span>
+            <span class="help-code-inline">/api/sensors/{site}/{category}/stats</span>
+            <span style="color:var(--muted);font-size:11px">{{ $lang==='fr' ? 'Statistiques agrégées (moyenne, min, max...)' : 'Aggregated statistics (average, min, max...)' }}</span>
           </div>
         </div>
 
@@ -496,9 +617,73 @@ String body = "{\"solar_output\":" + String(power) +
 int code = http.POST(body);
 http.end();</div>
 
+        <div class="help-h2">{{ $lang==='fr' ? 'Commandes des switches (vannes, pompes...)' : 'Switch commands (valves, pumps...)' }}</div>
+        <p class="help-p">
+          @if($lang==='fr')
+          Si la catégorie contient des paramètres <span class="help-code-inline">data_type=switch</span> et <span class="help-code-inline">control_type=controllable</span> (ex: <span class="help-code-inline">valve_1</span>), l'ESP32 doit interroger cet endpoint régulièrement pour savoir quel état appliquer :
+          @else
+          If the category contains <span class="help-code-inline">data_type=switch</span> and <span class="help-code-inline">control_type=controllable</span> parameters (e.g. <span class="help-code-inline">valve_1</span>), the ESP32 must poll this endpoint regularly to know which state to apply:
+          @endif
+        </p>
+        <div class="help-code">GET /api/commands/fass-agrivoltaic-site/irrigation
+X-API-Key: apv-xxxxxxxxxxxxxxxxxx
+
+{
+  "commands": {
+    "valve_1": { "desired_state": 1, "reported_state": 0 }
+  }
+}</div>
+        <p class="help-p">
+          @if($lang==='fr')
+          L'ESP32 active le relais selon <span class="help-code-inline">desired_state</span>, puis renvoie son état réel (<span class="help-code-inline">valve_1: 1</span>) dans le prochain <span class="help-code-inline">POST /api/sensors/...</span> — cela met automatiquement à jour <span class="help-code-inline">reported_state</span>.
+          @else
+          The ESP32 sets the relay according to <span class="help-code-inline">desired_state</span>, then sends its real state (<span class="help-code-inline">valve_1: 1</span>) in the next <span class="help-code-inline">POST /api/sensors/...</span> — this automatically updates <span class="help-code-inline">reported_state</span>.
+          @endif
+        </p>
+
         <div class="help-tip">
-          <span>💡</span>
           <span>{{ $lang==='fr' ? 'Les slugs des paramètres doivent correspondre exactement à ceux configurés dans Admin Panel → Parameters.' : 'Parameter slugs must exactly match those configured in Admin Panel → Parameters.' }}</span>
+        </div>
+
+        <div class="help-h2">{{ $lang==='fr' ? 'Recherche & Analyse — données historiques' : 'Research & Analysis — historical data' }}</div>
+        <p class="help-p">
+          @if($lang==='fr')
+          Pour les chercheurs et analyses statistiques, deux endpoints permettent d'extraire des données sur une période, sans passer par l'export CSV du dashboard.
+          @else
+          For researchers and statistical analysis, two endpoints let you extract data over a date range without using the dashboard's CSV export.
+          @endif
+        </p>
+
+        <div class="help-h3">{{ $lang==='fr' ? 'Données brutes sur une période' : 'Raw data over a date range' }}</div>
+        <div class="help-code">GET /api/sensors/{site}/{category}/history?from=2026-05-01&to=2026-05-08
+X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
+        <p class="help-p">
+          @if($lang==='fr')
+          Retourne chaque lecture (1 ligne = 1 paramètre + 1 horodatage), idéal pour importer dans Python/pandas ou R. Maximum 90 jours par requête ; au-delà, utilisez les statistiques agrégées ci-dessous.
+          @else
+          Returns each reading (1 row = 1 parameter + 1 timestamp), ideal for importing into Python/pandas or R. Maximum 90 days per request; beyond that, use the aggregated statistics below.
+          @endif
+        </p>
+
+        <div class="help-h3">{{ $lang==='fr' ? 'Statistiques agrégées (tendances long terme)' : 'Aggregated statistics (long-term trends)' }}</div>
+        <div class="help-code">GET /api/sensors/{site}/{category}/stats?period=day&from=2026-05-01&to=2026-05-31
+X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
+        <p class="help-p">
+          @if($lang==='fr')
+          Retourne, pour chaque paramètre numérique, la moyenne/min/max/somme regroupées par <span class="help-code-inline">period</span> (<span class="help-code-inline">hour</span>, <span class="help-code-inline">day</span>, <span class="help-code-inline">week</span> ou <span class="help-code-inline">month</span>). Pratique pour visualiser une tendance sur plusieurs mois sans télécharger toutes les lectures.
+          @else
+          Returns, for each numeric parameter, the average/min/max/sum grouped by <span class="help-code-inline">period</span> (<span class="help-code-inline">hour</span>, <span class="help-code-inline">day</span>, <span class="help-code-inline">week</span>, or <span class="help-code-inline">month</span>). Useful for visualizing a trend over several months without downloading every reading.
+          @endif
+        </p>
+
+        <div class="help-tip">
+          <span>
+            @if($lang==='fr')
+            Ajoutez <span class="help-code-inline">&params=solar_output,solar_irradiance</span> pour limiter aux paramètres voulus (sinon tous les paramètres sont inclus).
+            @else
+            Add <span class="help-code-inline">&params=solar_output,solar_irradiance</span> to limit to specific parameters (otherwise all parameters are included).
+            @endif
+          </span>
         </div>
       </div>
     </div>
@@ -506,9 +691,9 @@ http.end();</div>
     {{-- SECTION 8 — ADMINISTRATION --}}
     <div class="help-section" id="section-7">
       <div class="help-card">
-        <div class="help-h1">⚙ Administration</div>
+        <div class="help-h1">Administration</div>
         <div class="help-warn">
-          <span>🔒</span>
+          <span>⚠</span>
           <span>{{ $lang==='fr' ? 'Cette section est réservée aux administrateurs.' : 'This section is for administrators only.' }}</span>
         </div>
 
@@ -520,16 +705,16 @@ http.end();</div>
             @php
             $ua = $lang==='fr' ? [
               ['+ Add User', 'Créer un utilisateur avec rôle, statut et pays'],
-              ['✓ Approve', 'Approuver un utilisateur en attente d\'activation'],
-              ['⏸ Suspend', 'Suspendre temporairement l\'accès'],
-              ['▶ Activate', 'Réactiver un utilisateur suspendu'],
-              ['✕ Delete', 'Supprimer définitivement (protégé pour admin)'],
+              ['Approve', 'Approuver un utilisateur en attente d\'activation'],
+              ['Suspend', 'Suspendre temporairement l\'accès'],
+              ['Activate', 'Réactiver un utilisateur suspendu'],
+              ['Delete', 'Supprimer définitivement (protégé pour admin)'],
             ] : [
               ['+ Add User', 'Create a user with role, status and country'],
-              ['✓ Approve', 'Approve a user pending activation'],
-              ['⏸ Suspend', 'Temporarily suspend access'],
-              ['▶ Activate', 'Reactivate a suspended user'],
-              ['✕ Delete', 'Permanently delete (protected for admin)'],
+              ['Approve', 'Approve a user pending activation'],
+              ['Suspend', 'Temporarily suspend access'],
+              ['Activate', 'Reactivate a suspended user'],
+              ['Delete', 'Permanently delete (protected for admin)'],
             ];
             @endphp
             @foreach($ua as $row)
@@ -541,10 +726,10 @@ http.end();</div>
         <div class="help-h2">{{ $lang==='fr' ? '8.2 Utilisateurs par Site' : '8.2 Site Users' }}</div>
         <p class="help-p">
           @if($lang==='fr')
-          Admin Panel → Sites → <span class="help-code-inline">👥 Users</span> — Gérez les utilisateurs de chaque site.
+          Admin Panel → Sites → <span class="help-code-inline">Users</span> — Gérez les utilisateurs de chaque site.
           Un utilisateur peut être assigné à plusieurs sites avec des rôles différents.
           @else
-          Admin Panel → Sites → <span class="help-code-inline">👥 Users</span> — Manage users for each site.
+          Admin Panel → Sites → <span class="help-code-inline">Users</span> — Manage users for each site.
           A user can be assigned to multiple sites with different roles.
           @endif
         </p>
@@ -576,7 +761,6 @@ http.end();</div>
         <div class="help-h2">{{ $lang==='fr' ? '8.3 Gestion des Sites' : '8.3 Site Management' }}</div>
         <p class="help-p">{{ $lang==='fr' ? 'Admin Panel → Sites → + New Site' : 'Admin Panel → Sites → + New Site' }}</p>
         <div class="help-tip">
-          <span>💡</span>
           <span>{{ $lang==='fr' ? 'Cochez "Auto-create all categories" pour générer automatiquement Solar, Water, Irrigation, Weather et Agriculture avec leurs paramètres par défaut.' : 'Check "Auto-create all categories" to automatically generate Solar, Water, Irrigation, Weather and Agriculture with their default parameters.' }}</span>
         </div>
 
@@ -591,6 +775,16 @@ http.end();</div>
           @endif
         </p>
 
+        <div class="help-tip">
+          <span>
+            @if($lang==='fr')
+            <strong>Seuil "No data" / "Stale" :</strong> en cliquant sur <span class="help-code-inline">Edit</span> sur une catégorie, vous pouvez régler le champ <strong>"Offline threshold (minutes)"</strong> (5 par défaut). Si un capteur de cette catégorie n'envoie rien pendant plus longtemps que ce délai, ses paramètres affichent "Stale" sur le dashboard.
+            @else
+            <strong>"No data" / "Stale" threshold:</strong> click <span class="help-code-inline">Edit</span> on a category to set the <strong>"Offline threshold (minutes)"</strong> field (5 by default). If a sensor in this category sends nothing for longer than this delay, its parameters show "Stale" on the dashboard.
+            @endif
+          </span>
+        </div>
+
         <table class="help-table">
           <thead><tr>
             <th>{{ $lang==='fr' ? 'Champ' : 'Field' }}</th>
@@ -603,8 +797,9 @@ http.end();</div>
               ['Nom', 'Texte libre', 'Nom affiché sur les KPI cards et les graphiques (ex: Température ambiante)'],
               ['Slug', 'snake_case unique', 'Identifiant utilisé dans l\'API ESP32 comme clé JSON (ex: temperature_c). Doit être unique dans la catégorie.'],
               ['Unité', 'Texte libre', 'Unité de mesure affichée (ex: °C, kW, %, m, kg). Apparait dans les KPI cards et les exports.'],
-              ['Type de saisie', 'sensor / manual', 'sensor = données envoyées automatiquement par ESP32 via API. manual = données saisies manuellement par un agent.'],
-              ['Type de données', 'float / integer / string / boolean', 'float = nombre décimal (ex: 4.2 kW). integer = nombre entier (ex: 12 plants). string = texte (ex: Bon état). boolean = Oui/Non (ex: valve ouverte).'],
+              ['Type de saisie', 'sensor / manual', 'sensor = données envoyées automatiquement par ESP32 via API. manual = données saisies manuellement par un agent. Forcé à sensor si Type de données = Switch.'],
+              ['Type de données', 'float / integer / string / boolean / switch', 'float = nombre décimal (ex: 4.2 kW). integer = nombre entier (ex: 12 plants). string = texte (ex: Bon état). boolean = Oui/Non. switch = interrupteur ON/OFF (vanne, pompe, ventilateur...).'],
+              ['Control type', 'readonly / controllable', 'Visible uniquement si Type de données = Switch. readonly = affichage automatique selon le capteur. controllable = interrupteur cliquable depuis le dashboard.'],
               ['Afficher sur dashboard', 'Oui / Non', 'Si activé, le paramètre apparait comme KPI card en haut de l\'onglet avec sa dernière valeur.'],
               ['Afficher sur graphique', 'Oui / Non', 'Si activé, le paramètre est inclus dans les graphiques de tendance de la catégorie.'],
               ['Seuil alerte', 'Nombre', 'Si la valeur est inférieure ou égale à ce seuil, la KPI card passe en orange avec le badge Warning.'],
@@ -613,8 +808,9 @@ http.end();</div>
               ['Name', 'Free text', 'Name displayed on KPI cards and charts (e.g. Ambient Temperature)'],
               ['Slug', 'Unique snake_case', 'Identifier used in ESP32 API as JSON key (e.g. temperature_c). Must be unique within the category.'],
               ['Unit', 'Free text', 'Measurement unit displayed (e.g. °C, kW, %, m, kg). Appears on KPI cards and exports.'],
-              ['Input type', 'sensor / manual', 'sensor = data sent automatically by ESP32 via API. manual = data entered manually by a field agent.'],
-              ['Data type', 'float / integer / string / boolean', 'float = decimal number (e.g. 4.2 kW). integer = whole number (e.g. 12 plants). string = text (e.g. Good condition). boolean = Yes/No (e.g. valve open).'],
+              ['Input type', 'sensor / manual', 'sensor = data sent automatically by ESP32 via API. manual = data entered manually by a field agent. Forced to sensor if Data type = Switch.'],
+              ['Data type', 'float / integer / string / boolean / switch', 'float = decimal number (e.g. 4.2 kW). integer = whole number (e.g. 12 plants). string = text (e.g. Good condition). boolean = Yes/No. switch = ON/OFF toggle (valve, pump, fan...).'],
+              ['Control type', 'readonly / controllable', 'Only visible if Data type = Switch. readonly = display automatically follows the sensor. controllable = clickable toggle from the dashboard.'],
               ['Show on dashboard', 'Yes / No', 'If enabled, the parameter appears as a KPI card at the top of the tab with its latest value.'],
               ['Show on chart', 'Yes / No', 'If enabled, the parameter is included in the category trend charts.'],
               ['Warning threshold', 'Number', 'If the value is less than or equal to this threshold, the KPI card turns orange with the Warning badge.'],
@@ -632,7 +828,6 @@ http.end();</div>
         </table>
 
         <div class="help-tip">
-          <span>💡</span>
           <span>
             @if($lang==='fr')
             <strong>Exemple :</strong> Pour mesurer la taille des plantes manuellement : Slug = <span class="help-code-inline">plant_height</span>, Type = <span class="help-code-inline">float</span>, Unité = <span class="help-code-inline">cm</span>, Input type = <span class="help-code-inline">manual</span>, Groupe = <span class="help-code-inline">Mesures végétales</span>.
@@ -645,7 +840,7 @@ http.end();</div>
         <div class="help-h2">{{ $lang==='fr' ? '8.4 Création des Graphiques' : '8.4 Creating Charts' }}</div>
         <p class="help-p">
           @if($lang==='fr')
-          Les graphiques sont configurés par l\'administrateur pour chaque catégorie. Ils permettent de visualiser l\'évolution des paramètres dans le temps.
+          Les graphiques sont configurés par l'administrateur pour chaque catégorie. Ils permettent de visualiser l'évolution des paramètres dans le temps.
           <br>Chemin : <span class="help-code-inline">Admin Panel → Sites → Categories → Charts → + Add Chart</span>
           @else
           Charts are configured by the administrator for each category. They allow visualizing parameter evolution over time.
@@ -727,7 +922,6 @@ http.end();</div>
         </table>
 
         <div class="help-tip">
-          <span>💡</span>
           <span>
             @if($lang==='fr')
             <strong>Exemple :</strong> Graphique "Production & Irradiance" — ajoutez <span class="help-code-inline">solar_output</span> (bleu, axe gauche, remplissage activé) et <span class="help-code-inline">solar_irradiance</span> (orange, axe droit, pointillé), type line, largeur full.
@@ -753,7 +947,7 @@ http.end();</div>
     {{-- SECTION 9 — FAQ --}}
     <div class="help-section" id="section-8">
       <div class="help-card">
-        <div class="help-h1">❓ FAQ</div>
+        <div class="help-h1">FAQ</div>
 
         @php
         $faqs = $lang==='fr' ? [
@@ -774,7 +968,13 @@ http.end();</div>
           ['La table Saved Records ne s\'affiche pas ?',
            'La table apparait uniquement si la catégorie a des paramètres manuels avec un Nom de groupe. Configurez le champ Nom de groupe dans Admin Panel → Parameters.'],
           ['Comment assigner plusieurs utilisateurs à un site ?',
-           'Admin Panel → Sites → bouton 👥 Users → Add User. Vous pouvez assigner autant d\'utilisateurs que nécessaire avec des rôles différents.'],
+           'Admin Panel → Sites → bouton Users → Add User. Vous pouvez assigner autant d\'utilisateurs que nécessaire avec des rôles différents.'],
+          ['J\'ai cliqué sur un switch mais rien ne se passe sur le terrain ?',
+           'La commande est enregistrée immédiatement, mais l\'appareil ne l\'applique qu\'à sa prochaine connexion (badge "Pending…"). Si le badge reste "Pending…" longtemps ou passe à "No device report"/"Stale", l\'appareil est probablement hors ligne ou mal configuré.'],
+          ['Quelle est la différence entre un switch "readonly" et "controllable" ?',
+           'readonly = simple voyant ON/OFF, non cliquable, reflète l\'état du capteur. controllable = interrupteur cliquable qui envoie une commande à l\'appareil, avec un badge de synchronisation (Synced/Pending/Stale).'],
+          ['Une carte affiche "No data" ou "Stale", que faire ?',
+           '"No data" = aucune donnée n\'a jamais été reçue pour ce paramètre — vérifiez le slug et la clé API. "Stale" = une donnée existe mais est plus ancienne que le seuil configuré — vérifiez que l\'ESP32 envoie bien à l\'intervalle attendu, ou ajustez le seuil dans Admin Panel → Categories → Edit.'],
         ] : [
           ['My sensor sends data but it doesn\'t appear?',
            'Check that category and parameter slugs match exactly those in the Admin Panel. The API key must be for the correct site. Check the site\'s API Key tab.'],
@@ -793,7 +993,13 @@ http.end();</div>
           ['The Saved Records table does not appear?',
            'The Saved Records table only appears if the category has manual parameters with a group name. Configure the Group name field in Admin Panel → Parameters.'],
           ['How to assign multiple users to a site?',
-           'Admin Panel → Sites → click the 👥 Users button for the site → Add User. You can assign as many users as needed with different roles (Agent or Observer).'],
+           'Admin Panel → Sites → click the Users button for the site → Add User. You can assign as many users as needed with different roles (Agent or Observer).'],
+          ['I clicked a switch but nothing happens on site?',
+           'The command is saved immediately, but the device only applies it on its next check-in ("Pending…" badge). If the badge stays "Pending…" for a long time or shows "No device report"/"Stale", the device is likely offline or misconfigured.'],
+          ['What\'s the difference between a "readonly" and "controllable" switch?',
+           'readonly = simple ON/OFF indicator, not clickable, reflects the sensor\'s state. controllable = clickable toggle that sends a command to the device, with a sync badge (Synced/Pending/Stale).'],
+          ['A card shows "No data" or "Stale" — what should I do?',
+           '"No data" = no data has ever been received for this parameter — check the slug and API key. "Stale" = data exists but is older than the configured threshold — check that the ESP32 sends at the expected interval, or adjust the threshold in Admin Panel → Categories → Edit.'],
         ];
         @endphp
 

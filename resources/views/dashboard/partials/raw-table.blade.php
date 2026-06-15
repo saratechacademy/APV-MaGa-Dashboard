@@ -35,7 +35,11 @@
           <td style="white-space:nowrap;color:var(--muted);font-size:11px">{{ $timestamp }}</td>
           @foreach($sensorParams as $p)
           @php $r = $rows->firstWhere('site_parameter_id', $p->id); @endphp
-          <td>{{ $r ? ($r->value ?? $r->value_text ?? '—') : '—' }}</td>
+          @if($p->data_type === 'switch')
+            <td>{{ $r ? (($r->value ?? $r->value_text) ? 'ON' : 'OFF') : '—' }}</td>
+          @else
+            <td>{{ $r ? ($r->value ?? $r->value_text ?? '—') : '—' }}</td>
+          @endif
           @endforeach
           @foreach($manualParams->where('data_type','!=','string') as $p)
           <td>—</td>

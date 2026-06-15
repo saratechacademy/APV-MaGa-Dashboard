@@ -6,6 +6,7 @@ use App\Http\Controllers\SiteController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ManualReadingController;
+use App\Http\Controllers\ActuatorController;
 use App\Http\Controllers\ExportController;
 
 Route::get('/', fn() => redirect()->route('login'));
@@ -16,10 +17,12 @@ Route::middleware(['auth', 'check.status'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/site/{site}', [DashboardController::class, 'site'])->name('dashboard.site');
+    Route::post('/dashboard/site/{site}/actuators/{parameter}/toggle', [ActuatorController::class, 'toggle'])->name('actuators.toggle');
     Route::get('/dashboard/{site}/{category}/chart-data', [DashboardController::class, 'chartData'])->name('dashboard.chart-data');
     Route::get('/dashboard/sites/{site}/raw-data', [DashboardController::class, 'rawData'])->name('dashboard.raw-data');
 
     Route::get('/help', fn() => view('help'))->name('help');
+    Route::get('/developer-docs', fn() => view('docs'))->name('docs');
 
     // Export
     Route::get('/export/{site}/{category}/group/{group}/csv',   [ExportController::class, 'groupCsv'])->name('export.group.csv');

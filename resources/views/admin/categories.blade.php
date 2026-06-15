@@ -107,6 +107,14 @@
             <label class="form-label">Description</label>
             <input type="text" name="description" class="form-input" value="{{ $cat->description }}" placeholder="Optional">
           </div>
+          <div class="form-field" style="margin-bottom:10px;max-width:220px">
+            <label class="form-label">Offline threshold (minutes)</label>
+            <input type="number" name="offline_threshold_minutes" class="form-input" min="1" step="1"
+                   value="{{ $cat->offline_threshold_minutes ?? 5 }}">
+            <span style="font-size:11px;color:var(--muted);margin-top:2px;display:block">
+              A parameter shows "No data"/"Stale" if no sensor reading arrives within this delay.
+            </span>
+          </div>
           <div style="display:flex;gap:8px">
             <button type="submit" class="btn btn-blue" style="font-size:12px;padding:5px 14px">💾 Save</button>
             <button type="button" class="btn" style="font-size:12px;padding:5px 14px" onclick="toggleEditForm('edit-{{ $cat->id }}')">Cancel</button>

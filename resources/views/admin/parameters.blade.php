@@ -75,6 +75,11 @@
             @if($param->show_on_dashboard)
               <span style="font-size:10px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd);padding:2px 7px;border-radius:4px">Dashboard</span>
             @endif
+            @if($param->data_type === 'switch')
+              <span style="font-size:10px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bd);padding:2px 7px;border-radius:4px">
+                {{ $param->isControllable() ? 'Controllable' : 'Switch (readonly)' }}
+              </span>
+            @endif
           </div>
           <div class="param-meta">
             slug: {{ $param->slug }}
@@ -118,20 +123,33 @@
           <div class="form-grid2">
             <div class="form-field">
               <label class="form-label">Data Type</label>
-              <select name="data_type" class="form-input">
+              <select name="data_type" class="form-input" onchange="onDataTypeChange(this, 'ctrl-{{ $param->id }}', 'input-type-{{ $param->id }}')">
                 <option value="float"   {{ $param->data_type==='float'   ? 'selected' : '' }}>Float</option>
                 <option value="integer" {{ $param->data_type==='integer' ? 'selected' : '' }}>Integer</option>
                 <option value="boolean" {{ $param->data_type==='boolean' ? 'selected' : '' }}>Boolean</option>
                 <option value="string"  {{ $param->data_type==='string'  ? 'selected' : '' }}>String</option>
+                <option value="switch"  {{ $param->data_type==='switch'  ? 'selected' : '' }}>Switch (ON/OFF)</option>
               </select>
             </div>
             <div class="form-field">
               <label class="form-label">Input Type</label>
-              <select name="input_type" class="form-input">
+              <select name="input_type" id="input-type-{{ $param->id }}" class="form-input" {{ $param->data_type==='switch' ? 'disabled' : '' }}>
                 <option value="sensor" {{ ($param->input_type ?? 'sensor')==='sensor' ? 'selected' : '' }}>📡 Sensor</option>
                 <option value="manual" {{ ($param->input_type ?? 'sensor')==='manual' ? 'selected' : '' }}>✏ Manual</option>
               </select>
+              <input type="hidden" name="input_type" value="sensor" id="input-type-{{ $param->id }}-hidden" {{ $param->data_type==='switch' ? '' : 'disabled' }}>
+              <span id="input-type-{{ $param->id }}-note" style="font-size:11px;color:var(--muted);margin-top:2px;display:{{ $param->data_type==='switch' ? 'block' : 'none' }}">Switches are always API-driven (sensor).</span>
             </div>
+          </div>
+          <div class="form-field" id="ctrl-{{ $param->id }}" style="display:{{ $param->data_type==='switch' ? 'block' : 'none' }}">
+            <label class="form-label">Control Type</label>
+            <select name="control_type" class="form-input">
+              <option value="readonly"     {{ ($param->control_type ?? 'readonly')==='readonly'     ? 'selected' : '' }}>Readonly (status display only)</option>
+              <option value="controllable" {{ ($param->control_type ?? 'readonly')==='controllable' ? 'selected' : '' }}>Controllable (toggle ON/OFF from dashboard)</option>
+            </select>
+            <span style="font-size:11px;color:var(--muted);margin-top:2px;display:block">
+              Controllable switches show an ON/OFF toggle on the dashboard and let agents send remote commands (e.g. valves, pumps, fans).
+            </span>
           </div>
           <div class="form-grid2">
             <div class="form-field">
@@ -182,20 +200,33 @@
           </div>
           <div class="form-field">
             <label class="form-label">Data Type *</label>
-            <select name="data_type" class="form-input" required>
+            <select name="data_type" class="form-input" required onchange="onDataTypeChange(this, 'ctrl-new', 'input-type-new')">
               <option value="float">Float (decimal)</option>
               <option value="integer">Integer</option>
               <option value="boolean">Boolean (on/off)</option>
               <option value="string">String (text)</option>
+              <option value="switch">Switch (ON/OFF)</option>
             </select>
           </div>
         </div>
         <div class="form-field">
           <label class="form-label">Input Type *</label>
-          <select name="input_type" class="form-input" required>
+          <select name="input_type" id="input-type-new" class="form-input" required>
             <option value="sensor">📡 Sensor — automatic via API / ESP32</option>
             <option value="manual">✏ Manual — entered by agent</option>
           </select>
+          <input type="hidden" name="input_type" value="sensor" id="input-type-new-hidden" disabled>
+          <span id="input-type-new-note" style="font-size:11px;color:var(--muted);margin-top:2px;display:none">Switches are always API-driven (sensor).</span>
+        </div>
+        <div class="form-field" id="ctrl-new" style="display:none">
+          <label class="form-label">Control Type</label>
+          <select name="control_type" class="form-input">
+            <option value="readonly">Readonly (status display only)</option>
+            <option value="controllable">Controllable (toggle ON/OFF from dashboard)</option>
+          </select>
+          <span style="font-size:11px;color:var(--muted);margin-top:2px;display:block">
+            Controllable switches show an ON/OFF toggle on the dashboard and let agents send remote commands (e.g. valves, pumps, fans).
+          </span>
         </div>
         <div class="form-field">
           <label class="form-label">Group Name</label>
@@ -271,6 +302,28 @@
 function toggleEditForm(id) {
   const el = document.getElementById(id);
   if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+
+function toggleControlType(select, ctrlId) {
+  const el = document.getElementById(ctrlId);
+  if (!el) return;
+  el.style.display = select.value === 'switch' ? 'block' : 'none';
+}
+
+function onDataTypeChange(select, ctrlId, inputTypeBaseId) {
+  const isSwitch = select.value === 'switch';
+
+  // Show/hide Control Type field
+  toggleControlType(select, ctrlId);
+
+  // Input Type: force "sensor" (disabled) when Switch is selected
+  const inputSelect = document.getElementById(inputTypeBaseId);
+  const inputHidden = document.getElementById(inputTypeBaseId + '-hidden');
+  const note        = document.getElementById(inputTypeBaseId + '-note');
+
+  if (inputSelect) inputSelect.disabled = isSwitch;
+  if (inputHidden) inputHidden.disabled = !isSwitch;
+  if (note) note.style.display = isSwitch ? 'block' : 'none';
 }
 </script>
 @endpush
