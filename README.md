@@ -1,37 +1,41 @@
 # APV-MaGa Dashboard
-
-**Agrivoltaic monitoring platform for solar and agricultural data collection, visualization and management across multiple field sites in West Africa.**
-
-**Plateforme de monitoring agrivoltaïque pour la collecte, visualisation et gestion des données solaires et agricoles sur plusieurs sites de terrain en Afrique de l'Ouest.**
+**Agrivoltaic monitoring platform for solar, water, irrigation, weather and agricultural data collection, visualization and management across multiple field sites in West Africa.**
+**Plateforme de monitoring agrivoltaïque pour la collecte, visualisation et gestion des données solaires, hydriques, d'irrigation, météorologiques et agricoles sur plusieurs sites de terrain en Afrique de l'Ouest.**
 
 ---
 
 ## Overview
 
-APV-MaGa is a full-stack web application built with Laravel for monitoring agrivoltaic installations. It enables real-time data collection from IoT sensors and modules, manual data entry by field agents, and dynamic visualization through configurable dashboards.
+APV-MaGa is a full-stack web application built with Laravel for monitoring agrivoltaic installations. It enables real-time data collection from IoT sensors and modules, manual data entry by field agents, remote control of field equipment (valves, pumps, cooling fans), and dynamic visualization through configurable dashboards.
+
+Developed by **Saratech**, funded by **UNU (United Nations University)**.
 
 ---
 
 ## Features
 
-- **Multi-site monitoring** — manage multiple agrivoltaic field sites
+- **Multi-site monitoring** — manage multiple agrivoltaic field sites, each with its own categories, parameters, charts and API key
 - **Real-time sensor data** — receive data from IoT sensors and modules via REST API
-- **Manual data entry** — field agents can input agricultural data (crop yield, plant health, etc.)
-- **Dynamic dashboards** — configurable charts per site and category
-- **Role-based access** — admin, site manager, and field agent roles
-- **Data export** — export readings to CSV or Excel
-- **Bilingual interface** — French and English support
-- **Responsive design** — works on desktop and mobile
+- **Remote actuator control** — toggle switches (valves, pumps, cooling fans) remotely, with sync status tracking (Synced / Pending / No device report / Stale)
+- **Offline detection** — configurable per-category threshold; dashboards flag parameters as "No data" or "Stale" when devices stop reporting
+- **Manual data entry** — field agents can input agricultural, water, irrigation or weather readings (crop yield, plant health, tank levels, etc.), with saved records and category-specific CSV/Excel export
+- **Dynamic dashboards** — configurable charts per site and category, with 1H / 6H / 24H / 7D time ranges
+- **Historical data & statistics API** — query raw history or aggregated stats (avg/min/max/sum/count) over hour/day/week/month periods
+- **Role-based access** — admin, site manager, agent, and observer roles, with per-site assignment
+- **Email notifications** — account creation, approval, site access, and password reset emails (branded)
+- **Data export** — export readings to CSV or Excel, per site or per category
+- **Bilingual interface** — French and English support, including `/help` and `/docs` pages
+- **Responsive design** — works on desktop and mobile, with off-canvas navigation
 
 ---
 
 ## Tech Stack
 
-- **Backend**: Laravel 11 (PHP 8.2)
-- **Database**: MySQL
+- **Backend**: Laravel 12 (PHP 8.2)
+- **Database**: MariaDB (production) / SQLite (local development)
 - **Frontend**: Blade templates, Chart.js
 - **Hardware**: IoT sensors and modules (ESP32, Arduino, Raspberry Pi, etc.)
-- **Deployment**: VPS (AAPanel / Nginx)
+- **Deployment**: Hostinger VPS (AAPanel / Nginx)
 
 ---
 
@@ -40,21 +44,27 @@ APV-MaGa is a full-stack web application built with Laravel for monitoring agriv
 ```
 app/
 ├── Http/Controllers/
-│   ├── Api/           # IoT sensor API endpoints
-│   ├── Admin/         # Admin panel controllers
-│   └── Dashboard/     # Dashboard controllers
-├── Models/            # Eloquent models
-└── Exports/           # CSV/Excel export classes
+│   ├── Api/                  # IoT sensor & actuator API endpoints
+│   ├── ActuatorController.php
+│   ├── AdminController.php
+│   └── DashboardController.php
+├── Mail/                      # Transactional email classes (welcome, approval, site access, reset password)
+├── Models/                     # Eloquent models (Site, SiteCategory, SiteParameter, SensorReading,
+│                                # ManualReading, ActuatorCommand, User, ...)
+└── Exports/                    # CSV/Excel export classes
 
 resources/views/
-├── admin/             # Admin panel views
-├── dashboard/         # Dashboard views
-├── layouts/           # Layout templates
-└── help.blade.php     # User manual (FR/EN)
+├── admin/                       # Admin panel views
+├── auth/                        # Login, register, forgot/reset password
+├── dashboard/                   # Dashboard & site detail views
+├── emails/                      # Email layout & templates
+├── layouts/                     # Layout templates (dashboard shell, sidebar)
+├── help.blade.php               # User manual (FR/EN)
+└── docs.blade.php               # Technical/API documentation (FR/EN)
 
 routes/
-├── web.php            # Web routes
-└── api.php            # API routes for IoT sensors
+├── web.php                       # Web routes
+└── api.php                       # API routes for IoT sensors & actuators
 ```
 
 ---
@@ -62,14 +72,12 @@ routes/
 ## Installation
 
 ### Requirements
-
 - PHP >= 8.2
 - Composer
-- MySQL 8.0+
+- MariaDB 10.x (or SQLite for local development)
 - Node.js & NPM
 
 ### Steps
-
 ```bash
 # Clone the repository
 git clone https://github.com/saratechacademy/APV-MaGa-Dashboard.git
@@ -96,35 +104,55 @@ php artisan serve
 
 ---
 
-## API Usage (IoT Sensors)
+## API Usage (IoT Sensors & Actuators)
 
 ### Authentication
-
-All API requests require the `X-API-Key` header with the site's API key.
+All API requests require the `X-API-Key` header with the site's API key (available from the dashboard's "API Key" tab for each site).
 
 ### Send sensor data
-
 ```http
-POST /api/sensors/data
+POST /api/sensors/{site}/{category}
 X-API-Key: your-site-api-key
 Content-Type: application/json
 
 {
-  "category": "solar",
-  "readings": {
-    "solar_output": 4.2,
-    "solar_irradiance": 850.5,
-    "panel_temperature": 42.3
-  }
+  "solar_output": 4.2,
+  "solar_irradiance": 850.5,
+  "panel_temperature": 42.3
 }
 ```
 
-### Get schema
-
+### Get latest readings
 ```http
-GET /api/sensors/schema
+GET /api/sensors/{site}/{category}/latest
 X-API-Key: your-site-api-key
 ```
+
+### Check site status (all categories)
+```http
+GET /api/sensors/{site}/status
+X-API-Key: your-site-api-key
+```
+
+### Historical data (max 90 days)
+```http
+GET /api/sensors/{site}/{category}/history?from=&to=&params=&page=&per_page=
+X-API-Key: your-site-api-key
+```
+
+### Aggregated statistics
+```http
+GET /api/sensors/{site}/{category}/stats?period=hour|day|week|month&from=&to=&params=
+X-API-Key: your-site-api-key
+```
+
+### Actuator commands (switches)
+```http
+GET /api/commands/{site}/{category}
+X-API-Key: your-site-api-key
+```
+
+Full endpoint documentation, including request/response formats and available categories/parameters per site, is available on the `/docs` page (admin access).
 
 ---
 
@@ -133,12 +161,29 @@ X-API-Key: your-site-api-key
 The platform supports an unlimited number of sites. Each site can be configured with its own:
 
 - **Categories** (Solar, Water, Irrigation, Weather, Agriculture, or custom)
-- **Parameters** (sensor or manual input)
-- **Charts** (configurable per category)
-- **API key** (for IoT device authentication)
-- **Users** (with role-based access)
+- **Parameters** — sensor or manual input, with optional actuator control (readonly/controllable switches)
+- **Charts** — configurable per category (full/half/third width, dual-axis support)
+- **Offline threshold** — per-category, used to flag stale/offline parameters
+- **API key** — for IoT device authentication
+- **Users** — with role-based access (admin, agent, observer) and per-site assignment
 
 Sites can be created and managed directly from the Admin Panel without any code changes.
+
+---
+
+## Deployment
+
+Production: `https://apvmaga.saratechniger.com` (Hostinger VPS, AAPanel + Nginx).
+
+After pulling updates on the server:
+```bash
+git pull origin main
+composer install --no-dev --optimize-autoloader
+php artisan migrate
+php artisan view:clear
+php artisan config:clear
+php artisan cache:clear
+```
 
 ---
 
@@ -150,6 +195,7 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ## Contact
 
-**Saratech Academy**  
-saratechacademy@gmail.com  
+**Saratech Academy**
+saratechacademy@gmail.com
 
+Funded by **UNU (United Nations University)**.
