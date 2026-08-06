@@ -1,7 +1,10 @@
 <?php
 namespace App\Providers;
 use App\Models\Site;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -11,6 +14,14 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // IoT API (routes/api.php): keyed by site slug + IP so one noisy/compromised
+        // site can't starve requests for other sites sharing the same limiter.
+        RateLimiter::for('iot', function (Request $request) {
+            $key = $request->route('site') . '|' . $request->ip();
+
+            return Limit::perMinute(120)->by($key);
+        });
+
         // Share $sites with ALL views (sidebar + dashboard)
         View::composer('*', function ($view) {
             if (Auth::check()) {

@@ -4,13 +4,6 @@
 
 @push('styles')
 <style>
-.form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.form-field{display:flex;flex-direction:column;gap:4px}
-.form-field.full{grid-column:1/-1}
-.form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.form-input{font-family:'DM Sans',sans-serif;font-size:13px;padding:8px 12px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);width:100%;transition:border-color .15s}
-.form-input:focus{outline:none;border-color:var(--blue);background:#fff}
 .cat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;margin-bottom:10px}
 .cat-row{display:flex;align-items:center;gap:14px}
 .cat-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
@@ -28,8 +21,8 @@
 
 @if(session('success'))
 <div class="alert-banner" style="background:var(--green-bg);border-color:var(--green-bd);color:var(--green);margin-bottom:16px">
-  ✓ {{ session('success') }}
-  <button class="ab-close" onclick="this.closest('.alert-banner').style.display='none'">×</button>
+  {{ session('success') }}
+  <button class="ab-close" onclick="this.closest('.alert-banner').style.display='none'" aria-label="Dismiss">×</button>
 </div>
 @endif
 
@@ -65,22 +58,22 @@
         </div>
         <div class="cat-actions">
           <a href="{{ route('admin.parameters', [$site, $cat]) }}" class="btn" style="font-size:11px;padding:4px 10px">
-            ⚙ Parameters
+            Parameters
           </a>
           <button type="button" class="btn" style="font-size:11px;padding:4px 10px;background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)"
             onclick="toggleEditForm('edit-{{ $cat->id }}')">
-            ✏ Edit
+            Edit
           </button>
           <form method="POST" action="{{ route('admin.categories.toggle', [$site, $cat]) }}">
             @csrf
             <button type="submit" class="btn {{ $cat->is_active ? 'toggle-on' : 'toggle-off' }}" style="font-size:11px;padding:4px 10px">
-              {{ $cat->is_active ? '✓ On' : '✗ Off' }}
+              {{ $cat->is_active ? 'On' : 'Off' }}
             </button>
           </form>
           <form method="POST" action="{{ route('admin.categories.destroy', [$site, $cat]) }}"
                 onsubmit="return confirm('Delete category {{ $cat->name }} and all its parameters?')">
             @csrf @method('DELETE')
-            <button type="submit" class="btn btn-red" style="font-size:11px;padding:4px 10px">✕</button>
+            <button type="submit" class="btn btn-red" style="font-size:11px;padding:4px 10px">Delete</button>
           </form>
         </div>
       </div>
@@ -91,32 +84,32 @@
           @csrf @method('PUT')
           <div style="display:grid;grid-template-columns:1fr 80px 80px;gap:10px;margin-bottom:10px">
             <div class="form-field">
-              <label class="form-label">Name *</label>
-              <input type="text" name="name" class="form-input" value="{{ $cat->name }}" required>
+              <label class="form-label" for="cat-name-{{ $cat->id }}">Name *</label>
+              <input type="text" id="cat-name-{{ $cat->id }}" name="name" class="form-input" value="{{ $cat->name }}" required>
             </div>
             <div class="form-field">
-              <label class="form-label">Icon</label>
-              <input type="text" name="icon" class="form-input" value="{{ $cat->icon }}" maxlength="5">
+              <label class="form-label" for="cat-icon-{{ $cat->id }}">Icon</label>
+              <input type="text" id="cat-icon-{{ $cat->id }}" name="icon" class="form-input" value="{{ $cat->icon }}" maxlength="5">
             </div>
             <div class="form-field">
-              <label class="form-label">Color</label>
-              <input type="color" name="color" class="form-input" value="{{ $cat->color ?? '#1d6ed8' }}" style="padding:4px 8px;height:38px;cursor:pointer">
+              <label class="form-label" for="cat-color-{{ $cat->id }}">Color</label>
+              <input type="color" id="cat-color-{{ $cat->id }}" name="color" class="form-input" value="{{ $cat->color ?? '#1d6ed8' }}" style="padding:4px 8px;height:38px;cursor:pointer">
             </div>
           </div>
           <div class="form-field" style="margin-bottom:10px">
-            <label class="form-label">Description</label>
-            <input type="text" name="description" class="form-input" value="{{ $cat->description }}" placeholder="Optional">
+            <label class="form-label" for="cat-description-{{ $cat->id }}">Description</label>
+            <input type="text" id="cat-description-{{ $cat->id }}" name="description" class="form-input" value="{{ $cat->description }}" placeholder="Optional">
           </div>
           <div class="form-field" style="margin-bottom:10px;max-width:220px">
-            <label class="form-label">Offline threshold (minutes)</label>
-            <input type="number" name="offline_threshold_minutes" class="form-input" min="1" step="1"
+            <label class="form-label" for="cat-offline-{{ $cat->id }}">Offline threshold (minutes)</label>
+            <input type="number" id="cat-offline-{{ $cat->id }}" name="offline_threshold_minutes" class="form-input" min="1" step="1"
                    value="{{ $cat->offline_threshold_minutes ?? 5 }}">
             <span style="font-size:11px;color:var(--muted);margin-top:2px;display:block">
               A parameter shows "No data"/"Stale" if no sensor reading arrives within this delay.
             </span>
           </div>
           <div style="display:flex;gap:8px">
-            <button type="submit" class="btn btn-blue" style="font-size:12px;padding:5px 14px">💾 Save</button>
+            <button type="submit" class="btn btn-blue" style="font-size:12px;padding:5px 14px">Save</button>
             <button type="button" class="btn" style="font-size:12px;padding:5px 14px" onclick="toggleEditForm('edit-{{ $cat->id }}')">Cancel</button>
           </div>
         </form>
@@ -124,7 +117,6 @@
     </div>
     @empty
     <div style="text-align:center;padding:40px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:var(--r)">
-      <div style="font-size:28px;margin-bottom:8px">⊞</div>
       <div style="font-weight:600;margin-bottom:4px">No categories yet</div>
       <div style="font-size:12px">Add a category using the form →</div>
     </div>
@@ -141,22 +133,29 @@
         @csrf
         <div style="display:flex;flex-direction:column;gap:10px">
           <div class="form-field">
-            <label class="form-label">Category Name *</label>
-            <input type="text" name="name" class="form-input" placeholder="e.g. Solar" required>
+            <label class="form-label" for="new-cat-name">Category Name *</label>
+            <input type="text" id="new-cat-name" name="name" class="form-input" placeholder="e.g. Solar" required>
           </div>
           <div class="form-grid">
             <div class="form-field">
-              <label class="form-label">Icon (emoji)</label>
-              <input type="text" name="icon" class="form-input" placeholder="☀" maxlength="5">
+              <label class="form-label" for="new-cat-icon">Icon (emoji)</label>
+              <input type="text" id="new-cat-icon" name="icon" class="form-input" placeholder="☀" maxlength="5">
             </div>
             <div class="form-field">
-              <label class="form-label">Color</label>
-              <input type="color" name="color" class="form-input" value="#1d6ed8" style="padding:4px 8px;height:38px;cursor:pointer">
+              <label class="form-label" for="new-cat-color">Color</label>
+              <input type="color" id="new-cat-color" name="color" class="form-input" value="#1d6ed8" style="padding:4px 8px;height:38px;cursor:pointer">
             </div>
           </div>
           <div class="form-field">
-            <label class="form-label">Description</label>
-            <input type="text" name="description" class="form-input" placeholder="Optional description">
+            <label class="form-label" for="new-cat-description">Description</label>
+            <input type="text" id="new-cat-description" name="description" class="form-input" placeholder="Optional description">
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="new-cat-offline">Offline threshold (minutes)</label>
+            <input type="number" id="new-cat-offline" name="offline_threshold_minutes" class="form-input" min="1" step="1" value="5">
+            <span style="font-size:11px;color:var(--muted);margin-top:2px;display:block">
+              A parameter shows "No data"/"Stale" if no sensor reading arrives within this delay.
+            </span>
           </div>
           <button type="submit" class="btn btn-blue" style="width:100%;justify-content:center;margin-top:4px">
             + Add Category
@@ -182,7 +181,7 @@
         </form>
         @else
         <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:7px;font-size:12px;color:var(--muted);background:var(--surface);border:1px solid var(--border);margin-bottom:6px">
-          <span>{{ $def['icon'] }}</span> {{ $def['name'] }} <span style="margin-left:auto;color:var(--green)">✓</span>
+          <span>{{ $def['icon'] }}</span> {{ $def['name'] }} <span style="margin-left:auto;color:var(--green)">Added</span>
         </div>
         @endif
       @endforeach

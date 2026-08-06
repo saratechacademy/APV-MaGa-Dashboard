@@ -1,27 +1,14 @@
 <?php
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AuthorizesSiteAccess;
+use App\Http\Controllers\Concerns\ResolvesDateRange;
 use App\Models\Site;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
-    // ── Helper : vérifie que l'utilisateur a accès au site ────
-    protected function authorizeSite(Site $site): void
-    {
-        $user = Auth::user();
-        if ($user->isAdmin()) return;
-
-        // Vérifier via table pivot site_user
-        $inPivot = $site->users()->where('users.id', $user->id)->exists();
-
-        // Fallback : ancienne relation user_id directe
-        $isDirect = $site->user_id === $user->id;
-
-        if (!$inPivot && !$isDirect) {
-            abort(403, 'Access denied.');
-        }
-    }
+    use AuthorizesSiteAccess, ResolvesDateRange;
 
     // ── Index : tous les sites ─────────────────────────────────
     public function index()
@@ -29,7 +16,7 @@ class DashboardController extends Controller
         $user = Auth::user();
 
         if ($user->isAdmin()) {
-            $sites = Site::with(['activeCategories.activeParameters'])
+            $sites = Site::with(['activeCategories.activeParameters.latestReading'])
                          ->where('status', 'active')->latest()->get();
         } else {
             // Sites via table pivot
@@ -40,7 +27,7 @@ class DashboardController extends Controller
             $allSiteIds = array_unique(array_merge($pivotSiteIds, $directSiteIds));
             $sites = Site::where('status', 'active')
                 ->whereIn('id', $allSiteIds)
-                ->with(['activeCategories.activeParameters'])
+                ->with(['activeCategories.activeParameters.latestReading'])
                 ->latest()
                 ->get();
         }
@@ -51,10 +38,13 @@ class DashboardController extends Controller
     // ── Site detail ────────────────────────────────────────────
     public function site(Site $site, Request $request)
     {
-        $this->authorizeSite($site);
+        $this->authorizeSiteAccess($site);
 
         $site->load([
-            'activeCategories.activeParameters',
+            'activeCategories.activeParameters.group',
+            'activeCategories.activeParameters.latestReading',
+            'activeCategories.activeParameters.latestManualReading',
+            'activeCategories.activeParameters.actuatorCommand',
             'activeCategories.activeCharts.parameters',
         ]);
 
@@ -73,8 +63,8 @@ class DashboardController extends Controller
     public function chartData(Request $request, string $site, string $category)
     {
         $site = Site::where('slug', $site)->orWhere('id', $site)->firstOrFail();
-        $hours = $request->input('hours', 24);
-        $from  = now()->subHours($hours);
+        $this->authorizeSiteAccess($site);
+        [$from, $to] = $this->resolveDateRange($request, 24);
 
         $cat = $site->categories()
             ->where('slug', $category)
@@ -90,8 +80,16 @@ class DashboardController extends Controller
             ->when(!empty($paramSlugs), fn($q) => $q->whereIn('slug', $paramSlugs))
             ->get();
 
-        $labels   = [];
-        $datasets = [];
+        // Each parameter can have a different number of readings in the window
+        // (different report intervals, or a mix of sensor/manual data), so we
+        // can't just zip their raw value arrays together — that silently plots
+        // dataset B's values under dataset A's timestamps. Instead: build a
+        // per-parameter [timestamp => value] map, take the union of every
+        // timestamp seen across all parameters as the shared x-axis, then read
+        // each dataset off that same axis (missing points become null — the
+        // frontend already renders those as gaps via spanGaps: true).
+        $seriesByParam = [];
+        $timeLabels    = [];
 
         foreach ($parameters as $param) {
             if (in_array($param->data_type, ['string', 'boolean', 'switch'])) continue;
@@ -99,22 +97,24 @@ class DashboardController extends Controller
             if ($param->input_type === 'sensor') {
                 $rows = \App\Models\SensorReading::where('site_id', $site->id)
                     ->where('site_parameter_id', $param->id)
-                    ->where('read_at', '>=', $from)
+                    ->whereBetween('read_at', [$from, $to])
                     ->orderBy('read_at')
                     ->get()
                     ->map(fn($r) => [
+                        'key'   => $r->read_at->format('Y-m-d H:i'),
+                        'label' => $r->read_at->format('H:i'),
                         'value' => $r->value,
-                        'time'  => $r->read_at->format('H:i'),
                     ]);
             } else {
                 $rows = \App\Models\ManualReading::where('site_id', $site->id)
                     ->where('site_parameter_id', $param->id)
-                    ->where('reading_date', '>=', $from->toDateString())
+                    ->whereBetween('reading_date', [$from, $to])
                     ->orderBy('reading_date')
                     ->get()
                     ->map(fn($r) => [
+                        'key'   => $r->reading_date->format('Y-m-d H:i'),
+                        'label' => $r->reading_date->format('d/m'),
                         'value' => is_numeric($r->value) ? (float) $r->value : null,
-                        'time'  => \Carbon\Carbon::parse($r->reading_date)->format('d/m'),
                     ])
                     ->filter(fn($r) => $r['value'] !== null)
                     ->values();
@@ -122,23 +122,35 @@ class DashboardController extends Controller
 
             if ($rows->isEmpty()) continue;
 
-            if (empty($labels)) {
-                $labels = $rows->pluck('time')->toArray();
+            $map = [];
+            foreach ($rows as $r) {
+                $map[$r['key']] = $r['value'];
+                $timeLabels[$r['key']] = $r['label'];
             }
 
-            $datasets[] = [
+            $seriesByParam[] = [
                 'label' => $param->name . ($param->unit ? ' (' . $param->unit . ')' : ''),
                 'slug'  => $param->slug,
-                'data'  => $rows->pluck('value')->toArray(),
+                'map'   => $map,
             ];
         }
+
+        ksort($timeLabels);
+        $timeKeys = array_keys($timeLabels);
+        $labels   = array_values($timeLabels);
+
+        $datasets = array_map(fn($s) => [
+            'label' => $s['label'],
+            'slug'  => $s['slug'],
+            'data'  => array_map(fn($key) => $s['map'][$key] ?? null, $timeKeys),
+        ], $seriesByParam);
 
         return response()->json([
             'success'  => true,
             'labels'   => $labels,
             'datasets' => $datasets,
             'from'     => $from->toISOString(),
-            'to'       => now()->toISOString(),
+            'to'       => $to->toISOString(),
         ]);
     }
 
@@ -146,12 +158,11 @@ class DashboardController extends Controller
     public function rawData(Request $request, string $site)
     {
         $site = Site::where('slug', $site)->orWhere('id', $site)->firstOrFail();
-        $this->authorizeSite($site);
+        $this->authorizeSiteAccess($site);
 
-        $hours   = (int) $request->input('hours', 1);
+        [$from, $to] = $this->resolveDateRange($request, 1);
         $page    = max(1, (int) $request->input('page', 1));
         $perPage = 20;
-        $from    = now()->subHours($hours);
 
         $site->load(['activeCategories.activeParameters', 'activeCategories.site']);
         session(['current_site_slug' => $site->slug]);
@@ -165,17 +176,17 @@ class DashboardController extends Controller
 
             $sensorReadings = \App\Models\SensorReading::where('site_id', $site->id)
                 ->whereIn('site_parameter_id', $sensorParams->pluck('id'))
-                ->where('read_at', '>=', $from)
+                ->whereBetween('read_at', [$from, $to])
                 ->orderBy('read_at', 'desc')
                 ->get();
             $sensorGrouped = $sensorReadings->groupBy(fn($r) => $r->read_at->format('Y-m-d H:i:s'));
 
             $manualReadings = \App\Models\ManualReading::where('site_id', $site->id)
                 ->whereIn('site_parameter_id', $manualParams->pluck('id'))
-                ->where('reading_date', '>=', $from)
+                ->whereBetween('reading_date', [$from, $to])
                 ->orderBy('reading_date', 'desc')
                 ->get();
-            $manualGrouped = $manualReadings->groupBy(fn($r) => \Carbon\Carbon::parse($r->reading_date)->format('Y-m-d H:i:s'));
+            $manualGrouped = $manualReadings->groupBy(fn($r) => $r->reading_date->format('Y-m-d H:i:s'));
 
             $totalSensor = $sensorGrouped->count();
             $totalManual = $manualGrouped->count();

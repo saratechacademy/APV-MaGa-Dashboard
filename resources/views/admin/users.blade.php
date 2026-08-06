@@ -6,8 +6,15 @@
 
 @if(session('success'))
 <div class="alert-banner" style="background:var(--green-bg);border-color:var(--green-bd);color:var(--green);margin-bottom:16px">
-  ✓ {{ session('success') }}
-  <button class="ab-close" onclick="this.closest('.alert-banner').style.display='none'">×</button>
+  {{ session('success') }}
+  <button class="ab-close" onclick="this.closest('.alert-banner').style.display='none'" aria-label="Dismiss">×</button>
+</div>
+@endif
+
+@if(session('error'))
+<div class="alert-banner" style="background:var(--red-bg);border-color:var(--red-bd);color:var(--red);margin-bottom:16px">
+  {{ session('error') }}
+  <button class="ab-close" onclick="this.closest('.alert-banner').style.display='none'" aria-label="Dismiss">×</button>
 </div>
 @endif
 
@@ -50,29 +57,30 @@
         <td style="color:var(--muted)">{{ $user->created_at->format('d/m/Y') }}</td>
         <td>
           <div style="display:flex;gap:5px;flex-wrap:wrap">
+            <a href="{{ route('admin.users.edit', $user) }}" class="btn" style="font-size:11px;padding:3px 8px;background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)">Edit</a>
             @if($user->status === 'pending')
               <form method="POST" action="{{ route('admin.users.approve', $user) }}">
                 @csrf
-                <button type="submit" class="btn" style="font-size:11px;padding:3px 8px;background:var(--green-bg);color:var(--green);border-color:var(--green-bd)">✓ Approve</button>
+                <button type="submit" class="btn" style="font-size:11px;padding:3px 8px;background:var(--green-bg);color:var(--green);border-color:var(--green-bd)">Approve</button>
               </form>
             @endif
             @if($user->status === 'active' && $user->role !== 'admin')
               <form method="POST" action="{{ route('admin.users.suspend', $user) }}">
                 @csrf
-                <button type="submit" class="btn" style="font-size:11px;padding:3px 8px;background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)">⏸ Suspend</button>
+                <button type="submit" class="btn" style="font-size:11px;padding:3px 8px;background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)">Suspend</button>
               </form>
             @endif
             @if($user->status === 'suspended')
               <form method="POST" action="{{ route('admin.users.activate', $user) }}">
                 @csrf
-                <button type="submit" class="btn" style="font-size:11px;padding:3px 8px;background:var(--green-bg);color:var(--green);border-color:var(--green-bd)">▶ Activate</button>
+                <button type="submit" class="btn" style="font-size:11px;padding:3px 8px;background:var(--green-bg);color:var(--green);border-color:var(--green-bd)">Activate</button>
               </form>
             @endif
             @if($user->role !== 'admin')
               <form method="POST" action="{{ route('admin.users.destroy', $user) }}"
                     onsubmit="return confirm('Delete user {{ $user->name }}?')">
                 @csrf @method('DELETE')
-                <button type="submit" class="btn btn-red" style="font-size:11px;padding:3px 8px">✕</button>
+                <button type="submit" class="btn btn-red" style="font-size:11px;padding:3px 8px">Delete</button>
               </form>
             @endif
           </div>

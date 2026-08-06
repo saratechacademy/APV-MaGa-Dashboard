@@ -2,13 +2,16 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class SiteCategory extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'site_id', 'name', 'slug', 'icon', 'color',
-        'description', 'is_active', 'sort_order',
+        'description', 'is_active', 'sort_order', 'offline_threshold_minutes',
     ];
 
     protected $casts = ['is_active' => 'boolean'];
@@ -18,6 +21,8 @@ class SiteCategory extends Model
     public function parameters() { return $this->hasMany(SiteParameter::class)->orderBy('sort_order'); }
 
     public function activeParameters() { return $this->hasMany(SiteParameter::class)->where('is_active', true)->orderBy('sort_order'); }
+
+    public function parameterGroups() { return $this->hasMany(SiteParameterGroup::class)->orderBy('sort_order'); }
 
     public function charts()     { return $this->hasMany(SiteChart::class)->orderBy('sort_order'); }
 

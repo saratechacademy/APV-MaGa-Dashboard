@@ -8,12 +8,14 @@ use App\Mail\ResetPasswordMail;
 class User extends Authenticatable
 {
     use HasFactory, Notifiable;
+    // Deliberately excludes 'role' and 'status': every write site sets these
+    // via direct property assignment ($user->role = ...; $user->save();)
+    // instead of a fillable array, so a future $request->all() slip can't
+    // become a privilege-escalation bug.
     protected $fillable = [
         'name',
         'email',
         'password',
-        'role',
-        'status',
         'organisation',
         'phone',
         'country',

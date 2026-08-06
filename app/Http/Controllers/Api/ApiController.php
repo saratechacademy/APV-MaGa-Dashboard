@@ -22,7 +22,7 @@ class ApiController extends Controller
 
         $key = $request->header('X-API-Key') ?? $request->query('api_key');
 
-        if (!$key || $key !== $site->api_key) {
+        if (!$key || !hash_equals($site->api_key, $key)) {
             abort(response()->json(['success' => false, 'error' => 'Invalid API key.'], 401));
         }
 
@@ -66,6 +66,18 @@ class ApiController extends Controller
             if (!$parameter) {
                 $errors[] = "Parameter '{$paramSlug}' not found or not a sensor parameter.";
                 continue;
+            }
+
+            if (is_numeric($value)) {
+                $numeric = (float) $value;
+                if ($parameter->min_value !== null && $numeric < $parameter->min_value) {
+                    $errors[] = "Parameter '{$paramSlug}' value {$value} is below the configured minimum ({$parameter->min_value}); reading rejected.";
+                    continue;
+                }
+                if ($parameter->max_value !== null && $numeric > $parameter->max_value) {
+                    $errors[] = "Parameter '{$paramSlug}' value {$value} is above the configured maximum ({$parameter->max_value}); reading rejected.";
+                    continue;
+                }
             }
 
             SensorReading::create([
@@ -236,8 +248,13 @@ class ApiController extends Controller
             'per_page' => 'nullable|integer|min:1|max:5000',
         ]);
 
-        $to   = $request->filled('to')   ? Carbon::parse($request->to)   : now();
-        $from = $request->filled('from') ? Carbon::parse($request->from) : $to->copy()->subDay();
+        // Consistent with ResolvesDateRange (used by the dashboard/export
+        // endpoints): from/to are day boundaries, not bare midnight instants —
+        // otherwise ?from=2026-08-01&to=2026-08-01 (a very natural "give me
+        // that day" request) resolves to a zero-width window and silently
+        // returns no data.
+        $to   = $request->filled('to')   ? Carbon::parse($request->to)->endOfDay()   : now();
+        $from = $request->filled('from') ? Carbon::parse($request->from)->startOfDay() : $to->copy()->subDay();
 
         if ($from->diffInDays($to) > 90) {
             return response()->json([
@@ -318,8 +335,9 @@ class ApiController extends Controller
         ]);
 
         $period = $request->input('period', 'day');
-        $to     = $request->filled('to')   ? Carbon::parse($request->to)   : now();
-        $from   = $request->filled('from') ? Carbon::parse($request->from) : $to->copy()->subDays(30);
+        // Same day-boundary normalization as history() above — see its comment.
+        $to     = $request->filled('to')   ? Carbon::parse($request->to)->endOfDay()   : now();
+        $from   = $request->filled('from') ? Carbon::parse($request->from)->startOfDay() : $to->copy()->subDays(30);
 
         $maxDays = ['hour' => 7, 'day' => 365, 'week' => 730, 'month' => 1825];
         if ($from->diffInDays($to) > $maxDays[$period]) {

@@ -4,8 +4,8 @@
 @section('content')
 @if(session('success'))
 <div class="alert-banner" style="background:var(--green-bg);border-color:var(--green-bd);color:var(--green);margin-bottom:16px">
-  ✓ {{ session('success') }}
-  <button class="ab-close" onclick="this.closest('.alert-banner').style.display='none'">×</button>
+  {{ session('success') }}
+  <button class="ab-close" onclick="this.closest('.alert-banner').style.display='none'" aria-label="Dismiss">×</button>
 </div>
 @endif
 <div class="sec-header">
@@ -43,14 +43,19 @@
           </span>
         </td>
         <td>
-          <a href="{{ route('admin.categories', $site) }}" class="btn" style="font-size:11px;padding:4px 10px">⊞ Categories</a>
+          <a href="{{ route('admin.categories', $site) }}" class="btn" style="font-size:11px;padding:4px 10px">Categories</a>
         </td>
         <td>
-          <a href="{{ route('admin.sites.users', $site) }}" class="btn" style="font-size:11px;padding:4px 10px">👥 Users</a>
+          <a href="{{ route('admin.sites.users', $site) }}" class="btn" style="font-size:11px;padding:4px 10px">Users</a>
         </td>
         <td>
           <div style="display:flex;gap:6px;align-items:center">
             <a href="{{ route('dashboard.site', $site) }}" class="btn" style="font-size:11px;padding:4px 10px">View</a>
+            <a href="{{ route('admin.sites.edit', $site) }}" class="btn" style="font-size:11px;padding:4px 10px">Edit</a>
+            <form method="POST" action="{{ route('admin.sites.duplicate', $site) }}" onsubmit="return confirm('Duplicate site {{ $site->name }}? Categories, parameters and charts will be copied.')">
+              @csrf
+              <button type="submit" class="btn" style="font-size:11px;padding:4px 10px">⧉ Duplicate</button>
+            </form>
             <form method="POST" action="{{ route('admin.sites.destroy', $site) }}" onsubmit="return confirm('Delete site {{ $site->name }}?')">
               @csrf @method('DELETE')
               <button type="submit" class="btn btn-red" style="font-size:11px;padding:4px 10px">Delete</button>

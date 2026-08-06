@@ -2,6 +2,7 @@
 
 @section('page-title', $site->name)
 @section('page-crumb', 'Site Detail')
+@section('show-toolbar', '1')
 
 @push('styles')
 <style>
@@ -15,6 +16,8 @@
 .badge-nominal::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block}
 .badge-warn-sm{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd)}
 .badge-warn-sm::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--amber);display:inline-block}
+.badge-critical-sm{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd)}
+.badge-critical-sm::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--red);display:inline-block}
 .chart-section{margin-bottom:14px}
 .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:16px}
 .cc-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
@@ -56,6 +59,20 @@ select.ag-input{cursor:pointer}
 .badge-nodata{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;background:var(--bg);color:var(--muted);border:1px dashed var(--border)}
 .badge-nodata::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--muted);display:inline-block}
 
+/* Parameter groups + standalone cards share one packed grid: a group box spans
+   as many columns as it needs, ungrouped cards fill in a single column each,
+   and dense packing lets everything flow onto the same rows instead of one
+   block per group. */
+.param-groups-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));grid-auto-flow:row dense;gap:10px;margin-bottom:14px;align-items:start}
+.param-group-box{border-radius:var(--r);padding:10px;min-width:0}
+.pg-head{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.pg-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.pg-cards{display:flex;flex-wrap:wrap;gap:10px}
+@media (max-width: 560px){
+  .param-groups-grid{grid-template-columns:1fr}
+  .param-group-box{grid-column:1 / -1 !important}
+}
+
 
 /* Actuator confirm modal */
 .actuator-modal-overlay{display:none;position:fixed;inset:0;background:rgba(13,19,33,.5);z-index:2000;align-items:center;justify-content:center}
@@ -82,7 +99,7 @@ select.ag-input{cursor:pointer}
 @php
   $categories = $site->activeCategories ?? collect();
   $firstSlug  = $categories->first()?->slug ?? 'raw';
-  $COLORS = ['#15803d','#1d6ed8','#7c3aed','#b45309','#0891b2','#be123c','#0f766e','#7e22ce'];
+  $COLORS = \App\Models\SiteParameterGroup::palette();
   $canControl = auth()->user()->isAdmin() || auth()->user()->role !== 'observateur';
 @endphp
 
@@ -119,6 +136,17 @@ select.ag-input{cursor:pointer}
   </div>
 </div>
 
+@if(session('success'))
+<div style="background:var(--green-bg);border:1px solid var(--green-bd);color:var(--green);border-radius:7px;padding:8px 14px;margin-bottom:16px;font-size:13px">
+  {{ session('success') }}
+</div>
+@endif
+@if(session('error'))
+<div style="background:var(--red-bg);border:1px solid var(--red-bd);color:var(--red);border-radius:7px;padding:8px 14px;margin-bottom:16px;font-size:13px">
+  {{ session('error') }}
+</div>
+@endif
+
 {{-- DYNAMIC CATEGORY TABS --}}
 @foreach($categories as $catIndex => $category)
 @php
@@ -133,14 +161,10 @@ select.ag-input{cursor:pointer}
   $latestSensorAt = null;
   foreach ($params as $param) {
     if ($param->input_type === 'manual') {
-      $latest = \App\Models\ManualReading::where('site_id', $site->id)
-        ->where('site_parameter_id', $param->id)
-        ->latest('reading_date')->first();
+      $latest = $param->latestManualReading;
       if ($latest) $readings[$param->slug] = $latest->value;
     } else {
-      $latest = \App\Models\SensorReading::where('site_id', $site->id)
-        ->where('site_parameter_id', $param->id)
-        ->latest('read_at')->first();
+      $latest = $param->latestReading;
       if ($latest) {
         $readings[$param->slug] = $latest->value ?? $latest->value_text;
         $readingsAt[$param->slug] = $latest->read_at;
@@ -150,7 +174,7 @@ select.ag-input{cursor:pointer}
       }
     }
     if ($param->isControllable()) {
-      $actuators[$param->slug] = \App\Models\ActuatorCommand::where('site_parameter_id', $param->id)->first();
+      $actuators[$param->slug] = $param->actuatorCommand;
     }
   }
 
@@ -164,131 +188,73 @@ select.ag-input{cursor:pointer}
     $manualDashParams = $dashParams->filter(fn($p) => ($p->input_type ?? 'sensor') === 'manual');
   @endphp
 
-  @if($sensorDashParams->count() > 0)
-  <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-    @foreach($sensorDashParams as $param)
-    @php
-      $val = $readings[$param->slug] ?? null;
-      $paramAt = $readingsAt[$param->slug] ?? null;
-      $paramOnline = $paramAt && $paramAt->diffInMinutes(now()) <= $offlineThresholdMinutes;
-      $isWarn = $val !== null && $param->warning_threshold && $val <= $param->warning_threshold;
-      $isSwitch = $param->data_type === 'switch';
-      $isBool = $param->data_type === 'boolean';
-      // Pour un switch readonly, on affiche ON/OFF comme un boolean
-      $displayVal = ($isBool || $isSwitch) ? ($val ? 'ON' : 'OFF') : ($val !== null ? (is_numeric($val) ? number_format((float)$val, $param->data_type === 'integer' ? 0 : 1) : $val) : '—');
-    @endphp
+  @php
+    // Un groupe d'un seul paramètre n'apporte rien visuellement : traité comme standalone.
+    $sensorByGroup     = $sensorDashParams->filter(fn($p) => $p->site_parameter_group_id)->groupBy('site_parameter_group_id');
+    $sensorGroups      = $sensorByGroup->filter(fn($g) => $g->count() > 1)
+                          ->sortBy(fn($gParams) => $gParams->first()->group->sort_order ?? 0);
+    $sensorStandalone  = $sensorDashParams->filter(fn($p) => !$p->site_parameter_group_id)
+                          ->merge($sensorByGroup->filter(fn($g) => $g->count() <= 1)->flatMap(fn($g) => $g));
+  @endphp
 
-    @if($isSwitch && $param->isControllable())
+  @if($sensorDashParams->count() > 0)
+    <div class="param-groups-grid">
+      @foreach($sensorGroups as $gParams)
       @php
-        $cmd = $actuators[$param->slug] ?? null;
-        $desired  = $cmd?->desired_state ?? 0;
-        $reported = $cmd?->reported_state;
-        $synced   = $cmd?->isSynced();
+        $g = $gParams->first()->group; $gc = $g->color ?: '#94a3b8';
+        $span = min(6, max(2, $gParams->count()));
       @endphp
-      <div class="switch-card">
-        <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px">{{ $param->name }}</div>
-        <div class="switch-row">
-          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:600;color:{{ $desired ? 'var(--green)' : 'var(--muted)' }}">
-            {{ $desired ? 'ON' : 'OFF' }}
-          </span>
-          <form method="POST" action="{{ route('actuators.toggle', [$site, $param]) }}" style="display:flex" onsubmit="return false">
-            @csrf
-            <input type="hidden" name="state" value="{{ $desired ? 0 : 1 }}">
-            <label class="toggle">
-              <input type="checkbox" {{ $desired ? 'checked' : '' }}
-                     {{ $canControl ? '' : 'disabled' }}
-                     onchange="openActuatorModal(this, '{{ addslashes($param->name) }}', {{ $desired ? 0 : 1 }}, {{ $isOnline ? 'true' : 'false' }})">
-              <span class="toggle-slider"></span>
-            </label>
-          </form>
+      <div class="param-group-box" style="grid-column:span {{ $span }};border:1px solid {{ $gc }}40;background:{{ $gc }}0d">
+        <div class="pg-head" style="color:{{ $gc }}">
+          <span class="pg-dot" style="background:{{ $gc }}"></span>
+          {{ $g->name }}
         </div>
-        <div style="margin-top:6px">
-          @if($synced === true && !$isOnline)
-            <span class="sync-pill sync-stale" title="Last report {{ $cmd->reported_at?->diffForHumans() }}">Stale</span>
-          @elseif($synced === true)
-            <span class="sync-pill sync-ok">Synced</span>
-          @elseif($synced === false)
-            <span class="sync-pill sync-pending">Pending…</span>
-          @else
-            <span class="sync-pill sync-unknown">No device report</span>
-          @endif
+        <div class="pg-cards">
+          @foreach($gParams as $param)
+            @include('dashboard.partials._sensor-param-card', ['param' => $param])
+          @endforeach
         </div>
       </div>
-    @elseif($isSwitch)
-      {{-- Readonly switch: ON/OFF state reported automatically by the sensor, toggle disabled --}}
-      <div class="switch-card">
-        <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px">{{ $param->name }}</div>
-        <div class="switch-row">
-          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:600;color:{{ $val === null ? 'var(--muted)' : ($val ? 'var(--green)' : 'var(--muted)') }}">
-            {{ $val === null ? '—' : ($val ? 'ON' : 'OFF') }}
-          </span>
-          <label class="toggle">
-            <input type="checkbox" {{ $val ? 'checked' : '' }} disabled>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div style="margin-top:6px" title="{{ $paramAt ? 'Last data: '.$paramAt->diffForHumans() : '' }}">
-          @if($val === null)
-            <span class="badge-nodata">No data</span>
-          @elseif(!$paramOnline)
-            <span class="sync-pill sync-stale">Stale ({{ $paramAt->diffForHumans(null, true) }})</span>
-          @else
-            <span class="sync-pill sync-unknown">Auto (sensor)</span>
-          @endif
-        </div>
-      </div>
-    @else
-    @php
-      $noData = $val === null;
-      $isStale = !$noData && !$paramOnline;
-      $cardBd = $noData ? 'var(--border)' : ($isWarn ? 'var(--amber-bd)' : ($isStale ? 'var(--amber-bd)' : 'var(--border)'));
-      $valColor = $noData ? 'var(--muted)' : ($isWarn ? 'var(--amber)' : ($isStale ? 'var(--amber)' : ($isSwitch && $val ? 'var(--green)' : 'var(--text)')));
-    @endphp
-    <div style="background:var(--surface);border:1px solid {{ $cardBd }};{{ $noData ? 'border-style:dashed;' : '' }}border-radius:var(--r);box-shadow:var(--shadow);padding:12px 14px;min-width:110px;max-width:150px;flex:1">
-      <div style="font-family:'DM Mono',monospace;font-size:20px;font-weight:500;line-height:1.1;color:{{ $valColor }}">
-        {{ $displayVal }}
-        @if($param->unit && !$isBool && !$isSwitch)<span style="font-size:12px;color:var(--muted)"> {{ $param->unit }}</span>@endif
-      </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $param->name }}</div>
-      <div style="margin-top:6px" title="{{ $paramAt ? 'Last data: '.$paramAt->diffForHumans() : '' }}">
-        @if($noData)
-          <span class="badge-nodata">No data</span>
-        @elseif($isStale)
-          <span class="badge-warn-sm">Stale ({{ $paramAt->diffForHumans(null, true) }})</span>
-        @elseif($isWarn)
-          <span class="badge-warn-sm">Warning</span>
-        @elseif($isBool)
-          <span class="badge-nominal">{{ $val ? 'Open' : 'Closed' }}</span>
-        @elseif($isSwitch)
-          <span class="badge-nominal">{{ $val ? 'ON' : 'OFF' }}</span>
-        @else
-          <span class="badge-nominal">Sensor</span>
-        @endif
-      </div>
+      @endforeach
+
+      @foreach($sensorStandalone as $param)
+        @include('dashboard.partials._sensor-param-card', ['param' => $param])
+      @endforeach
     </div>
-    @endif
-    @endforeach
-  </div>
   @endif
 
+  @php
+    $manualByGroup     = $manualDashParams->filter(fn($p) => $p->site_parameter_group_id)->groupBy('site_parameter_group_id');
+    $manualGroups      = $manualByGroup->filter(fn($g) => $g->count() > 1)
+                          ->sortBy(fn($gParams) => $gParams->first()->group->sort_order ?? 0);
+    $manualStandalone  = $manualDashParams->filter(fn($p) => !$p->site_parameter_group_id)
+                          ->merge($manualByGroup->filter(fn($g) => $g->count() <= 1)->flatMap(fn($g) => $g));
+  @endphp
+
   @if($manualDashParams->count() > 0)
-  <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-    @foreach($manualDashParams as $param)
-    @php $manVal = $readings[$param->slug] ?? null; @endphp
-    <div style="background:var(--surface);border:1px dashed var(--blue-bd);border-radius:var(--r);box-shadow:var(--shadow);padding:12px 14px;min-width:110px;max-width:150px;flex:1">
-      <div style="font-family:'DM Mono',monospace;font-size:20px;font-weight:500;line-height:1.1;color:var(--text)">
-        {{ $manVal ?? '—' }}
-        @if($param->unit)<span style="font-size:12px;color:var(--muted)"> {{ $param->unit }}</span>@endif
+    <div class="param-groups-grid">
+      @foreach($manualGroups as $gParams)
+      @php
+        $g = $gParams->first()->group; $gc = $g->color ?: '#94a3b8';
+        $span = min(6, max(2, $gParams->count()));
+      @endphp
+      <div class="param-group-box" style="grid-column:span {{ $span }};border:1px solid {{ $gc }}40;background:{{ $gc }}0d">
+        <div class="pg-head" style="color:{{ $gc }}">
+          <span class="pg-dot" style="background:{{ $gc }}"></span>
+          {{ $g->name }}
+        </div>
+        <div class="pg-cards">
+          @foreach($gParams as $param)
+            @include('dashboard.partials._manual-param-card', ['param' => $param])
+          @endforeach
+        </div>
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $param->name }}</div>
-      <div style="margin-top:6px">
-        <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:500;padding:2px 7px;border-radius:20px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bd)">
-          Manual
-        </span>
-      </div>
+      @endforeach
+
+      @foreach($manualStandalone as $param)
+        @include('dashboard.partials._manual-param-card', ['param' => $param])
+      @endforeach
     </div>
-    @endforeach
-  </div>
   @endif
 
   @php $allManualParams = $params->filter(fn($p) => ($p->input_type ?? 'sensor') === 'manual'); @endphp
@@ -389,6 +355,13 @@ select.ag-input{cursor:pointer}
     {{ session('success') }}
   </div>
   @endif
+  @if($errors->any())
+  <div style="background:var(--red-bg);border:1px solid var(--red-bd);color:var(--red);border-radius:7px;padding:8px 14px;margin-bottom:16px;font-size:13px">
+    @foreach($errors->all() as $error)
+      <div>{{ $error }}</div>
+    @endforeach
+  </div>
+  @endif
   @foreach($site->activeCategories as $manCat)
   @php
     $manParams     = $manCat->activeParameters->where('input_type', 'manual');
@@ -410,7 +383,7 @@ select.ag-input{cursor:pointer}
         <div class="cc-title">{{ $gName }}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px">{{ $gParams->count() }} parameter(s)</div>
       </div>
-      <form method="POST" action="{{ route('manual-readings.store', $site) }}">
+      <form method="POST" action="{{ route('manual-readings.store', $site) }}" onsubmit="this.querySelector('button[type=submit]').disabled=true">
         @csrf
         <div style="margin-bottom:10px">
           <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Date *</label>
@@ -433,6 +406,8 @@ select.ag-input{cursor:pointer}
                    style="width:100%;margin-top:4px;font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text)">
           @else
             <input type="number" name="readings[{{ $pi }}][value]" step="any" placeholder="0"
+                   @if($p->min_value !== null) min="{{ $p->min_value }}" @endif
+                   @if($p->max_value !== null) max="{{ $p->max_value }}" @endif
                    style="width:100%;margin-top:4px;font-family:'DM Mono',monospace;font-size:18px;font-weight:500;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text)">
           @endif
         </div>
@@ -452,7 +427,7 @@ select.ag-input{cursor:pointer}
         <div class="cc-title">{{ $p->name }}</div>
         @if($p->unit)<div style="font-size:11px;color:var(--muted);margin-top:2px">{{ $p->unit }}</div>@endif
       </div>
-      <form method="POST" action="{{ route('manual-readings.store', $site) }}">
+      <form method="POST" action="{{ route('manual-readings.store', $site) }}" onsubmit="this.querySelector('button[type=submit]').disabled=true">
         @csrf
         <div style="margin-bottom:10px">
           <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Date *</label>
@@ -469,6 +444,8 @@ select.ag-input{cursor:pointer}
                  style="width:100%;font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);margin-bottom:10px">
         @else
           <input type="number" name="readings[{{ $pi }}][value]" step="any" placeholder="0"
+                 @if($p->min_value !== null) min="{{ $p->min_value }}" @endif
+                 @if($p->max_value !== null) max="{{ $p->max_value }}" @endif
                  style="width:100%;font-family:'DM Mono',monospace;font-size:22px;font-weight:500;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);margin-bottom:10px">
         @endif
         <input type="text" name="notes" placeholder="Notes..."
@@ -518,7 +495,7 @@ select.ag-input{cursor:pointer}
         ->whereIn('site_parameter_id', $manualParams->pluck('id'))
         ->where('reading_date', '>=', $rawFrom)
         ->orderBy('reading_date', 'desc')->get();
-      $manualGrouped = $manualReadings->groupBy(fn($r) => \Carbon\Carbon::parse($r->reading_date)->format('Y-m-d H:i:s'));
+      $manualGrouped = $manualReadings->groupBy(fn($r) => $r->reading_date->format('Y-m-d H:i:s'));
       $totalSensor = $sensorGrouped->count();
       $totalManual = $manualGrouped->count();
       $hasData     = $totalSensor > 0 || $totalManual > 0;
@@ -608,9 +585,9 @@ select.ag-input{cursor:pointer}
 
 @push('scripts')
 <script>
-const COLORS = ['#15803d','#1d6ed8','#7c3aed','#b45309','#0891b2','#be123c','#0f766e','#7e22ce'];
+const COLORS = @json(\App\Models\SiteParameterGroup::palette());
 const SITE_SLUG = '{{ $site->slug }}';
-const HOURS = {{ match($range ?? '1h') { '6h' => 6, '24h' => 24, '7d' => 168, '30d' => 720, default => 1 } }};
+let HOURS = {{ match($range ?? '1h') { '6h' => 6, '24h' => 24, '7d' => 168, '30d' => 720, default => 1 } }};
 
 function switchTab(tab, btn) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -627,6 +604,12 @@ function switchTab(tab, btn) {
   }
   const cat = (typeof catCharts !== 'undefined') ? catCharts.find(c => c.slug === tab) : null;
   if (cat) setTimeout(() => { buildMainChart(cat); buildLegend(cat); }, 60);
+
+  // The Raw Data tab's initial content is server-rendered for "last 1h" only
+  // (no upper bound refresh happens otherwise) — refetch with whichever
+  // period is currently selected so switching to this tab never shows a
+  // stale snapshot from page load.
+  if (tab === 'raw' && typeof fetchRawData === 'function') fetchRawData();
 }
 
 function copyKey() {
@@ -711,9 +694,16 @@ $catChartsData = $categories->map(function($cat, $catIdx) use ($COLORS) {
 const catCharts = @json($catChartsData);
 const activeParams = {};
 
+// Custom date range picked from the topbar's "Custom" popover overrides HOURS
+// when set (see onRangeChange below); cleared whenever a preset (1H/6H/...) is picked.
+let customFrom = null, customTo = null;
+function dateRangeQuery() {
+  return (customFrom && customTo) ? `from=${customFrom}&to=${customTo}` : `hours=${HOURS}`;
+}
+
 async function loadCategoryData(cat) {
   try {
-    const res = await fetch(`/dashboard/${SITE_SLUG}/${cat.slug}/chart-data?hours=${HOURS}`);
+    const res = await fetch(`/dashboard/${SITE_SLUG}/${cat.slug}/chart-data?${dateRangeQuery()}`);
     const json = await res.json();
     if (json.success && json.datasets && json.datasets.length > 0) {
       const lbls = json.labels;
@@ -790,46 +780,72 @@ function buildLegend(cat) {
       ${p.name}${p.unit ? ' ('+p.unit+')' : ''}</span>`).join('');
 }
 
-// Admin charts via fetch
+// Admin charts via fetch — one loader per configured chart, callable again
+// whenever the top-bar time range changes (see onRangeChange below).
+const adminChartLoaders = [];
+
+function loadAdminChart(chartId, catSlug, paramConfigs, hasSecondAxis, chartType, showLegend) {
+  const ctx = document.getElementById('admin-chart-' + chartId);
+  if (!ctx) return;
+  fetch(`/dashboard/${SITE_SLUG}/${catSlug}/chart-data?${dateRangeQuery()}`)
+    .then(r => r.json())
+    .then(json => {
+      if (ctx._chartInstance) { ctx._chartInstance.destroy(); ctx._chartInstance = null; }
+      if (!json.success || !json.datasets || !json.datasets.length) {
+        ctx.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px">No data for selected period</div>';
+        return;
+      }
+      const chartLabels = json.labels;
+      const dataMap = {};
+      json.datasets.forEach(ds => { dataMap[ds.slug] = ds.data; });
+      const datasets = paramConfigs.map(p => ({
+        label: p.label, data: dataMap[p.slug] || Array(chartLabels.length).fill(null),
+        borderColor: p.color, backgroundColor: p.color + (p.fill ? '22' : '00'),
+        borderWidth: 2, pointRadius: chartLabels.length <= 20 ? 3 : 0,
+        tension: .4, fill: p.fill, borderDash: p.dashed ? [5,4] : [], yAxisID: p.axis, spanGaps: true,
+      }));
+      const scales = { x: baseOpts.scales.x, y: { ...baseOpts.scales.y, position: 'left' } };
+      if (hasSecondAxis) scales.y2 = { position:'right', ticks:{font:{size:10,family:'DM Mono'},color:'#94a3b8'}, grid:{drawOnChartArea:false} };
+      ctx._chartInstance = new Chart(ctx, {
+        type: chartType,
+        data: { labels: chartLabels, datasets },
+        options: { ...baseOpts, scales, plugins: { legend: { display: showLegend } } }
+      });
+    }).catch(() => {});
+}
+
 @foreach($site->activeCategories ?? [] as $cat)
   @foreach($cat->activeCharts ?? [] as $chart)
-  (function() {
-    const ctx = document.getElementById('admin-chart-{{ $chart->id }}');
-    if (!ctx) return;
-    const catSlug = '{{ $cat->slug }}';
-    const hasSecondAxis = {{ $chart->parameters->where('pivot.axis','right')->count() > 0 ? 'true' : 'false' }};
-    const paramConfigs = [
+  adminChartLoaders.push(() => loadAdminChart(
+    {{ $chart->id }},
+    '{{ $cat->slug }}',
+    [
       @foreach($chart->parameters as $p)
       { slug: '{{ $p->slug }}', label: '{{ addslashes($p->name) }}{{ $p->unit ? " (".$p->unit.")" : "" }}', color: '{{ $p->pivot->color }}', fill: {{ $p->pivot->fill ? 'true' : 'false' }}, dashed: {{ $p->pivot->dashed ? 'true' : 'false' }}, axis: '{{ $p->pivot->axis === "right" ? "y2" : "y" }}' },
       @endforeach
-    ];
-    fetch(`/dashboard/${SITE_SLUG}/${catSlug}/chart-data?hours=${HOURS}`)
-      .then(r => r.json())
-      .then(json => {
-        if (!json.success || !json.datasets || !json.datasets.length) {
-          ctx.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px">No data for selected period</div>';
-          return;
-        }
-        const chartLabels = json.labels;
-        const dataMap = {};
-        json.datasets.forEach(ds => { dataMap[ds.slug] = ds.data; });
-        const datasets = paramConfigs.map(p => ({
-          label: p.label, data: dataMap[p.slug] || Array(chartLabels.length).fill(null),
-          borderColor: p.color, backgroundColor: p.color + (p.fill ? '22' : '00'),
-          borderWidth: 2, pointRadius: chartLabels.length <= 20 ? 3 : 0,
-          tension: .4, fill: p.fill, borderDash: p.dashed ? [5,4] : [], yAxisID: p.axis, spanGaps: true,
-        }));
-        const scales = { x: baseOpts.scales.x, y: { ...baseOpts.scales.y, position: 'left' } };
-        if (hasSecondAxis) scales.y2 = { position:'right', ticks:{font:{size:10,family:'DM Mono'},color:'#94a3b8'}, grid:{drawOnChartArea:false} };
-        new Chart(ctx, {
-          type: '{{ $chart->chart_type === "area" ? "line" : $chart->chart_type }}',
-          data: { labels: chartLabels, datasets },
-          options: { ...baseOpts, scales, plugins: { legend: { display: {{ $chart->show_legend ? 'true' : 'false' }} } } }
-        });
-      }).catch(() => {});
-  })();
+    ],
+    {{ $chart->parameters->where('pivot.axis','right')->count() > 0 ? 'true' : 'false' }},
+    '{{ $chart->chart_type === "area" ? "line" : $chart->chart_type }}',
+    {{ $chart->show_legend ? 'true' : 'false' }}
+  ));
   @endforeach
 @endforeach
+adminChartLoaders.forEach(load => load());
+
+// Top-bar 1H/6H/24H/7D buttons (layouts/dashboard.blade.php's setRange) call this.
+function onRangeChange(r, from, to) {
+  if (r === 'custom' && from && to) {
+    customFrom = from; customTo = to;
+  } else {
+    customFrom = null; customTo = null;
+    const hoursMap = { '1h': 1, '6h': 6, '24h': 24, '7d': 168 };
+    HOURS = hoursMap[r] ?? 1;
+  }
+  // Reload every tab's data (not just the active one) so switching tabs
+  // afterward shows the new range instead of a stale cached one.
+  catCharts.forEach(cat => loadCategoryData(cat));
+  adminChartLoaders.forEach(load => load());
+}
 
 let rawCurrentHours = 1, rawCurrentPage = 1;
 

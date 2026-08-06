@@ -13,7 +13,7 @@
       ->orderBy('created_at', 'desc')
       ->get();
     $rows = $readings->groupBy(fn($r) =>
-      \Carbon\Carbon::parse($r->reading_date)->format('Y-m-d') . '||' .
+      $r->reading_date->format('Y-m-d') . '||' .
       $r->created_at->format('Y-m-d H:i')
     );
     $groupCounts[$gName] = $rows->count();
@@ -29,21 +29,31 @@
   {{-- Header --}}
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:11px 16px;border-bottom:1px solid var(--border);background:var(--bg)">
     <div style="display:flex;align-items:center;gap:10px">
-      <span style="font-size:13px;font-weight:600">📋 Saved Records</span>
+      <span style="font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:5px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><line x1="8" y1="11" x2="16" y2="11"></line><line x1="8" y1="15" x2="16" y2="15"></line></svg>
+        Saved Records
+      </span>
       <span id="rec-count-{{ $uid }}" style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bd)">{{ $firstCount }} record(s)</span>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       <select id="rec-filter-{{ $uid }}"
         onchange="switchGroup{{ str_replace('-','_',$uid) }}(this.value)"
+        aria-label="Filter saved records by group"
         style="font-family:'DM Sans',sans-serif;font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer">
         @foreach($groupCounts as $gName => $gCount)
         <option value="{{ $gName }}" data-count="{{ $gCount }}">{{ $gName }}</option>
         @endforeach
       </select>
       <a id="rec-csv-{{ $uid }}" href="/export/{{ $site->slug }}/{{ $category->slug }}/group/{{ rawurlencode($firstGroup) }}/csv"
-         style="font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 10px;border:1px solid var(--border);background:var(--surface);border-radius:5px;color:var(--muted);text-decoration:none">⬇ CSV</a>
+         style="font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 10px;border:1px solid var(--border);background:var(--surface);border-radius:5px;color:var(--muted);text-decoration:none;display:inline-flex;align-items:center;gap:4px">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        CSV
+      </a>
       <a id="rec-xls-{{ $uid }}" href="/export/{{ $site->slug }}/{{ $category->slug }}/group/{{ rawurlencode($firstGroup) }}/excel"
-         style="font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 10px;border:1px solid var(--blue-bd);background:var(--blue-bg);border-radius:5px;color:var(--blue);text-decoration:none">⬇ XLS</a>
+         style="font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 10px;border:1px solid var(--blue-bd);background:var(--blue-bg);border-radius:5px;color:var(--blue);text-decoration:none;display:inline-flex;align-items:center;gap:4px">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        XLS
+      </a>
     </div>
   </div>
 
@@ -57,7 +67,7 @@
       ->orderBy('created_at', 'desc')
       ->get();
     $rows = $readings->groupBy(fn($r) =>
-      \Carbon\Carbon::parse($r->reading_date)->format('Y-m-d') . '||' .
+      $r->reading_date->format('Y-m-d') . '||' .
       $r->created_at->format('Y-m-d H:i')
     );
   @endphp

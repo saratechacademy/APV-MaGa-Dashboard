@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AuthorizesSiteAccess;
 use App\Models\ActuatorCommand;
 use App\Models\Site;
 use App\Models\SiteParameter;
@@ -9,12 +10,22 @@ use Illuminate\Http\Request;
 
 class ActuatorController extends Controller
 {
+    use AuthorizesSiteAccess;
+
     /**
      * Toggle (or set) the desired state of a controllable switch parameter.
      * Called from the dashboard (Solar/Water/Irrigation tabs) via a small form/button.
      */
     public function toggle(Request $request, Site $site, SiteParameter $parameter)
     {
+        $this->authorizeSiteAccess($site);
+
+        // Les observateurs sont en lecture seule : l'UI leur masque déjà le
+        // toggle, mais il ne faut jamais se fier uniquement au client.
+        if (auth()->user()->isObservateur()) {
+            abort(403, 'Observers cannot control actuators.');
+        }
+
         // Sécurité : le paramètre doit appartenir à ce site et être controllable
         if ($parameter->category->site_id !== $site->id) {
             abort(404);

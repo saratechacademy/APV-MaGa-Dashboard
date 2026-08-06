@@ -14,5 +14,5 @@ class SiteChartParameter extends Model
     protected $casts = ['dashed'=>'boolean','fill'=>'boolean'];
 
     public function chart()    { return $this->belongsTo(SiteChart::class); }
-    public function parameter(){ return $this->belongsTo(SiteParameter::class); }
+    public function parameter(){ return $this->belongsTo(SiteParameter::class, 'site_parameter_id'); }
 }

@@ -10,17 +10,19 @@ use App\Exports\CategorySheet;
 class SiteCategoryExport implements WithMultipleSheets
 {
     public function __construct(
-        protected Site $site,
-        protected int  $hours = 24
-    ) {}
+        protected Site    $site,
+        protected Carbon  $from,
+        protected ?Carbon $to = null
+    ) {
+        $this->to ??= now();
+    }
 
     public function sheets(): array
     {
         $sheets = [];
-        $from   = now()->subHours($this->hours);
 
         foreach ($this->site->activeCategories as $category) {
-            $sheets[] = new CategorySheet($this->site, $category, $from);
+            $sheets[] = new CategorySheet($this->site, $category, $this->from, $this->to);
         }
 
         return $sheets;

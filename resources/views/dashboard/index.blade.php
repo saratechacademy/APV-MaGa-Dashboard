@@ -1,8 +1,14 @@
 @extends('layouts.dashboard')
 @section('page-title', 'All Sites')
 @section('page-crumb', 'Overview')
+@section('show-toolbar', '1')
 @section('content')
 
+
+@php
+  $iconWarnTriangle = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+  $iconCheckCircle = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+@endphp
 
 {{-- Section: Sites --}}
 <div class="sec-header">
@@ -23,19 +29,19 @@
     $tankParam  = $waterCat?->activeParameters->firstWhere('slug', 'tank_fill_level');
     $tempParam  = $weatherCat?->activeParameters->firstWhere('slug', 'temperature');
 
-    $kw   = $kwParam   ? \App\Models\SensorReading::where('site_id',$site->id)->where('site_parameter_id',$kwParam->id)->latest('read_at')->value('value')   : null;
-    $bh   = $bhParam   ? \App\Models\SensorReading::where('site_id',$site->id)->where('site_parameter_id',$bhParam->id)->latest('read_at')->value('value')   : null;
-    $tank = $tankParam ? \App\Models\SensorReading::where('site_id',$site->id)->where('site_parameter_id',$tankParam->id)->latest('read_at')->value('value') : null;
-    $temp = $tempParam ? \App\Models\SensorReading::where('site_id',$site->id)->where('site_parameter_id',$tempParam->id)->latest('read_at')->value('value') : null;
+    $kw   = $kwParam?->latestReading?->value;
+    $bh   = $bhParam?->latestReading?->value;
+    $tank = $tankParam?->latestReading?->value;
+    $temp = $tempParam?->latestReading?->value;
 
-    $isWarn = $bh !== null && $bhParam?->warning_threshold && $bh <= $bhParam->warning_threshold;
+    $isWarn = $bhParam?->isWarn($bh) ?? false;
   @endphp
   <a href="{{ route('dashboard.site', $site) }}" class="site-card {{ $isWarn ? 'warn-card' : '' }}">
     <div class="card-head">
       <div class="card-name">{{ $site->name }}</div>
       <span class="country-chip">{{ strtoupper(substr($site->country, 0, 3)) }}</span>
-      <span class="badge {{ $isWarn ? 'badge-warn' : 'badge-ok' }}" style="margin-left:auto">
-        {{ $isWarn ? '⚠ Warning' : '✓ Normal' }}
+      <span class="badge {{ $isWarn ? 'badge-warn' : 'badge-ok' }}" style="margin-left:auto;display:inline-flex;align-items:center;gap:4px">
+        {!! $isWarn ? $iconWarnTriangle : $iconCheckCircle !!} {{ $isWarn ? 'Warning' : 'Normal' }}
       </span>
     </div>
     <div class="kpis">
@@ -70,7 +76,9 @@
   </a>
 @empty
   <div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--muted)">
-    <div style="font-size:32px;margin-bottom:12px">📡</div>
+    <div style="margin-bottom:12px;color:var(--muted)">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"></path><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"></path><circle cx="12" cy="12" r="1.5"></circle><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"></path><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"></path></svg>
+    </div>
     @if(auth()->user()->isAdmin())
       <div style="font-weight:600;margin-bottom:6px">No sites yet</div>
       <div style="font-size:12px;margin-bottom:16px">Create your first monitoring site to get started</div>
@@ -122,7 +130,7 @@
 
 @push('scripts')
 <script>
-const COLORS = ['#15803d','#1d6ed8','#7c3aed','#b45309','#0891b2','#be123c','#0f766e','#7e22ce'];
+const COLORS = @json(\App\Models\SiteParameterGroup::palette());
 
 @php
 $sitesData = ($sites ?? collect())->map(fn($s) => [
@@ -160,23 +168,24 @@ SITES.forEach((site, i) => {
         },
         options: { ...opts, scales: { x:{display:false}, y:{display:false} }, plugins:{legend:{display:false}} }
       });
-    }).catch(() => {});
+    }).catch(err => console.error('Chart data fetch failed:', err));
 });
 
 // Cross-site data
 const crossSolar = {}, crossWater = {}, crossTemp = {}, crossTank = {};
 
-function loadCrossData(hours) {
+function loadCrossData(hours, from, to) {
+  const query = (from && to) ? `from=${from}&to=${to}` : `hours=${hours}`;
   SITES.forEach((site, i) => {
-    fetch(`/dashboard/${site.slug}/solar/chart-data?hours=${hours}`)
+    fetch(`/dashboard/${site.slug}/solar/chart-data?${query}`)
       .then(r => r.json()).then(json => {
         if (json.success && json.datasets?.length) {
           crossSolar[site.id] = { name: site.name, labels: json.labels, data: json.datasets[0]?.data || [] };
         }
         buildCrossChart('chart-solar', crossSolar, 'legend-solar');
-      }).catch(() => {});
+      }).catch(err => console.error('Chart data fetch failed:', err));
 
-    fetch(`/dashboard/${site.slug}/water/chart-data?hours=${hours}`)
+    fetch(`/dashboard/${site.slug}/water/chart-data?${query}`)
       .then(r => r.json()).then(json => {
         if (json.success && json.datasets?.length) {
           crossWater[site.id] = { name: site.name, labels: json.labels, data: json.datasets[0]?.data || [] };
@@ -185,15 +194,15 @@ function loadCrossData(hours) {
         }
         buildCrossChart('chart-water', crossWater, 'legend-water');
         buildTankChart();
-      }).catch(() => {});
+      }).catch(err => console.error('Chart data fetch failed:', err));
 
-    fetch(`/dashboard/${site.slug}/weather/chart-data?hours=${hours}`)
+    fetch(`/dashboard/${site.slug}/weather/chart-data?${query}`)
       .then(r => r.json()).then(json => {
         if (json.success && json.datasets?.length) {
           crossTemp[site.id] = { name: site.name, labels: json.labels, data: json.datasets[0]?.data || [] };
         }
         buildCrossChart('chart-temp', crossTemp, null);
-      }).catch(() => {});
+      }).catch(err => console.error('Chart data fetch failed:', err));
   });
 }
 
@@ -238,13 +247,14 @@ function buildTankChart() {
   });
 }
 
-function onRangeChange(r) {
+function onRangeChange(r, from, to) {
   const h = r==='7d'?168:r==='24h'?24:r==='6h'?6:1;
+  const label = (r === 'custom' && from && to) ? `${from} → ${to}` : 'last '+r.toUpperCase();
   ['solar','water','temp'].forEach(k => {
     const el = document.getElementById('lbl-'+k+'-range');
-    if (el) el.textContent = 'last '+r.toUpperCase();
+    if (el) el.textContent = label;
   });
-  loadCrossData(h);
+  loadCrossData(h, from, to);
 }
 
 loadCrossData(1);
