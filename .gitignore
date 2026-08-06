@@ -22,3 +22,9 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+licor_*.json
+licor_discover.ps1
+licor_raw_inspect.ps1
+licor_view_data.ps1
+debug_licor.ps1
+test_licor_api.ps1

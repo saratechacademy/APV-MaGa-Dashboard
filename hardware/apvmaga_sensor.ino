@@ -17,14 +17,10 @@
 const char* WIFI_SSID     = "VotreSSID";
 const char* WIFI_PASSWORD = "VotreMotDePasse";
 
-// Site APV-MaGa — choisir UN site
-// --- Site Fass ---
-const char* SITE_SLUG = "fass-6a15122aee52e";
-const char* API_KEY   = "apv-6AJgzjBQKLij27vznGOCPaf2ASoEp9mp";
-
-// --- Site Muje Gona (décommenter pour utiliser) ---
-// const char* SITE_SLUG = "muje-gona-6a1510d78bfc1";
-// const char* API_KEY   = "apv-1CIzj7Ei7GrkbEbuIyQxNaDExjikZmAL";
+// Site APV-MaGa — récupérer le slug et la clé API depuis l'onglet
+// "API Key" du dashboard du site (Admin Panel > Sites > votre site).
+const char* SITE_SLUG = "your-site-slug-here";
+const char* API_KEY   = "apv-your-api-key-here";
 
 // Serveur API
 const char* API_BASE = "https://apvmaga.saratechniger.com/api/sensors";
