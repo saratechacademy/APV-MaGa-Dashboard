@@ -14,16 +14,17 @@ Developed by **Saratech**, funded by **UNU (United Nations University)**.
 
 ## Features
 
-- **Multi-site monitoring** — manage multiple agrivoltaic field sites, each with its own categories, parameters, charts and API key
-- **Real-time sensor data** — receive data from IoT sensors and modules via REST API
+- **Multi-site monitoring** — manage multiple agrivoltaic field sites, each with its own categories, parameters, charts and API key; sites can be duplicated (categories, parameters, groups and charts included) to speed up onboarding similar installations
+- **Real-time sensor data** — receive data from IoT sensors and modules via REST API, with per-parameter min/max validation at ingestion and rate limiting to protect against flooding
 - **Remote actuator control** — toggle switches (valves, pumps, cooling fans) remotely, with sync status tracking (Synced / Pending / No device report / Stale)
+- **Parameter groups & alert thresholds** — organize related parameters into color-coded, drag-and-drop-orderable groups; configure warning/critical thresholds per parameter with direction-aware alerting (below or above the threshold, depending on what "bad" means for that reading)
 - **Offline detection** — configurable per-category threshold; dashboards flag parameters as "No data" or "Stale" when devices stop reporting
 - **Manual data entry** — field agents can input agricultural, water, irrigation or weather readings (crop yield, plant health, tank levels, etc.), with saved records and category-specific CSV/Excel export
-- **Dynamic dashboards** — configurable charts per site and category, with 1H / 6H / 24H / 7D time ranges
+- **Dynamic dashboards** — configurable charts per site and category, with 1H / 6H / 24H / 7D presets plus a custom date-range picker for any historical window
 - **Historical data & statistics API** — query raw history or aggregated stats (avg/min/max/sum/count) over hour/day/week/month periods
-- **Role-based access** — admin, site manager, agent, and observer roles, with per-site assignment
+- **Role-based access** — admin, agent, and observer roles, with per-site assignment; observers get read + export access scoped to their assigned sites
 - **Email notifications** — account creation, approval, site access, and password reset emails (branded)
-- **Data export** — export readings to CSV or Excel, per site or per category
+- **Data export** — export readings to CSV or Excel, per site, per category, or across all accessible sites, with formula-injection-safe cell encoding
 - **Bilingual interface** — French and English support, including `/help` and `/docs` pages
 - **Responsive design** — works on desktop and mobile, with off-canvas navigation
 
@@ -45,12 +46,14 @@ Developed by **Saratech**, funded by **UNU (United Nations University)**.
 app/
 ├── Http/Controllers/
 │   ├── Api/                  # IoT sensor & actuator API endpoints
+│   ├── Concerns/              # Shared traits (AuthorizesSiteAccess, ResolvesDateRange)
 │   ├── ActuatorController.php
 │   ├── AdminController.php
 │   └── DashboardController.php
 ├── Mail/                      # Transactional email classes (welcome, approval, site access, reset password)
-├── Models/                     # Eloquent models (Site, SiteCategory, SiteParameter, SensorReading,
-│                                # ManualReading, ActuatorCommand, User, ...)
+├── Models/                     # Eloquent models (Site, SiteCategory, SiteParameter, SiteParameterGroup,
+│                                # SensorReading, ManualReading, ActuatorCommand, User, ...)
+├── Support/                    # Small framework-agnostic helpers (e.g. SafeExport for CSV/Excel output)
 └── Exports/                    # CSV/Excel export classes
 
 resources/views/
@@ -65,6 +68,10 @@ resources/views/
 routes/
 ├── web.php                       # Web routes
 └── api.php                       # API routes for IoT sensors & actuators
+
+tests/
+├── Feature/                      # HTTP-level tests (auth, admin CRUD, exports, API endpoints...)
+└── Unit/                         # Pure logic tests (threshold alerting)
 ```
 
 ---
@@ -104,10 +111,23 @@ php artisan serve
 
 ---
 
+## Testing
+
+```bash
+php artisan test
+```
+
+The suite covers authentication and authorization boundaries (admin/agent/observer, per-site assignment), IoT API ingestion and querying, threshold-based alerting, manual reading validation, actuator control, and export content — see `tests/Feature` and `tests/Unit`.
+
+---
+
 ## API Usage (IoT Sensors & Actuators)
 
 ### Authentication
-All API requests require the `X-API-Key` header with the site's API key (available from the dashboard's "API Key" tab for each site).
+All API requests require the `X-API-Key` header with the site's API key (available from the dashboard's "API Key" tab for each site). Requests are rate-limited per site to protect against flooding.
+
+### Date ranges
+`history` and `stats` accept `from`/`to` as plain dates (`YYYY-MM-DD`); each covers the full calendar day (`from` at 00:00:00, `to` at 23:59:59), so `?from=2026-05-01&to=2026-05-01` returns that entire day rather than an empty, zero-width window.
 
 ### Send sensor data
 ```http
@@ -161,13 +181,14 @@ Full endpoint documentation, including request/response formats and available ca
 The platform supports an unlimited number of sites. Each site can be configured with its own:
 
 - **Categories** (Solar, Water, Irrigation, Weather, Agriculture, or custom)
-- **Parameters** — sensor or manual input, with optional actuator control (readonly/controllable switches)
+- **Parameters** — sensor or manual input, with optional actuator control (readonly/controllable switches), min/max range and warning/critical alert thresholds
+- **Parameter groups** — visually group related parameters on the dashboard, reorderable by drag-and-drop or keyboard
 - **Charts** — configurable per category (full/half/third width, dual-axis support)
 - **Offline threshold** — per-category, used to flag stale/offline parameters
 - **API key** — for IoT device authentication
 - **Users** — with role-based access (admin, agent, observer) and per-site assignment
 
-Sites can be created and managed directly from the Admin Panel without any code changes.
+Sites can be created, edited, or duplicated (with their full category/parameter/group/chart configuration) directly from the Admin Panel without any code changes.
 
 ---
 
