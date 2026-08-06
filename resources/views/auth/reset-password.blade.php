@@ -4,14 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>APV-MaGa — Reset Password</title>
+<link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+<link rel="alternate icon" href="{{ asset('favicon.ico') }}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#ffffff;--surface:#ffffff;--input-bg:#f4f6fb;
-  --blue:#16a34a;--blue-dark:#15803d;
-  --green:#16a34a;
+  --green:#16a34a;--green-dark:#15803d;
   --red:#be123c;--red-bg:#fff1f2;--red-bd:#fecdd3;
   --green-bg:#f0fdf4;--green-bd:#bbf7d0;
   --border:#e7ebf1;--muted:#64748b;--text:#0d1321;
@@ -48,14 +49,14 @@ body{
 .field label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
 .field input{width:100%;padding:11px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;transition:border-color .15s,background .15s;outline:none}
 .field input::placeholder{color:#94a3b8}
-.field input:focus{border-color:var(--blue);background:#ffffff}
+.field input:focus{border-color:var(--green);background:#ffffff}
 .field input.error{border-color:var(--red)}
 .field input[readonly]{opacity:.65;cursor:not-allowed}
 
 .btn-login{
   width:100%;padding:12px;border:none;border-radius:9px;color:#fff;
   font-family:'DM Sans',sans-serif;font-size:14.5px;font-weight:700;cursor:pointer;
-  letter-spacing:.1px;background:linear-gradient(135deg,#22c55e 0%,var(--blue) 45%,#15803d 130%);
+  letter-spacing:.1px;background:linear-gradient(135deg,#22c55e 0%,var(--green) 45%,#15803d 130%);
   background-size:160% 160%;background-position:0% 50%;
   transition:background-position .25s ease,transform .1s;
 }

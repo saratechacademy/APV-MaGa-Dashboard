@@ -3,18 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>APV-MaGa — @yield('page-title', 'Dashboard')</title>
+<link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+<link rel="alternate icon" href="{{ asset('favicon.ico') }}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+        integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g"
+        crossorigin="anonymous"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --sidebar-w:224px;--topbar-h:56px;
   --sidebar-bg:#0f1929;--sidebar-hover:#16243a;--sidebar-active:rgba(34,197,94,.12);
   --bg:#f0f3f8;--surface:#fff;--border:#e4e8ef;
-  --text:#0d1321;--muted:#64748b;
+  --text:#0d1321;--muted:#5b6b84;
   --green:#15803d;--green-bg:#f0fdf4;--green-bd:#bbf7d0;
   --blue:#1d6ed8;--blue-bg:#eff6ff;--blue-bd:#bfdbfe;
   --amber:#b45309;--amber-bg:#fffbeb;--amber-bd:#fde68a;
@@ -34,15 +39,21 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
 .sb-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:13px;color:#cbd5e1;transition:background .15s,color .15s;user-select:none;white-space:nowrap;text-decoration:none;border-left:3px solid transparent}
 .sb-item:hover{background:var(--sidebar-hover);color:#f8fafc}
 .sb-item.active{background:var(--sidebar-active);color:#4ade80;font-weight:600;border-left-color:#22c55e}
-.sb-icon{font-size:14px;width:16px;text-align:center;flex-shrink:0}
+.sb-icon{font-size:14px;width:16px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
 .site-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .d-ok{background:#4ade80}.d-warn{background:#fbbf24}.d-err{background:#f87171}
+.site-avatar{position:relative;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.site-avatar .status-dot{position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;border:2px solid var(--sidebar-bg)}
+.site-name-col{display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.25}
+.site-name-col .site-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.site-country-badge{margin-left:auto;font-size:9px;font-weight:700;letter-spacing:.3px;color:#7c8ba1;background:rgba(255,255,255,.06);padding:2px 6px;border-radius:8px;flex-shrink:0}
+.sb-item.active .site-country-badge{color:#4ade80;background:rgba(34,197,94,.12)}
 .sb-divider{border:none;border-top:1px solid #1e2d45;margin:4px 10px}
 .sb-user{padding:12px 14px;border-top:1px solid #1e2d45;margin-top:auto;display:flex;align-items:center;gap:8px}
 .sb-avatar{width:28px;height:28px;border-radius:50%;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.25);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#4ade80;flex-shrink:0}
 .sb-user-info{min-width:0}
 .sb-user-name{font-size:12px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sb-user-role{font-size:10px;color:#475569}
+.sb-user-role{font-size:10px;color:#7c8ba1}
 
 /* OVERLAY mobile */
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999}
@@ -59,6 +70,10 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
 .tr-group{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:2px;gap:1px;flex-shrink:0}
 .tr-btn{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:4px 10px;border:none;background:transparent;border-radius:5px;cursor:pointer;color:var(--muted);transition:all .15s}
 .tr-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.range-chip{display:none;align-items:center;gap:6px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bd);border-radius:20px;padding:3px 6px 3px 10px;font-size:12px;font-weight:500;flex-shrink:0;white-space:nowrap}
+.range-chip.visible{display:inline-flex}
+.range-chip button{background:none;border:none;cursor:pointer;color:var(--blue);font-size:14px;line-height:1;padding:2px 4px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.range-chip button:hover{background:rgba(29,110,216,.15)}
 .tb-right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-shrink:0}
 .btn{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:6px 14px;border:1px solid var(--border);background:var(--surface);border-radius:7px;cursor:pointer;color:var(--text);transition:background .15s;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
 .btn:hover{background:var(--bg)}
@@ -66,6 +81,25 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
 .btn-blue:hover{background:#1a5fc0}
 .btn-red{background:var(--red-bg);color:var(--red);border-color:var(--red-bd)}
 .btn-red:hover{background:#ffe4e6}
+
+/* Shared admin form styling — used by every admin/*.blade.php create/edit page
+   instead of each view repeating its own near-identical copy. */
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-field{display:flex;flex-direction:column;gap:4px}
+.form-field.full{grid-column:1/-1}
+.form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.form-input{font-family:'DM Sans',sans-serif;font-size:13px;padding:8px 12px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);width:100%;transition:border-color .15s}
+.form-input:focus{outline:none;border-color:var(--blue);background:#fff}
+.form-input.error{border-color:var(--red)}
+select.form-input{cursor:pointer}
+textarea.form-input{resize:vertical;min-height:70px}
+.form-hint{font-size:11px;color:var(--muted);margin-top:2px}
+.section-title{font-size:13px;font-weight:600;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.checkbox-row{display:flex;align-items:center;gap:8px;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px}
+.checkbox-row input[type=checkbox]{accent-color:var(--blue);width:16px;height:16px;cursor:pointer}
+.checkbox-row label{font-size:13px;font-weight:500;cursor:pointer}
+.checkbox-row .hint{font-size:11px;color:var(--muted);margin-top:1px}
 
 /* Hamburger button */
 .btn-hamburger{display:none;background:none;border:none;cursor:pointer;padding:6px;color:var(--text);font-size:20px;flex-shrink:0;line-height:1}
@@ -159,6 +193,7 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
   .tb-title{font-size:14px}
   .live-badge{padding:3px 8px;font-size:11px}
   .tr-group{display:none}
+  .range-chip{display:none !important}
   .tb-right .btn:first-child{display:none} /* hide CSV on mobile */
   .tb-right .btn-blue{font-size:12px;padding:5px 10px}
 
@@ -207,6 +242,11 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
     grid-template-columns: repeat(2, 1fr) !important;
   }
 }
+/* Tables that overflow their card (inline overflow:hidden) get a horizontal
+   scrollbar instead of being silently clipped — needed from tablet widths
+   up, not just phones, so this stays outside the max-width:640px block. */
+.content [style*="overflow:hidden"] { overflow-x: auto; }
+
 @media (max-width: 640px) {
   [style*="grid-template-columns:repeat(4,1fr)"],
   [style*="grid-template-columns: repeat(4, 1fr)"],
@@ -217,7 +257,6 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
   }
   .charts-2, .charts-3 { grid-template-columns: 1fr !important; }
   .sec-header { flex-direction: column; align-items: flex-start !important; gap: 8px; }
-  .content [style*="overflow:hidden"] { overflow-x: auto !important; }
   [style*="display:flex"][style*="gap:24px"],
   [style*="display:flex"][style*="gap: 24px"] { flex-direction: column !important; }
 }
@@ -318,12 +357,15 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
       <div class="sb-logo-name">APV-MaGa</div>
       <div class="sb-logo-sub">Agrivoltaic Monitoring Platform</div>
     </div>
-    <button onclick="closeSidebar()" style="display:none;background:none;border:none;color:#475569;font-size:18px;cursor:pointer;padding:4px" id="btn-close-sidebar">✕</button>
+    <button onclick="closeSidebar()" style="display:none;background:none;border:none;color:#475569;font-size:18px;cursor:pointer;padding:4px" id="btn-close-sidebar" aria-label="Close menu" title="Close menu">✕</button>
   </div>
 
   @php
     $currentSite = request()->route('site');
     $streamSite  = $currentSite ?? ($sites ?? collect())->first();
+    $iconSettings = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>';
+    $iconHelp     = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+    $iconDocs     = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 5 2 12 7 19"></polyline><line x1="14" y1="4" x2="10" y2="20"></line><polyline points="17 5 22 12 17 19"></polyline></svg>';
   @endphp
 
   <div class="sb-section">
@@ -332,11 +374,18 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
        class="sb-item {{ request()->routeIs('dashboard') && !request()->route('site') ? 'active' : '' }}">
       <span class="sb-icon">⊞</span> All Sites
     </a>
+    @php $sitePalette = \App\Models\SiteParameterGroup::palette(); @endphp
     @foreach($sites ?? [] as $s)
     <a href="{{ route('dashboard.site', $s) }}" onclick="closeSidebar()"
        class="sb-item {{ request()->route('site')?->id == $s->id ? 'active' : '' }}">
-      <span class="site-dot {{ $s->status === 'active' ? 'd-ok' : 'd-warn' }}"></span>
-      {{ $s->name }} — {{ strtoupper(substr($s->country, 0, 3)) }}
+      <span class="site-avatar" style="background:{{ $sitePalette[$s->id % count($sitePalette)] }}">
+        {{ strtoupper(substr($s->name, 0, 1)) }}
+        <span class="status-dot {{ $s->status === 'active' ? 'd-ok' : 'd-warn' }}"></span>
+      </span>
+      <span class="site-name-col">
+        <span class="site-name">{{ $s->name }}</span>
+      </span>
+      <span class="site-country-badge">{{ strtoupper(substr($s->country, 0, 3)) }}</span>
     </a>
     @endforeach
   </div>
@@ -344,23 +393,23 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
   <div class="sb-section">
     @if(auth()->user()->isAdmin())
     <a href="{{ route('admin.dashboard') }}" onclick="closeSidebar()" class="sb-item {{ request()->is('admin*') ? 'active' : '' }}">
-      <span class="sb-icon">⚙</span> Admin Panel
+      <span class="sb-icon">{!! $iconSettings !!}</span> Admin Panel
     </a>
     @endif
     <a href="{{ route('help') }}" onclick="closeSidebar()" class="sb-item {{ request()->routeIs('help') ? 'active' : '' }}">
-      <span class="sb-icon">📖</span> Help
+      <span class="sb-icon">{!! $iconHelp !!}</span> Help
     </a>
     @if(auth()->user()->isAdmin())
     <a href="{{ route('docs') }}" onclick="closeSidebar()" class="sb-item {{ request()->routeIs('docs') ? 'active' : '' }}">
-      <span class="sb-icon">🧩</span> Docs
+      <span class="sb-icon">{!! $iconDocs !!}</span> Docs
     </a>
     @endif
   </div>
 
   <div class="sb-user" style="flex-direction:column;align-items:stretch;padding:0;margin-top:auto">
     <div style="display:flex;align-items:center;gap:8px;padding:12px 14px">
-      <div class="sb-avatar">{{ substr(auth()->user()->name, 0, 1) }}</div>
-      <div class="sb-user-info">
+      <div class="sb-avatar" title="{{ auth()->user()->name }} — {{ auth()->user()->email }}">{{ substr(auth()->user()->name, 0, 1) }}</div>
+      <div class="sb-user-info" title="{{ auth()->user()->name }} — {{ auth()->user()->email }}">
         <div class="sb-user-name">{{ auth()->user()->name }}</div>
         <div class="sb-user-role">{{ ucfirst(auth()->user()->role) }}</div>
       </div>
@@ -369,8 +418,8 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
         <button type="submit" style="background:none;border:none;padding:4px;cursor:pointer;color:#475569;font-size:14px" title="Logout">⏻</button>
       </form>
     </div>
-    <div style="padding:8px 14px 10px;font-size:10px;color:#7c8ba1;text-align:center;line-height:1.7;border-top:1px solid #1e2d45">
-      © 2026 APV-MaGa · Developed by <span style="color:#4ade80;font-weight:600">Saratech</span><br>All rights reserved.
+    <div style="padding:6px 14px 8px;font-size:9px;color:#475569;text-align:center;border-top:1px solid #1e2d45">
+      © 2026 APV-MaGa · <span style="color:#64748b">Saratech</span>
     </div>
   </div>
 </aside>
@@ -384,18 +433,34 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
 
     <span class="tb-title" id="tb-title">@yield('page-title', 'All Sites')</span>
     <span class="tb-crumb" id="tb-crumb">@yield('page-crumb', 'Overview')</span>
+    @hasSection('show-toolbar')
     <div class="live-badge"><span class="live-dot"></span> Live</div>
     <span class="sync-time" id="sync-time">--:--:--</span>
-    <div class="tr-group">
+    <div class="tr-group" style="position:relative">
       <button class="tr-btn active" data-range="1h" onclick="setRange('1h',this)">1H</button>
       <button class="tr-btn" data-range="6h" onclick="setRange('6h',this)">6H</button>
       <button class="tr-btn" data-range="24h" onclick="setRange('24h',this)">24H</button>
       <button class="tr-btn" data-range="7d" onclick="setRange('7d',this)">7D</button>
+      <button class="tr-btn" id="custom-range-btn" onclick="toggleCustomRange(event)">Custom</button>
+      <div id="custom-range-popover" style="display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow-md);padding:12px;z-index:1100;min-width:200px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label for="custom-range-from" style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)">From</label>
+          <input type="date" id="custom-range-from" style="font-family:'DM Sans',sans-serif;font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;color:var(--text);background:var(--bg)">
+          <label for="custom-range-to" style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-top:2px">To</label>
+          <input type="date" id="custom-range-to" style="font-family:'DM Sans',sans-serif;font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;color:var(--text);background:var(--bg)">
+          <button type="button" class="btn btn-blue" style="margin-top:6px;justify-content:center;font-size:12px;padding:6px" onclick="applyCustomRange()">Apply</button>
+        </div>
+      </div>
+    </div>
+    <div id="active-range-chip" class="range-chip">
+      <span id="active-range-chip-text"></span>
+      <button type="button" onclick="clearCustomRange()" aria-label="Clear custom range" title="Clear custom range">✕</button>
     </div>
     <div class="tb-right">
       <button class="btn" onclick="exportData('csv')">⬇ CSV</button>
       <button class="btn btn-blue" onclick="exportData('excel')">⬇ Excel</button>
     </div>
+    @endif
   </div>
 
   <!-- CONTENT -->
@@ -419,32 +484,98 @@ function closeSidebar() {
 
 // Clock
 function updateClock(){
+  const el = document.getElementById('sync-time');
+  if (!el) return;
   const now = new Date();
-  document.getElementById('sync-time').textContent = now.toTimeString().slice(0,8) + ' UTC';
+  el.textContent = now.toTimeString().slice(0,8) + ' UTC';
 }
 setInterval(updateClock, 1000);
 updateClock();
 
 // Time range
 let currentRange = '1h';
+let customFrom = null, customTo = null;
+
 function setRange(r, btn) {
   currentRange = r;
+  customFrom = null; customTo = null;
   document.querySelectorAll('.tr-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+  document.getElementById('active-range-chip')?.classList.remove('visible');
   if (typeof onRangeChange === 'function') onRangeChange(r);
 }
 
+function toggleCustomRange(e) {
+  e.stopPropagation();
+  const pop = document.getElementById('custom-range-popover');
+  const btn = document.getElementById('custom-range-btn');
+  if (!pop || !btn) return;
+  if (pop.style.display === 'block') {
+    pop.style.display = 'none';
+    return;
+  }
+  const rect = btn.getBoundingClientRect();
+  pop.style.display = 'block';
+  const popWidth = pop.offsetWidth || 200;
+  let left = rect.right - popWidth;
+  if (left < 8) left = 8;
+  pop.style.top = (rect.bottom + 6) + 'px';
+  pop.style.left = left + 'px';
+}
+
+document.addEventListener('click', (e) => {
+  const pop = document.getElementById('custom-range-popover');
+  const btn = document.getElementById('custom-range-btn');
+  if (pop && pop.style.display === 'block' && !pop.contains(e.target) && e.target !== btn) {
+    pop.style.display = 'none';
+  }
+});
+
+function applyCustomRange() {
+  const from = document.getElementById('custom-range-from')?.value;
+  const to   = document.getElementById('custom-range-to')?.value;
+  if (!from || !to) { alert('Please pick both a start and end date.'); return; }
+  if (from > to) { alert('The start date must be before the end date.'); return; }
+
+  currentRange = 'custom';
+  customFrom = from; customTo = to;
+  document.querySelectorAll('.tr-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('custom-range-btn')?.classList.add('active');
+  document.getElementById('custom-range-popover').style.display = 'none';
+
+  const chipText = document.getElementById('active-range-chip-text');
+  if (chipText) {
+    const fmt = d => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    chipText.textContent = `${fmt(from)} → ${fmt(to)}`;
+  }
+  document.getElementById('active-range-chip')?.classList.add('visible');
+
+  if (typeof onRangeChange === 'function') onRangeChange('custom', from, to);
+}
+
+function clearCustomRange() {
+  const fromInput = document.getElementById('custom-range-from');
+  const toInput   = document.getElementById('custom-range-to');
+  if (fromInput) fromInput.value = '';
+  if (toInput)   toInput.value = '';
+  const defaultBtn = document.querySelector('.tr-btn[data-range]');
+  setRange(defaultBtn?.dataset.range || '1h', defaultBtn);
+}
+
 function exportData(format) {
-  const hours = currentRange === '7d' ? 168 : currentRange === '24h' ? 24 : currentRange === '6h' ? 6 : 1;
   const siteSlug = (typeof SITE_SLUG !== 'undefined') ? SITE_SLUG : null;
+  const query = (currentRange === 'custom' && customFrom && customTo)
+    ? `from=${customFrom}&to=${customTo}`
+    : `hours=${currentRange === '7d' ? 168 : currentRange === '24h' ? 24 : currentRange === '6h' ? 6 : 1}`;
+
   if (siteSlug) {
     window.location.href = format === 'csv'
-      ? `/export/${siteSlug}/all/csv?hours=${hours}`
-      : `/export/${siteSlug}/all/excel?hours=${hours}`;
+      ? `/export/${siteSlug}/all/csv?${query}`
+      : `/export/${siteSlug}/all/excel?${query}`;
   } else {
     window.location.href = format === 'csv'
-      ? `/export/all-sites/csv?hours=${hours}`
-      : `/export/all-sites/excel?hours=${hours}`;
+      ? `/export/all-sites/csv?${query}`
+      : `/export/all-sites/excel?${query}`;
   }
 }
 </script>

@@ -53,7 +53,10 @@
 
 @section('content')
 
-@php $lang = request('lang', 'fr'); @endphp
+@php
+  $lang = request('lang', 'fr');
+  $iconWarning = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+@endphp
 
 <div style="display:grid;grid-template-columns:220px 1fr;gap:16px;align-items:start">
 
@@ -266,7 +269,7 @@ DB_PASSWORD=********
         </table>
 
         <div class="help-warn">
-          <span>⚠</span>
+          <span style="flex-shrink:0;display:flex;align-items:center;margin-top:1px">{!! $iconWarning !!}</span>
           <span>{{ $lang==='fr' ? 'Changez ce mot de passe immédiatement après la mise en production.' : 'Change this password immediately after going to production.' }}</span>
         </div>
 
@@ -304,11 +307,13 @@ php artisan tinker</div>
         </p>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Schéma relationnel' : 'Relational Schema' }}</div>
-        <div class="tree">sites (1) ──── (N) site_categories (1) ──── (N) site_parameters
+        <div class="tree">sites (1) ──── (N) site_categories (1) ──── (N) site_parameter_groups
   │                                                        │
-  │                                                        ├── (N) sensor_readings
-  │                                                        ├── (N) manual_readings
-  │                                                        └── (1) actuator_commands
+  │                                                        └── (N) site_parameters
+  │                                                                 │
+  │                                                                 ├── (N) sensor_readings
+  │                                                                 ├── (N) manual_readings
+  │                                                                 └── (1) actuator_commands
   │
   ├── (N) site_charts ──── (N) site_chart_parameters
   │
@@ -322,25 +327,27 @@ php artisan tinker</div>
             $tables = $lang==='fr' ? [
               ['sites', 'Sites agrivoltaïques', 'name, slug, country, api_key, capacity_kw, area_m2, status'],
               ['site_categories', 'Catégories d\'un site (Solar, Water...)', 'site_id, name, slug, icon, color, is_active, sort_order, offline_threshold_minutes'],
-              ['site_parameters', 'Paramètres d\'une catégorie', 'site_category_id, name, slug, unit, data_type, input_type, control_type, group_name, warning_threshold, show_on_dashboard'],
-              ['sensor_readings', 'Données reçues via l\'API (JSON)', 'site_id, site_category_id, payload (JSON), created_at'],
-              ['manual_readings', 'Saisies manuelles par les agents', 'site_id, site_parameter_id, value, reading_date, notes, user_id, created_at'],
+              ['site_parameter_groups', 'Groupes de paramètres d\'une catégorie', 'site_category_id, name, color, sort_order'],
+              ['site_parameters', 'Paramètres d\'une catégorie', 'site_category_id, site_parameter_group_id, name, slug, unit, data_type, input_type, control_type, min_value, max_value, warning_threshold, critical_threshold, threshold_direction (below/above), show_on_dashboard'],
+              ['sensor_readings', 'Données reçues via l\'API', 'site_id, site_parameter_id, value, value_text, read_at'],
+              ['manual_readings', 'Saisies manuelles par les agents', 'site_id, site_parameter_id, value, reading_date (datetime), notes, user_id, created_at'],
               ['actuator_commands', 'Commandes pour les switches controllable', 'site_id, site_parameter_id, desired_state, reported_state, reported_at, updated_by'],
-              ['site_charts', 'Configuration des graphiques', 'site_category_id, title, type (line/bar/area), width, height, show_legend'],
-              ['site_chart_parameters', 'Séries de données d\'un graphique', 'site_chart_id, site_parameter_id, color, axis, dashed, fill'],
+              ['site_charts', 'Configuration des graphiques', 'site_category_id, title, chart_type (line/bar/area), col_span (full/half/third), height, show_legend, dual_axis'],
+              ['site_chart_parameters', 'Séries de données d\'un graphique', 'site_chart_id, site_parameter_id, color, axis, dashed, fill, sort_order'],
               ['users', 'Comptes utilisateurs', 'name, email, password, role, status, country'],
-              ['site_user', 'Pivot utilisateurs sites', 'site_id, user_id, role (agent/observer)'],
+              ['site_user', 'Pivot utilisateurs sites', 'site_id, user_id, role (agent/observateur)'],
             ] : [
               ['sites', 'Agrivoltaic sites', 'name, slug, country, api_key, capacity_kw, area_m2, status'],
               ['site_categories', 'Categories of a site (Solar, Water...)', 'site_id, name, slug, icon, color, is_active, sort_order, offline_threshold_minutes'],
-              ['site_parameters', 'Parameters of a category', 'site_category_id, name, slug, unit, data_type, input_type, control_type, group_name, warning_threshold, show_on_dashboard'],
-              ['sensor_readings', 'Data received via the API (JSON)', 'site_id, site_category_id, payload (JSON), created_at'],
-              ['manual_readings', 'Manual entries by field agents', 'site_id, site_parameter_id, value, reading_date, notes, user_id, created_at'],
+              ['site_parameter_groups', 'Parameter groups within a category', 'site_category_id, name, color, sort_order'],
+              ['site_parameters', 'Parameters of a category', 'site_category_id, site_parameter_group_id, name, slug, unit, data_type, input_type, control_type, min_value, max_value, warning_threshold, critical_threshold, threshold_direction (below/above), show_on_dashboard'],
+              ['sensor_readings', 'Data received via the API', 'site_id, site_parameter_id, value, value_text, read_at'],
+              ['manual_readings', 'Manual entries by field agents', 'site_id, site_parameter_id, value, reading_date (datetime), notes, user_id, created_at'],
               ['actuator_commands', 'Commands for controllable switches', 'site_id, site_parameter_id, desired_state, reported_state, reported_at, updated_by'],
-              ['site_charts', 'Chart configuration', 'site_category_id, title, type (line/bar/area), width, height, show_legend'],
-              ['site_chart_parameters', 'Data series of a chart', 'site_chart_id, site_parameter_id, color, axis, dashed, fill'],
+              ['site_charts', 'Chart configuration', 'site_category_id, title, chart_type (line/bar/area), col_span (full/half/third), height, show_legend, dual_axis'],
+              ['site_chart_parameters', 'Data series of a chart', 'site_chart_id, site_parameter_id, color, axis, dashed, fill, sort_order'],
               ['users', 'User accounts', 'name, email, password, role, status, country'],
-              ['site_user', 'Pivot users sites', 'site_id, user_id, role (agent/observer)'],
+              ['site_user', 'Pivot users sites', 'site_id, user_id, role (agent/observateur)'],
             ];
             @endphp
             @foreach($tables as $row)
@@ -812,7 +819,7 @@ public function assignedSites() { return $this->belongsToMany(Site::class, 'site
         </p>
 
         <div class="help-warn">
-          <span>⚠</span>
+          <span style="flex-shrink:0;display:flex;align-items:center;margin-top:1px">{!! $iconWarning !!}</span>
           <span>
             @if($lang==='fr')
             Les clés JSON envoyées doivent correspondre <strong>exactement</strong> aux slugs des paramètres configurés (sensible à la casse). Les clés inconnues sont ignorées ; les clés manquantes apparaissent dans <span class="help-code-inline">errors</span> mais n'empêchent pas l'enregistrement des autres champs.
@@ -977,8 +984,38 @@ $apiKey = 'apv-' . Str::random(32);</div>
           </tbody>
         </table>
         <div class="help-warn">
-          <span>⚠</span>
+          <span style="flex-shrink:0;display:flex;align-items:center;margin-top:1px">{!! $iconWarning !!}</span>
           <span>{{ $lang==='fr' ? 'Utilisez toujours rawurlencode() (et non urlencode()) pour les noms de groupes dans les URLs d\'export — sinon les espaces deviennent des "+" au lieu de "%20".' : 'Always use rawurlencode() (not urlencode()) for group names in export URLs — otherwise spaces become "+" instead of "%20".' }}</span>
+        </div>
+
+        <div class="help-h2">{{ $lang==='fr' ? '5.1 Période — trait ResolvesDateRange' : '5.1 Date range — ResolvesDateRange trait' }}</div>
+        <p class="help-p">
+          @if($lang==='fr')
+          Le trait <span class="help-code-inline">app/Http/Controllers/Concerns/ResolvesDateRange.php</span> (partagé par <span class="help-code-inline">DashboardController</span> et <span class="help-code-inline">ExportController</span>) résout la période à partir de la query string : si <span class="help-code-inline">from</span>/<span class="help-code-inline">to</span> sont présents, ils sont parsés (<span class="help-code-inline">startOfDay()</span> / <span class="help-code-inline">endOfDay()</span>) ; sinon un fallback sur <span class="help-code-inline">hours</span> (défaut par endpoint) est utilisé. Toutes les requêtes utilisent ensuite <span class="help-code-inline">whereBetween($col, [$from, $to])</span> — jamais <span class="help-code-inline">where('col', '>=', $from)</span> seul, pour garantir une borne supérieure.
+          @else
+          The <span class="help-code-inline">app/Http/Controllers/Concerns/ResolvesDateRange.php</span> trait (shared by <span class="help-code-inline">DashboardController</span> and <span class="help-code-inline">ExportController</span>) resolves the period from the query string: if <span class="help-code-inline">from</span>/<span class="help-code-inline">to</span> are present they're parsed (<span class="help-code-inline">startOfDay()</span> / <span class="help-code-inline">endOfDay()</span>); otherwise it falls back to <span class="help-code-inline">hours</span> (per-endpoint default). All queries then use <span class="help-code-inline">whereBetween($col, [$from, $to])</span> — never a lone <span class="help-code-inline">where('col', '>=', $from)</span> — to guarantee an upper bound.
+          @endif
+        </p>
+        <table class="help-table">
+          <thead><tr><th>{{ $lang==='fr' ? 'Endpoint' : 'Endpoint' }}</th><th>{{ $lang==='fr' ? 'Paramètres' : 'Params' }}</th></tr></thead>
+          <tbody>
+            <tr><td><span class="help-code-inline">/dashboard/{site}/{category}/chart-data</span></td><td><span class="help-code-inline">hours</span> {{ $lang==='fr'?'ou':'or' }} <span class="help-code-inline">from</span>+<span class="help-code-inline">to</span></td></tr>
+            <tr><td><span class="help-code-inline">/dashboard/sites/{site}/raw-data</span></td><td><span class="help-code-inline">hours</span> {{ $lang==='fr'?'ou':'or' }} <span class="help-code-inline">from</span>+<span class="help-code-inline">to</span></td></tr>
+            <tr><td><span class="help-code-inline">/export/{site}/{category}/csv|excel</span></td><td><span class="help-code-inline">hours</span> {{ $lang==='fr'?'ou':'or' }} <span class="help-code-inline">from</span>+<span class="help-code-inline">to</span></td></tr>
+            <tr><td><span class="help-code-inline">/export/{site}/all/csv|excel</span></td><td><span class="help-code-inline">hours</span> {{ $lang==='fr'?'ou':'or' }} <span class="help-code-inline">from</span>+<span class="help-code-inline">to</span></td></tr>
+            <tr><td><span class="help-code-inline">/export/all-sites/csv|excel</span></td><td><span class="help-code-inline">hours</span> {{ $lang==='fr'?'ou':'or' }} <span class="help-code-inline">from</span>+<span class="help-code-inline">to</span></td></tr>
+          </tbody>
+        </table>
+        <p class="help-p">
+          @if($lang==='fr')
+          Côté UI, le bouton <span class="help-code-inline">Custom</span> de la topbar (<span class="help-code-inline">layouts/dashboard.blade.php</span>) ouvre un popover avec deux <span class="help-code-inline">&lt;input type="date"&gt;</span> ; <span class="help-code-inline">applyCustomRange()</span> stocke les valeurs dans <span class="help-code-inline">customFrom</span>/<span class="help-code-inline">customTo</span>, affiche un badge de filtre actif (<span class="help-code-inline">#active-range-chip</span>, croix pour l'effacer via <span class="help-code-inline">clearCustomRange()</span>) et appelle <span class="help-code-inline">onRangeChange('custom', from, to)</span>, défini séparément sur chaque page (<span class="help-code-inline">dashboard/index.blade.php</span> et <span class="help-code-inline">dashboard/site.blade.php</span>) pour recharger graphiques et données. <span class="help-code-inline">exportData()</span> construit la query string (<span class="help-code-inline">from</span>/<span class="help-code-inline">to</span> ou <span class="help-code-inline">hours</span>) en conséquence.
+          @else
+          On the UI side, the topbar's <span class="help-code-inline">Custom</span> button (<span class="help-code-inline">layouts/dashboard.blade.php</span>) opens a popover with two <span class="help-code-inline">&lt;input type="date"&gt;</span> fields; <span class="help-code-inline">applyCustomRange()</span> stores the values in <span class="help-code-inline">customFrom</span>/<span class="help-code-inline">customTo</span>, shows an active-filter chip (<span class="help-code-inline">#active-range-chip</span>, with a × to clear via <span class="help-code-inline">clearCustomRange()</span>) and calls <span class="help-code-inline">onRangeChange('custom', from, to)</span>, defined separately on each page (<span class="help-code-inline">dashboard/index.blade.php</span> and <span class="help-code-inline">dashboard/site.blade.php</span>) to reload charts and data. <span class="help-code-inline">exportData()</span> builds the query string (<span class="help-code-inline">from</span>/<span class="help-code-inline">to</span> or <span class="help-code-inline">hours</span>) accordingly.
+          @endif
+        </p>
+        <div class="help-warn">
+          <span style="flex-shrink:0;display:flex;align-items:center;margin-top:1px">{!! $iconWarning !!}</span>
+          <span>{{ $lang==='fr' ? 'La popover #custom-range-popover est en position:fixed (positionnée en JS via getBoundingClientRect du bouton) — pas position:absolute — car .topbar a overflow:hidden et couperait un élément positionné en absolute qui dépasse sa hauteur.' : 'The #custom-range-popover uses position:fixed (positioned in JS via the button\'s getBoundingClientRect) rather than position:absolute — .topbar has overflow:hidden, which would clip an absolutely-positioned element extending past its height.' }}</span>
         </div>
 
         <div class="help-h2">{{ $lang==='fr' ? '6. Layout responsive' : '6. Responsive layout' }}</div>
@@ -1016,9 +1053,9 @@ $apiKey = 'apv-' . Str::random(32);</div>
         </table>
         <p class="help-p">
           @if($lang==='fr')
-          La vérification se fait via <span class="help-code-inline">auth()->user()->isAdmin()</span> et les helpers de site dans le contrôleur dashboard, en croisant <span class="help-code-inline">assignedSites()</span> (pivot) et les sites créés par l'utilisateur.
+          La vérification se fait via <span class="help-code-inline">auth()->user()->isAdmin()</span> et le trait <span class="help-code-inline">AuthorizesSiteAccess</span> (partagé par les contrôleurs Dashboard, Export, Actuator et Manual Reading), en croisant <span class="help-code-inline">assignedSites()</span> (pivot) et les sites créés par l'utilisateur. Le même trait expose <span class="help-code-inline">accessibleSiteIds()</span> pour scoper l'export "tous les sites" aux seuls sites autorisés (tous pour un admin).
           @else
-          Checks are done via <span class="help-code-inline">auth()->user()->isAdmin()</span> and site helpers in the dashboard controller, intersecting <span class="help-code-inline">assignedSites()</span> (pivot) with sites owned by the user.
+          Checks are done via <span class="help-code-inline">auth()->user()->isAdmin()</span> and the <span class="help-code-inline">AuthorizesSiteAccess</span> trait (shared by the Dashboard, Export, Actuator and Manual Reading controllers), intersecting <span class="help-code-inline">assignedSites()</span> (pivot) with sites owned by the user. The same trait exposes <span class="help-code-inline">accessibleSiteIds()</span> to scope the "all sites" export to only the sites a user may access (every site for an admin).
           @endif
         </p>
 
@@ -1196,7 +1233,7 @@ $apiKey = 'apv-' . Str::random(32);</div>
 php artisan migrate:fresh --force
 php artisan db:seed --class=DatabaseSeeder --force</div>
         <div class="help-warn">
-          <span>⚠</span>
+          <span style="flex-shrink:0;display:flex;align-items:center;margin-top:1px">{!! $iconWarning !!}</span>
           <span>{{ $lang==='fr' ? 'Cette commande supprime TOUTES les données (sites, lectures, utilisateurs sauf admin). À utiliser uniquement en phase de test.' : 'This command deletes ALL data (sites, readings, users except admin). Use only during testing phase.' }}</span>
         </div>
       </div>

@@ -6,6 +6,7 @@ use App\Models\Site;
 use App\Models\SiteCategory;
 use App\Models\SensorReading;
 use App\Models\ManualReading;
+use App\Support\SafeExport;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
@@ -21,8 +22,11 @@ class AllSitesCategorySheet implements FromCollection, WithHeadings, WithTitle, 
     public function __construct(
         protected Site         $site,
         protected SiteCategory $category,
-        protected Carbon       $from
-    ) {}
+        protected Carbon       $from,
+        protected ?Carbon      $to = null
+    ) {
+        $this->to ??= now();
+    }
 
     public function title(): string
     {
@@ -60,7 +64,7 @@ class AllSitesCategorySheet implements FromCollection, WithHeadings, WithTitle, 
         // Sensor readings
         $sensorReadings = SensorReading::where('site_id', $this->site->id)
             ->whereIn('site_parameter_id', $sensorParams->pluck('id'))
-            ->where('read_at', '>=', $this->from)
+            ->whereBetween('read_at', [$this->from, $this->to])
             ->orderBy('read_at', 'desc')
             ->get();
 
@@ -74,17 +78,17 @@ class AllSitesCategorySheet implements FromCollection, WithHeadings, WithTitle, 
                 $row[] = '—';
             }
             $row[] = 'Sensor';
-            $rows->push($row);
+            $rows->push(SafeExport::row($row));
         }
 
         // Manual readings
         $manualReadings = ManualReading::where('site_id', $this->site->id)
             ->whereIn('site_parameter_id', $manualParams->pluck('id'))
-            ->where('reading_date', '>=', $this->from)
+            ->whereBetween('reading_date', [$this->from, $this->to])
             ->orderBy('reading_date', 'desc')
             ->get();
 
-        foreach ($manualReadings->groupBy(fn($r) => Carbon::parse($r->reading_date)->format('Y-m-d H:i:s')) as $timestamp => $readings) {
+        foreach ($manualReadings->groupBy(fn($r) => $r->reading_date->format('Y-m-d H:i:s')) as $timestamp => $readings) {
             $row = [$timestamp];
             foreach ($sensorParams as $p) {
                 $row[] = '—';
@@ -94,7 +98,7 @@ class AllSitesCategorySheet implements FromCollection, WithHeadings, WithTitle, 
                 $row[] = $r ? ($r->value ?? '—') : '—';
             }
             $row[] = 'Manual';
-            $rows->push($row);
+            $rows->push(SafeExport::row($row));
         }
 
         // Si pas de données, retourner une ligne vide

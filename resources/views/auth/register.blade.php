@@ -4,14 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>APV-MaGa — Request Access</title>
+<link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+<link rel="alternate icon" href="{{ asset('favicon.ico') }}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#ffffff;--surface:#ffffff;--input-bg:#f4f6fb;
-  --blue:#16a34a;--blue-dark:#15803d;
-  --green:#16a34a;
+  --green:#16a34a;--green-dark:#15803d;
   --red:#be123c;--red-bg:#fff1f2;--red-bd:#fecdd3;
   --green-bg:#f0fdf4;--green-bd:#bbf7d0;
   --border:#e7ebf1;--muted:#64748b;--text:#0d1321;
@@ -63,7 +64,7 @@ body{
 .field label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
 .field input,.field select{width:100%;padding:10px 13px;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;transition:border-color .15s,background .15s;outline:none}
 .field input::placeholder{color:#94a3b8}
-.field input:focus,.field select:focus{border-color:var(--blue);background:#ffffff}
+.field input:focus,.field select:focus{border-color:var(--green);background:#ffffff}
 .field input.error{border-color:var(--red)}
 .field select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:16px;padding-right:36px}
 
@@ -74,7 +75,7 @@ body{
 .btn-submit{
   width:100%;padding:12px;border:none;border-radius:9px;color:#fff;
   font-family:'DM Sans',sans-serif;font-size:14.5px;font-weight:700;cursor:pointer;
-  letter-spacing:.1px;background:linear-gradient(135deg,#22c55e 0%,var(--blue) 45%,#15803d 130%);
+  letter-spacing:.1px;background:linear-gradient(135deg,#22c55e 0%,var(--green) 45%,#15803d 130%);
   background-size:160% 160%;background-position:0% 50%;
   transition:background-position .25s ease,transform .1s;margin-top:4px;
 }
@@ -82,8 +83,8 @@ body{
 .btn-submit:active{transform:scale(.99)}
 
 .login-link{text-align:center;margin-top:18px;font-size:13px;color:var(--muted)}
-.login-link a{color:var(--blue);text-decoration:none;font-weight:600}
-.login-link a:hover{color:var(--blue-dark)}
+.login-link a{color:var(--green);text-decoration:none;font-weight:600}
+.login-link a:hover{color:var(--green-dark)}
 
 .page-footer{text-align:center;margin-top:20px;font-size:11px;color:#a3aebd}
 .page-footer span{font-weight:600;color:#94a3b8}

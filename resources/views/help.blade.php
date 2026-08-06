@@ -55,7 +55,10 @@
 
 @section('content')
 
-@php $lang = request('lang', 'fr'); @endphp
+@php
+  $lang = request('lang', 'fr');
+  $iconWarning = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+@endphp
 
 <div style="display:grid;grid-template-columns:220px 1fr;gap:16px;align-items:start">
 
@@ -241,13 +244,13 @@
             @php
             $ui = $lang==='fr' ? [
               ['Sidebar', 'Liste des sites avec statut coloré (vert=actif, orange=alerte)'],
-              ['Topbar', 'Titre, horloge UTC, filtre période 1H/6H/24H/7D, boutons CSV/Excel'],
+              ['Topbar', 'Titre, horloge UTC, filtre période 1H/6H/24H/7D/Custom (dates précises), boutons CSV/Excel'],
               ['Carte de site', 'KPIs : puissance solaire, niveau forage, remplissage cuve, température'],
               ['Sparkline', 'Mini-graphique de la dernière heure'],
               ['Cross-Site Trends', 'Graphiques comparatifs entre tous les sites'],
             ] : [
               ['Sidebar', 'Sites list with colored status (green=active, orange=alert)'],
-              ['Topbar', 'Title, UTC clock, period filter 1H/6H/24H/7D, CSV/Excel buttons'],
+              ['Topbar', 'Title, UTC clock, period filter 1H/6H/24H/7D/Custom (exact dates), CSV/Excel buttons'],
               ['Site Card', 'KPIs: solar power, borehole level, tank fill, temperature'],
               ['Sparkline', 'Mini-chart of the last hour'],
               ['Cross-Site Trends', 'Comparative charts across all sites'],
@@ -262,6 +265,13 @@
         <div class="help-tip">
           <span>{{ $lang==='fr' ? 'Les données se rafraîchissent automatiquement toutes les 30 secondes sans recharger la page.' : 'Data refreshes automatically every 30 seconds without reloading the page.' }}</span>
         </div>
+
+        <div class="help-h2">{{ $lang==='fr' ? 'Période personnalisée' : 'Custom Date Range' }}</div>
+        <p class="help-p">
+          {{ $lang==='fr'
+            ? 'En plus des boutons 1H/6H/24H/7D, le bouton "Custom" ouvre un sélecteur de dates (début/fin) pour consulter n\'importe quelle période passée sur les graphiques, les données brutes et les exports. Une fois appliquée, la période choisie s\'affiche sous forme de badge bleu (ex. "Jul 1 → Jul 5") à côté des boutons — cliquez sur la croix (✕) du badge pour revenir à la période par défaut.'
+            : 'In addition to the 1H/6H/24H/7D buttons, the "Custom" button opens a date picker (start/end) to view any past period across charts, raw data, and exports. Once applied, the chosen period shows as a blue badge (e.g. "Jul 1 → Jul 5") next to the buttons — click the badge\'s × to clear it and return to the default period.' }}
+        </p>
       </div>
     </div>
 
@@ -323,9 +333,20 @@
             <div style="font-size:11px;font-weight:600;color:var(--amber);margin-bottom:4px">Stale (Xm)</div>
             <div style="font-size:12px;color:var(--muted)">{{ $lang==='fr' ? 'Une donnée existe mais date de plus longtemps que le seuil configuré (5 min par défaut)' : 'Data exists but is older than the configured threshold (5 min by default)' }}</div>
           </div>
+          <div style="padding:12px;border-radius:8px;border:1px solid var(--amber-bd);background:var(--amber-bg)">
+            <div style="font-size:11px;font-weight:600;color:var(--amber);margin-bottom:4px">Warning</div>
+            <div style="font-size:12px;color:var(--muted)">{{ $lang==='fr' ? 'La valeur a franchi le "Warning threshold" configuré sur le paramètre' : 'The value has crossed the parameter\'s configured "Warning threshold"' }}</div>
+          </div>
+          <div style="padding:12px;border-radius:8px;border:1px solid var(--red-bd);background:var(--red-bg)">
+            <div style="font-size:11px;font-weight:600;color:var(--red);margin-bottom:4px">Critical / Out of range</div>
+            <div style="font-size:12px;color:var(--muted)">{{ $lang==='fr' ? 'La valeur a franchi le "Critical threshold", ou sort de la plage Min/Max configurée' : 'The value has crossed the "Critical threshold", or falls outside the configured Min/Max range' }}</div>
+          </div>
         </div>
         <div class="help-tip">
-          <span>{{ $lang==='fr' ? 'Survolez le badge pour voir l\'horodatage exact de la dernière donnée reçue ("Last data: X ago"). Le seuil "Stale" est configurable par catégorie dans Admin Panel → Categories → Edit.' : 'Hover the badge to see the exact timestamp of the latest data ("Last data: X ago"). The "Stale" threshold is configurable per category in Admin Panel → Categories → Edit.' }}</span>
+          <span>{{ $lang==='fr' ? 'Survolez le badge pour voir l\'horodatage exact de la dernière donnée reçue ("Last data: X ago"). Le seuil "Stale" est configurable par catégorie dans Admin Panel → Categories → Edit. Les seuils Warning/Critical et la plage Min/Max se configurent par paramètre dans Admin Panel → Parameters.' : 'Hover the badge to see the exact timestamp of the latest data ("Last data: X ago"). The "Stale" threshold is configurable per category in Admin Panel → Categories → Edit. Warning/Critical thresholds and the Min/Max range are configured per parameter in Admin Panel → Parameters.' }}</span>
+        </div>
+        <div class="help-tip">
+          <span>{{ $lang==='fr' ? 'Paramètres groupés : sur le dashboard, les paramètres partageant un même groupe (configuré dans Admin Panel → Parameters → Manage Groups) s\'affichent encadrés ensemble dans une boîte colorée, plutôt qu\'en cartes séparées.' : 'Grouped parameters: on the dashboard, parameters sharing the same group (configured in Admin Panel → Parameters → Manage Groups) are displayed boxed together in a colored panel, instead of as separate cards.' }}</span>
         </div>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Switches & actionneurs (vannes, pompes, ventilateurs)' : 'Switches & actuators (valves, pumps, fans)' }}</div>
@@ -413,7 +434,7 @@
         </table>
 
         <div class="help-warn">
-          <span>⚠</span>
+          <span style="flex-shrink:0;display:flex;align-items:center;margin-top:1px">{!! $iconWarning !!}</span>
           <span>{{ $lang==='fr' ? 'Si l\'appareil semble hors ligne, la fenêtre de confirmation affiche un avertissement avant d\'envoyer la commande — celle-ci sera quand même mise en attente et appliquée dès la reconnexion.' : 'If the device appears offline, the confirmation popup shows a warning before sending the command — it will still be queued and applied once the device reconnects.' }}</span>
         </div>
       </div>
@@ -452,7 +473,7 @@
         </ol>
 
         <div class="help-warn">
-          <span>⚠</span>
+          <span style="flex-shrink:0;display:flex;align-items:center;margin-top:1px">{!! $iconWarning !!}</span>
           <span>{{ $lang==='fr' ? 'L\'onglet Manual Input n\'apparaît que si le site possède au moins un paramètre configuré avec input_type = manual.' : 'The Manual Input tab only appears if the site has at least one parameter configured with input_type = manual.' }}</span>
         </div>
       </div>
@@ -512,6 +533,10 @@
             <div style="font-size:11px;color:var(--muted)">{{ $e[2] }}</div>
           </div>
           @endforeach
+        </div>
+
+        <div class="help-tip">
+          <span>{{ $lang==='fr' ? 'Les boutons CSV/Excel de la topbar exportent selon la période active (1H/6H/24H/7D ou la période personnalisée choisie via "Custom").' : 'The topbar\'s CSV/Excel buttons export according to the active period (1H/6H/24H/7D or the custom range chosen via "Custom").' }}</span>
         </div>
 
         <div class="help-h2">{{ $lang==='fr' ? '6.3 Saved Records' : '6.3 Saved Records' }}</div>
@@ -693,7 +718,7 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
       <div class="help-card">
         <div class="help-h1">Administration</div>
         <div class="help-warn">
-          <span>⚠</span>
+          <span style="flex-shrink:0;display:flex;align-items:center;margin-top:1px">{!! $iconWarning !!}</span>
           <span>{{ $lang==='fr' ? 'Cette section est réservée aux administrateurs.' : 'This section is for administrators only.' }}</span>
         </div>
 
@@ -764,7 +789,24 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
           <span>{{ $lang==='fr' ? 'Cochez "Auto-create all categories" pour générer automatiquement Solar, Water, Irrigation, Weather et Agriculture avec leurs paramètres par défaut.' : 'Check "Auto-create all categories" to automatically generate Solar, Water, Irrigation, Weather and Agriculture with their default parameters.' }}</span>
         </div>
 
-        <div class="help-h2">{{ $lang==='fr' ? '8.3 Catégories & Paramètres' : '8.3 Categories & Parameters' }}</div>
+        <table class="help-table">
+          <thead><tr>
+            <th>{{ $lang==='fr' ? 'Action' : 'Action' }}</th>
+            <th>{{ $lang==='fr' ? 'Description' : 'Description' }}</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Edit</strong></td>
+              <td>{{ $lang==='fr' ? 'Modifie le nom, pays, agent assigné, statut, coordonnées, capacité, surface et description du site. La clé API reste inchangée pour ne pas casser les appareils IoT déjà configurés.' : 'Updates the site\'s name, country, assigned agent, status, coordinates, capacity, area and description. The API key stays unchanged so already-configured IoT devices keep working.' }}</td>
+            </tr>
+            <tr>
+              <td><strong>Duplicate</strong></td>
+              <td>{{ $lang==='fr' ? 'Crée une copie complète du site (catégories, paramètres, groupes de paramètres et graphiques) avec un nouveau nom, un nouveau slug et une nouvelle clé API. Pratique pour déployer un nouveau site ayant la même structure qu\'un site existant. Aucune donnée historique (lectures, commandes d\'actionneurs) n\'est copiée.' : 'Creates a full copy of the site (categories, parameters, parameter groups and charts) with a new name, slug and API key. Useful for rolling out a new site with the same structure as an existing one. No historical data (readings, actuator commands) is copied.' }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="help-h2">{{ $lang==='fr' ? '8.4 Catégories & Paramètres' : '8.4 Categories & Parameters' }}</div>
         <p class="help-p">
           @if($lang==='fr')
           Les paramètres définissent les données collectées par chaque catégorie. Chaque paramètre correspond à une mesure spécifique (ex: température, niveau d'eau, rendement agricole).
@@ -802,8 +844,10 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
               ['Control type', 'readonly / controllable', 'Visible uniquement si Type de données = Switch. readonly = affichage automatique selon le capteur. controllable = interrupteur cliquable depuis le dashboard.'],
               ['Afficher sur dashboard', 'Oui / Non', 'Si activé, le paramètre apparait comme KPI card en haut de l\'onglet avec sa dernière valeur.'],
               ['Afficher sur graphique', 'Oui / Non', 'Si activé, le paramètre est inclus dans les graphiques de tendance de la catégorie.'],
-              ['Seuil alerte', 'Nombre', 'Si la valeur est inférieure ou égale à ce seuil, la KPI card passe en orange avec le badge Warning.'],
-              ['Nom de groupe', 'Texte libre', 'Regroupe plusieurs paramètres manuels dans un seul formulaire dans Manual Input (ex: Mesures vegetales regroupe taille, feuilles, rendement).'],
+              ['Min / Max', 'Nombre (optionnel)', 'Plage de valeurs physiquement valides. Une valeur en dehors déclenche le badge "Out of range" (rouge).'],
+              ['Warning / Critical threshold', 'Nombre (optionnel)', 'Deux seuils d\'alerte indépendants — badge orange (Warning) et rouge (Critical) sur la carte du paramètre.'],
+              ['Alert direction', 'below / above', 'below (par défaut) = alerte quand la valeur descend au seuil ou en dessous (ex: niveau de réservoir). above = alerte quand la valeur monte au seuil ou au-dessus (ex: température).'],
+              ['Group', 'Sélection dans une liste', 'Rattache le paramètre à un groupe géré dans Admin Panel → Parameters → Manage Groups (voir ci-dessous). Les paramètres d\'un même groupe s\'affichent encadrés ensemble sur le dashboard, et regroupés dans un même formulaire sur Manual Input.'],
             ] : [
               ['Name', 'Free text', 'Name displayed on KPI cards and charts (e.g. Ambient Temperature)'],
               ['Slug', 'Unique snake_case', 'Identifier used in ESP32 API as JSON key (e.g. temperature_c). Must be unique within the category.'],
@@ -813,8 +857,10 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
               ['Control type', 'readonly / controllable', 'Only visible if Data type = Switch. readonly = display automatically follows the sensor. controllable = clickable toggle from the dashboard.'],
               ['Show on dashboard', 'Yes / No', 'If enabled, the parameter appears as a KPI card at the top of the tab with its latest value.'],
               ['Show on chart', 'Yes / No', 'If enabled, the parameter is included in the category trend charts.'],
-              ['Warning threshold', 'Number', 'If the value is less than or equal to this threshold, the KPI card turns orange with the Warning badge.'],
-              ['Group name', 'Free text', 'Groups multiple manual parameters into one form in Manual Input (e.g. Plant Measurements groups height, leaves, yield).'],
+              ['Min / Max', 'Number (optional)', 'Physically valid value range. A value outside it triggers the "Out of range" badge (red).'],
+              ['Warning / Critical threshold', 'Number (optional)', 'Two independent alert levels — orange (Warning) and red (Critical) badge on the parameter\'s card.'],
+              ['Alert direction', 'below / above', 'below (default) = alert when the value drops to/under the threshold (e.g. tank level). above = alert when the value climbs to/over the threshold (e.g. temperature).'],
+              ['Group', 'Selected from a list', 'Attaches the parameter to a group managed in Admin Panel → Parameters → Manage Groups (see below). Parameters in the same group are boxed together on the dashboard, and grouped into one form on Manual Input.'],
             ];
             @endphp
             @foreach($params as $row)
@@ -837,7 +883,43 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
           </span>
         </div>
 
-        <div class="help-h2">{{ $lang==='fr' ? '8.4 Création des Graphiques' : '8.4 Creating Charts' }}</div>
+        <div class="help-h2">{{ $lang==='fr' ? 'Gestion des Groupes de Paramètres' : 'Managing Parameter Groups' }}</div>
+        <p class="help-p">
+          @if($lang==='fr')
+          Chemin : <span class="help-code-inline">Admin Panel → Sites → Categories → Parameters → Manage Groups</span>. Ce panneau (replié par défaut, cliquez sur le bouton pour l'ouvrir) permet de créer, renommer, recolorer, réordonner et supprimer les groupes d'une catégorie.
+          @else
+          Path: <span class="help-code-inline">Admin Panel → Sites → Categories → Parameters → Manage Groups</span>. This panel (collapsed by default — click the button to open it) lets you create, rename, recolor, reorder and delete a category's groups.
+          @endif
+        </p>
+        <table class="help-table">
+          <thead><tr>
+            <th>{{ $lang==='fr' ? 'Action' : 'Action' }}</th>
+            <th>{{ $lang==='fr' ? 'Comment' : 'How' }}</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td>{{ $lang==='fr' ? 'Créer' : 'Create' }}</td>
+              <td>{{ $lang==='fr' ? 'Saisir un nom et choisir une couleur (une couleur distincte est proposée automatiquement) dans le formulaire en bas du panneau.' : 'Enter a name and pick a color (a distinct color is suggested automatically) in the form at the bottom of the panel.' }}</td>
+            </tr>
+            <tr>
+              <td>{{ $lang==='fr' ? 'Renommer / recolorer' : 'Rename / recolor' }}</td>
+              <td>{{ $lang==='fr' ? 'Modifier directement le nom ou la couleur sur la carte du groupe — sauvegarde automatique.' : 'Edit the name or color directly on the group\'s card — saves automatically.' }}</td>
+            </tr>
+            <tr>
+              <td>{{ $lang==='fr' ? 'Réordonner' : 'Reorder' }}</td>
+              <td>{{ $lang==='fr' ? 'Glisser-déposer une carte de groupe pour changer l\'ordre d\'affichage sur le dashboard.' : 'Drag and drop a group\'s card to change its display order on the dashboard.' }}</td>
+            </tr>
+            <tr>
+              <td>{{ $lang==='fr' ? 'Supprimer' : 'Delete' }}</td>
+              <td>{{ $lang==='fr' ? 'Le groupe est supprimé mais ses paramètres ne le sont pas — ils redeviennent simplement "sans groupe".' : 'The group is removed but its parameters are not deleted — they simply become "ungrouped" again.' }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="help-tip">
+          <span>{{ $lang==='fr' ? 'Un groupe contenant un seul paramètre s\'affiche comme une carte normale, sans encadré — l\'encadré coloré n\'apparaît qu\'à partir de 2 paramètres partageant le même groupe.' : 'A group containing a single parameter displays as a normal card, without a box — the colored box only appears once 2 or more parameters share the same group.' }}</span>
+        </div>
+
+        <div class="help-h2">{{ $lang==='fr' ? '8.5 Création des Graphiques' : '8.5 Creating Charts' }}</div>
         <p class="help-p">
           @if($lang==='fr')
           Les graphiques sont configurés par l'administrateur pour chaque catégorie. Ils permettent de visualiser l'évolution des paramètres dans le temps.
@@ -932,7 +1014,7 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
         </div>
 
         <div class="help-warn">
-          <span>⚠</span>
+          <span style="flex-shrink:0;display:flex;align-items:center;margin-top:1px">{!! $iconWarning !!}</span>
           <span>
             @if($lang==='fr')
             Si aucun graphique n'est configuré pour une catégorie, un graphique automatique est généré avec tous les paramètres numériques de la catégorie.

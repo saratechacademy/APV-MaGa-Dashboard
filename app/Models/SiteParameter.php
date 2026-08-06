@@ -3,13 +3,17 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class SiteParameter extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
-        'site_category_id', 'name', 'slug', 'unit', 'data_type', 'input_type', 'control_type', 'group_name',
-        'min_value', 'max_value', 'warning_threshold', 'critical_threshold',
+        'site_category_id', 'name', 'slug', 'unit', 'data_type', 'input_type', 'control_type',
+        'group_name', 'site_parameter_group_id',
+        'min_value', 'max_value', 'warning_threshold', 'critical_threshold', 'threshold_direction',
         'description', 'is_active', 'show_on_dashboard', 'sort_order',
     ];
 
@@ -23,11 +27,22 @@ class SiteParameter extends Model
     ];
 
     public function category() { return $this->belongsTo(SiteCategory::class, 'site_category_id'); }
+    public function group() { return $this->belongsTo(SiteParameterGroup::class, 'site_parameter_group_id'); }
     public function manualReadings() { return $this->hasMany(ManualReading::class); }
     public function isSensor() { return $this->input_type === 'sensor'; }
     public function isManual() { return $this->input_type === 'manual'; }
 
     public function actuatorCommand() { return $this->hasOne(ActuatorCommand::class); }
+
+    /**
+     * Most recent sensor reading for this parameter. Eager-loadable
+     * (`with('latestReading')`) so N sites × M parameters resolves to a single
+     * query instead of one `latest()` lookup per parameter per site.
+     */
+    public function latestReading() { return $this->hasOne(SensorReading::class)->latestOfMany('read_at'); }
+
+    /** Same idea as latestReading(), for manually-entered parameters. */
+    public function latestManualReading() { return $this->hasOne(ManualReading::class)->latestOfMany('reading_date'); }
 
     /**
      * True if this parameter is a remotely controllable switch (relay, valve, pump, fan...).
@@ -37,13 +52,49 @@ class SiteParameter extends Model
         return ($this->control_type ?? 'readonly') === 'controllable';
     }
 
+    /**
+     * Threshold comparisons are direction-aware: "below" (default) alerts once
+     * a value drops to/under the threshold — tank level, borehole level, that
+     * kind of thing. "above" alerts once a value climbs to/over it — panel
+     * temperature, anything where high is the dangerous direction.
+     */
+    private function crossesThreshold($value, ?float $threshold): bool
+    {
+        if ($value === null || !is_numeric($value) || $threshold === null) {
+            return false;
+        }
+        return $this->threshold_direction === 'above'
+            ? (float) $value >= $threshold
+            : (float) $value <= $threshold;
+    }
+
+    public function isWarn($value): bool
+    {
+        return $this->crossesThreshold($value, $this->warning_threshold);
+    }
+
+    public function isCritical($value): bool
+    {
+        return $this->crossesThreshold($value, $this->critical_threshold);
+    }
+
+    public function isOutOfRange($value): bool
+    {
+        if ($value === null || !is_numeric($value)) {
+            return false;
+        }
+        $v = (float) $value;
+        return ($this->min_value !== null && $v < $this->min_value)
+            || ($this->max_value !== null && $v > $this->max_value);
+    }
+
     public static function defaultsFor(string $categorySlug): array
     {
         return match($categorySlug) {
             'solar' => [
                 ['name'=>'Solar output',      'slug'=>'solar_output',      'unit'=>'kW',   'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
                 ['name'=>'Solar irradiance',  'slug'=>'solar_irradiance',  'unit'=>'W/m²', 'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
-                ['name'=>'Panel temperature', 'slug'=>'panel_temperature', 'unit'=>'°C',   'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true,  'warning_threshold'=>70],
+                ['name'=>'Panel temperature', 'slug'=>'panel_temperature', 'unit'=>'°C',   'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true,  'warning_threshold'=>70, 'threshold_direction'=>'above'],
                 ['name'=>'System efficiency', 'slug'=>'system_efficiency', 'unit'=>'%',    'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
             ],
             'water' => [

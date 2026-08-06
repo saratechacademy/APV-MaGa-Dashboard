@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\SiteController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ManualReadingController;
@@ -22,7 +21,7 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     Route::get('/dashboard/sites/{site}/raw-data', [DashboardController::class, 'rawData'])->name('dashboard.raw-data');
 
     Route::get('/help', fn() => view('help'))->name('help');
-    Route::get('/developer-docs', fn() => view('docs'))->name('docs');
+    Route::middleware('admin')->get('/developer-docs', fn() => view('docs'))->name('docs');
 
     // Export
     Route::get('/export/{site}/{category}/group/{group}/csv',   [ExportController::class, 'groupCsv'])->name('export.group.csv');
@@ -38,8 +37,6 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     Route::patch('/profile',  [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::resource('sites', SiteController::class);
-
     // Manual readings
     Route::post('/dashboard/site/{site}/manual-readings', [ManualReadingController::class, 'store'])
          ->name('manual-readings.store');
@@ -54,6 +51,8 @@ Route::middleware(['auth', 'check.status'])->group(function () {
         Route::get('/users',                   [AdminController::class, 'users'])->name('users');
         Route::get('/users/create',            [AdminController::class, 'createUser'])->name('users.create');
         Route::post('/users',                  [AdminController::class, 'storeUser'])->name('users.store');
+        Route::get('/users/{user}/edit',       [AdminController::class, 'editUser'])->name('users.edit');
+        Route::put('/users/{user}',            [AdminController::class, 'updateUser'])->name('users.update');
         Route::post('/users/{user}/approve',   [AdminController::class, 'approveUser'])->name('users.approve');
         Route::post('/users/{user}/suspend',   [AdminController::class, 'suspendUser'])->name('users.suspend');
         Route::post('/users/{user}/activate',  [AdminController::class, 'activateUser'])->name('users.activate');
@@ -63,6 +62,9 @@ Route::middleware(['auth', 'check.status'])->group(function () {
         Route::get('/sites',              [AdminController::class, 'sites'])->name('sites');
         Route::get('/sites/create',       [AdminController::class, 'createSite'])->name('sites.create');
         Route::post('/sites',             [AdminController::class, 'storeSite'])->name('sites.store');
+        Route::get('/sites/{site}/edit',  [AdminController::class, 'editSite'])->name('sites.edit');
+        Route::put('/sites/{site}',       [AdminController::class, 'updateSite'])->name('sites.update');
+        Route::post('/sites/{site}/duplicate', [AdminController::class, 'duplicateSite'])->name('sites.duplicate');
         Route::delete('/sites/{site}',    [AdminController::class, 'destroySite'])->name('sites.destroy');
 
         // Site Users management
@@ -84,9 +86,16 @@ Route::middleware(['auth', 'check.status'])->group(function () {
         Route::put('/sites/{site}/categories/{category}/parameters/{parameter}', [AdminController::class, 'updateParameter'])->name('parameters.update');
         Route::post('/sites/{site}/categories/{category}/parameters/{parameter}/toggle', [AdminController::class, 'toggleParameter'])->name('parameters.toggle');
 
+        // Parameter Groups
+        Route::post('/sites/{site}/categories/{category}/groups',                        [AdminController::class, 'storeParameterGroup'])->name('groups.store');
+        Route::put('/sites/{site}/categories/{category}/groups/{group}',                  [AdminController::class, 'updateParameterGroup'])->name('groups.update');
+        Route::delete('/sites/{site}/categories/{category}/groups/{group}',               [AdminController::class, 'destroyParameterGroup'])->name('groups.destroy');
+        Route::post('/sites/{site}/categories/{category}/groups/reorder',                 [AdminController::class, 'reorderParameterGroups'])->name('groups.reorder');
+
         // Charts
         Route::get('/sites/{site}/categories/{category}/charts',                         [AdminController::class, 'charts'])->name('charts');
         Route::post('/sites/{site}/categories/{category}/charts',                        [AdminController::class, 'storeChart'])->name('charts.store');
+        Route::put('/sites/{site}/categories/{category}/charts/{chart}',                 [AdminController::class, 'updateChart'])->name('charts.update');
         Route::post('/sites/{site}/categories/{category}/charts/{chart}/params',         [AdminController::class, 'updateChartParams'])->name('charts.updateParams');
         Route::delete('/sites/{site}/categories/{category}/charts/{chart}',              [AdminController::class, 'destroyChart'])->name('charts.destroy');
         Route::post('/sites/{site}/categories/{category}/charts/{chart}/toggle',         [AdminController::class, 'toggleChart'])->name('charts.toggle');
