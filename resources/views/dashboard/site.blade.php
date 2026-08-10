@@ -696,9 +696,11 @@ const activeParams = {};
 
 // Custom date range picked from the topbar's "Custom" popover overrides HOURS
 // when set (see onRangeChange below); cleared whenever a preset (1H/6H/...) is picked.
-let customFrom = null, customTo = null;
+// Named distinctly from layouts/dashboard.blade.php's own customFrom/customTo
+// (used there only for exportData()) since both scripts share the page's global scope.
+let siteCustomFrom = null, siteCustomTo = null;
 function dateRangeQuery() {
-  return (customFrom && customTo) ? `from=${customFrom}&to=${customTo}` : `hours=${HOURS}`;
+  return (siteCustomFrom && siteCustomTo) ? `from=${siteCustomFrom}&to=${siteCustomTo}` : `hours=${HOURS}`;
 }
 
 async function loadCategoryData(cat) {
@@ -835,9 +837,9 @@ adminChartLoaders.forEach(load => load());
 // Top-bar 1H/6H/24H/7D buttons (layouts/dashboard.blade.php's setRange) call this.
 function onRangeChange(r, from, to) {
   if (r === 'custom' && from && to) {
-    customFrom = from; customTo = to;
+    siteCustomFrom = from; siteCustomTo = to;
   } else {
-    customFrom = null; customTo = null;
+    siteCustomFrom = null; siteCustomTo = null;
     const hoursMap = { '1h': 1, '6h': 6, '24h': 24, '7d': 168 };
     HOURS = hoursMap[r] ?? 1;
   }
