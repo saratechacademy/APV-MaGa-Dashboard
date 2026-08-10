@@ -134,9 +134,10 @@ const COLORS = @json(\App\Models\SiteParameterGroup::palette());
 
 @php
 $sitesData = ($sites ?? collect())->map(fn($s) => [
-  'id'   => $s->id,
-  'name' => $s->name,
-  'slug' => $s->slug,
+  'id'         => $s->id,
+  'name'       => $s->name,
+  'slug'       => $s->slug,
+  'categories' => $s->activeCategories->pluck('slug')->values(),
 ])->values();
 @endphp
 const SITES = @json($sitesData);
@@ -177,32 +178,40 @@ const crossSolar = {}, crossWater = {}, crossTemp = {}, crossTank = {};
 function loadCrossData(hours, from, to) {
   const query = (from && to) ? `from=${from}&to=${to}` : `hours=${hours}`;
   SITES.forEach((site, i) => {
-    fetch(`/dashboard/${site.slug}/solar/chart-data?${query}`)
-      .then(r => r.json()).then(json => {
-        if (json.success && json.datasets?.length) {
-          crossSolar[site.id] = { name: site.name, labels: json.labels, data: json.datasets[0]?.data || [] };
-        }
-        buildCrossChart('chart-solar', crossSolar, 'legend-solar');
-      }).catch(err => console.error('Chart data fetch failed:', err));
+    const cats = site.categories || [];
 
-    fetch(`/dashboard/${site.slug}/water/chart-data?${query}`)
-      .then(r => r.json()).then(json => {
-        if (json.success && json.datasets?.length) {
-          crossWater[site.id] = { name: site.name, labels: json.labels, data: json.datasets[0]?.data || [] };
-          const latest = json.datasets[0]?.data;
-          crossTank[site.id] = { name: site.name, data: latest?.[latest.length-1] || 0 };
-        }
-        buildCrossChart('chart-water', crossWater, 'legend-water');
-        buildTankChart();
-      }).catch(err => console.error('Chart data fetch failed:', err));
+    if (cats.includes('solar')) {
+      fetch(`/dashboard/${site.slug}/solar/chart-data?${query}`)
+        .then(r => r.json()).then(json => {
+          if (json.success && json.datasets?.length) {
+            crossSolar[site.id] = { name: site.name, labels: json.labels, data: json.datasets[0]?.data || [] };
+          }
+          buildCrossChart('chart-solar', crossSolar, 'legend-solar');
+        }).catch(err => console.error('Chart data fetch failed:', err));
+    }
 
-    fetch(`/dashboard/${site.slug}/weather/chart-data?${query}`)
-      .then(r => r.json()).then(json => {
-        if (json.success && json.datasets?.length) {
-          crossTemp[site.id] = { name: site.name, labels: json.labels, data: json.datasets[0]?.data || [] };
-        }
-        buildCrossChart('chart-temp', crossTemp, null);
-      }).catch(err => console.error('Chart data fetch failed:', err));
+    if (cats.includes('water')) {
+      fetch(`/dashboard/${site.slug}/water/chart-data?${query}`)
+        .then(r => r.json()).then(json => {
+          if (json.success && json.datasets?.length) {
+            crossWater[site.id] = { name: site.name, labels: json.labels, data: json.datasets[0]?.data || [] };
+            const latest = json.datasets[0]?.data;
+            crossTank[site.id] = { name: site.name, data: latest?.[latest.length-1] || 0 };
+          }
+          buildCrossChart('chart-water', crossWater, 'legend-water');
+          buildTankChart();
+        }).catch(err => console.error('Chart data fetch failed:', err));
+    }
+
+    if (cats.includes('weather')) {
+      fetch(`/dashboard/${site.slug}/weather/chart-data?${query}`)
+        .then(r => r.json()).then(json => {
+          if (json.success && json.datasets?.length) {
+            crossTemp[site.id] = { name: site.name, labels: json.labels, data: json.datasets[0]?.data || [] };
+          }
+          buildCrossChart('chart-temp', crossTemp, null);
+        }).catch(err => console.error('Chart data fetch failed:', err));
+    }
   });
 }
 
