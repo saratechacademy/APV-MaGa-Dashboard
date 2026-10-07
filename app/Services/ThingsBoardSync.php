@@ -40,7 +40,7 @@ class ThingsBoardSync
         $now   = now();
 
         foreach ($devices as $device) {
-            $mapping = $this->mappingFor($site, $device['name'] ?? '');
+            $mapping = $this->mappingFor((string) $site->thingsboard_prefix, $device['name'] ?? '');
             if (!$mapping) {
                 continue;
             }
@@ -80,6 +80,19 @@ class ThingsBoardSync
         ])->save();
 
         return $stats;
+    }
+
+    /**
+     * Names of the devices a site with this prefix would be fed by.
+     *
+     * @return string[]
+     */
+    public function mappedDevices(string $prefix, array $devices): array
+    {
+        return array_values(array_filter(
+            array_column($devices, 'name'),
+            fn (string $name) => $this->mappingFor($prefix, $name) !== null,
+        ));
     }
 
     /**
@@ -147,11 +160,11 @@ class ThingsBoardSync
 
     /**
      * Resolves "<prefix>-<zone>-<sensor>-<rest>" against the configured zones
-     * and sensors; null when the device isn't this site's or isn't mapped.
+     * and sensors; null when the device isn't that prefix's or isn't mapped.
      */
-    private function mappingFor(Site $site, string $deviceName): ?array
+    private function mappingFor(string $prefix, string $deviceName): ?array
     {
-        $prefix = $site->thingsboard_prefix . '-';
+        $prefix .= '-';
         if (!Str::startsWith(Str::lower($deviceName), Str::lower($prefix))) {
             return null;
         }
