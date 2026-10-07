@@ -25,7 +25,30 @@ class Site extends Model
         'capacity_kw',
         'area_m2',
         'description',
+        'thingsboard_prefix',
     ];
+
+    protected $casts = [
+        'thingsboard_synced_at' => 'datetime',
+    ];
+
+    /**
+     * ok / late / failed for a site fed by ThingsBoard, null otherwise.
+     * "late" also covers the server cron no longer running the scheduler.
+     */
+    public function thingsboardSyncState(): ?string
+    {
+        if (!$this->thingsboard_prefix) {
+            return null;
+        }
+        if ($this->thingsboard_sync_error) {
+            return 'failed';
+        }
+
+        $lateAfter = now()->subMinutes(config('thingsboard.late_after_minutes'));
+
+        return $this->thingsboard_synced_at?->gte($lateAfter) ? 'ok' : 'late';
+    }
 
     // Génère automatiquement le slug depuis le nom
     protected static function boot()
