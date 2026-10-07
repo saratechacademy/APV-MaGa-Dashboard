@@ -41,6 +41,12 @@
           <span class="badge {{ $site->status === 'active' ? 'badge-ok' : 'badge-warn' }}">
             {{ ucfirst($site->status) }}
           </span>
+          @if($syncState = $site->thingsboardSyncState())
+            <span class="badge {{ ['ok' => 'badge-ok', 'late' => 'badge-warn', 'failed' => 'badge-err'][$syncState] }}"
+                  title="{{ $site->thingsboard_sync_error ?: 'Last successful ThingsBoard sync: ' . ($site->thingsboard_synced_at?->diffForHumans() ?? 'never') }}">
+              ThingsBoard {{ $syncState }}
+            </span>
+          @endif
         </td>
         <td>
           <a href="{{ route('admin.categories', $site) }}" class="btn" style="font-size:11px;padding:4px 10px">Categories</a>

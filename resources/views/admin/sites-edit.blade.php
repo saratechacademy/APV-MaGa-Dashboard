@@ -143,6 +143,11 @@
           <input type="number" id="site-area" name="area_m2" step="1" class="form-input"
                  value="{{ old('area_m2', $site->area_m2) }}" placeholder="e.g. 1200">
         </div>
+        <div class="form-field">
+          <label class="form-label" for="site-thingsboard-prefix">ThingsBoard device prefix</label>
+          <input type="text" id="site-thingsboard-prefix" name="thingsboard_prefix" maxlength="50" class="form-input"
+                 value="{{ old('thingsboard_prefix', $site->thingsboard_prefix) }}" placeholder="e.g. UTG — leave empty if not on ThingsBoard">
+        </div>
         <div class="form-field full">
           <label class="form-label" for="site-description">Description</label>
           <textarea id="site-description" name="description" class="form-input" placeholder="Site description, objectives...">{{ old('description', $site->description) }}</textarea>
