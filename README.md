@@ -176,6 +176,52 @@ Full endpoint documentation, including request/response formats and available ca
 
 ---
 
+## ThingsBoard integration
+
+Sites whose sensors report to a ThingsBoard instance (soil moisture probes, valves, flow meters, tank level/turbidity sensors) are fed automatically: every ten minutes the dashboard pulls the new telemetry and stores it like any other sensor reading.
+
+### Setting it up on an installation
+
+1. Update the code and database:
+   ```bash
+   git pull origin main
+   composer install --no-dev --optimize-autoloader
+   php artisan migrate --force
+   ```
+2. Add the ThingsBoard account to `.env`, then run `php artisan config:clear`:
+   ```
+   THINGSBOARD_URL=http://<host>:<port>
+   THINGSBOARD_USERNAME=<account e-mail>
+   THINGSBOARD_PASSWORD="<password>"
+   THINGSBOARD_LOOKBACK_DAYS=60
+   ```
+   `THINGSBOARD_LOOKBACK_DAYS` is how much history the first sync loads (default 7).
+3. Preview, then run the setup:
+   ```bash
+   php artisan thingsboard:setup --dry-run
+   php artisan thingsboard:setup
+   ```
+   For each site listed under `sites` in `config/thingsboard.php`, this links the existing site (matched by its name) or creates it, creates the categories, groups and parameters, and loads the history. It is safe to run again. If two existing sites could match, it stops and asks you to set the **ThingsBoard device prefix** on the right one (Admin → Sites → Edit).
+4. Make the sync automatic by adding the Laravel scheduler to the server cron, run as the web server user:
+   ```
+   * * * * * cd /path/to/the/project && php artisan schedule:run >> /dev/null 2>&1
+   ```
+
+### Checking that it works
+
+- **Admin → Sites** shows a badge per linked site: `ThingsBoard ok`, `late` (no successful sync for 30 minutes — usually the cron is not running) or `failed` (hover for the error).
+- `php artisan thingsboard:check` tests the connection and lists every device with its latest values.
+- `php artisan thingsboard:sync` runs a sync by hand.
+- Optional: set `THINGSBOARD_HEARTBEAT_URL` to a monitoring URL (healthchecks.io, Uptime Kuma...) to be alerted when the sync stops.
+
+### How devices are mapped
+
+Devices are named `<prefix>-<zone>-<sensor>-<n>`, e.g. `UTG-APV-Humidity-1-Shadow`. The prefix selects the site; the zone (`APV`, `Reference`, `General`, `Normal`) becomes the parameter group; the sensor type selects the category and parameters. `Business`, `Spare` and test devices are ignored. The mapping lives in `config/thingsboard.php`; adding a site is one line under `sites`.
+
+Parameters created by the sync can be renamed, regrouped, given thresholds or deactivated in the admin like any other.
+
+---
+
 ## Sites
 
 The platform supports an unlimited number of sites. Each site can be configured with its own:
