@@ -33,7 +33,7 @@ Developed by **Saratech**, funded by **UNU (United Nations University)**.
 ## Tech Stack
 
 - **Backend**: Laravel 12 (PHP 8.2)
-- **Database**: MariaDB (production) / SQLite (local development)
+- **Database**: SQLite or MariaDB/MySQL — both are supported; the `apvmaga.saratechniger.com` deployment runs on SQLite
 - **Frontend**: Blade templates, Chart.js
 - **Hardware**: IoT sensors and modules (ESP32, Arduino, Raspberry Pi, etc.)
 - **Deployment**: Hostinger VPS (AAPanel / Nginx)
@@ -81,7 +81,7 @@ tests/
 ### Requirements
 - PHP >= 8.2
 - Composer
-- MariaDB 10.x (or SQLite for local development)
+- SQLite (default, no server needed) or MariaDB 10.x
 - Node.js & NPM
 
 ### Steps
@@ -124,7 +124,7 @@ The suite covers authentication and authorization boundaries (admin/agent/observ
 ## API Usage (IoT Sensors & Actuators)
 
 ### Authentication
-All API requests require the `X-API-Key` header with the site's API key (available from the dashboard's "API Key" tab for each site). Requests are rate-limited per site to protect against flooding.
+All API requests require the `X-API-Key` header with the site's API key (available from the dashboard's "API Key" tab for each site). The key is only accepted in that header, never in the URL. Requests are rate-limited per site to protect against flooding.
 
 ### Date ranges
 `history` and `stats` accept `from`/`to` as plain dates (`YYYY-MM-DD`); each covers the full calendar day (`from` at 00:00:00, `to` at 23:59:59), so `?from=2026-05-01&to=2026-05-01` returns that entire day rather than an empty, zero-width window.
@@ -246,11 +246,20 @@ After pulling updates on the server:
 ```bash
 git pull origin main
 composer install --no-dev --optimize-autoloader
-php artisan migrate
+php artisan migrate --force
 php artisan view:clear
 php artisan config:clear
 php artisan cache:clear
 ```
+
+Run these as the web server user (e.g. `sudo -u www php artisan ...`), otherwise log and cache files end up owned by `root` and the site can no longer write to them. `.env` must have `APP_ENV=production`, `APP_DEBUG=false` and `APP_URL` set to the public address.
+
+The server cron must run the Laravel scheduler every minute (it drives the ThingsBoard sync):
+```
+* * * * * cd /path/to/the/project && php artisan schedule:run >> /dev/null 2>&1
+```
+
+With SQLite, the whole database is the single file `database/database.sqlite`: back it up regularly (`sqlite3 database/database.sqlite ".backup /path/to/copy.sqlite"`).
 
 ---
 

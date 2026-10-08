@@ -52,6 +52,18 @@ class SensorIngestionTest extends TestCase
             ->assertJson(['success' => false, 'error' => 'Invalid API key.']);
     }
 
+    public function test_api_key_in_the_url_is_not_accepted(): void
+    {
+        $site = $this->makeSite();
+        $cat  = $this->makeCategory($site);
+        $this->makeParam($cat, ['slug' => 'solar_output']);
+
+        $this->postJson("/api/sensors/{$site->slug}/solar?api_key={$site->api_key}", ['solar_output' => 4.2])
+            ->assertStatus(401);
+
+        $this->assertSame(0, SensorReading::count());
+    }
+
     public function test_missing_api_key_is_rejected(): void
     {
         $site = $this->makeSite();
