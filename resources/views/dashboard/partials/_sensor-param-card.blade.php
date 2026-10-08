@@ -22,7 +22,7 @@
     $synced   = $cmd?->isSynced();
   @endphp
   <div class="switch-card">
-    <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px">{{ $param->name }}</div>
+    <div style="font-size:11px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:2px" title="{{ $param->name }}">{{ $param->name }}</div>
     <div class="switch-row">
       <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:600;color:{{ $desired ? 'var(--green)' : 'var(--muted)' }}">
         {{ $desired ? 'ON' : 'OFF' }}
@@ -54,7 +54,7 @@
 @elseif($isSwitch)
   {{-- Readonly switch: ON/OFF state reported automatically by the sensor, toggle disabled --}}
   <div class="switch-card">
-    <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px">{{ $param->name }}</div>
+    <div style="font-size:11px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:2px" title="{{ $param->name }}">{{ $param->name }}</div>
     <div class="switch-row">
       <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:600;color:{{ $val === null ? 'var(--muted)' : ($val ? 'var(--green)' : 'var(--muted)') }}">
         {{ $val === null ? '—' : ($val ? 'ON' : 'OFF') }}
@@ -87,7 +87,7 @@
       {{ $displayVal }}
       @if($param->unit && !$isBool && !$isSwitch)<span style="font-size:12px;color:var(--muted)"> {{ $param->unit }}</span>@endif
     </div>
-    <div style="font-size:11px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $param->name }}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden" title="{{ $param->name }}">{{ $param->name }}</div>
     <div style="margin-top:6px" title="{{ $paramAt ? 'Last data: '.$paramAt->diffForHumans() : '' }}">
       @if($noData)
         <span class="badge-nodata">No data</span>

@@ -13,7 +13,7 @@
     {{ $manVal ?? '—' }}
     @if($param->unit)<span style="font-size:12px;color:var(--muted)"> {{ $param->unit }}</span>@endif
   </div>
-  <div style="font-size:11px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $param->name }}</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden" title="{{ $param->name }}">{{ $param->name }}</div>
   <div style="margin-top:6px">
     @if($manOutOfRange)
       <span class="badge-critical-sm">Out of range</span>
