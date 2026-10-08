@@ -91,8 +91,8 @@ class ThingsBoardSyncTest extends TestCase
             ->expectsOutputToContain('2 device(s), 5 reading(s) stored, 0 rejected, 4 parameter(s) created.')
             ->assertSuccessful();
 
-        $moisture = $this->param($site, 'apv_humidity_1_shadow_soil_moisture');
-        $this->assertSame('APV Humidity 1 Shadow – Soil moisture', $moisture->name);
+        $moisture = $this->param($site, 'apv_humidity_1_shadow_moisture');
+        $this->assertSame('APV 1 Shadow – Moisture', $moisture->name);
         $this->assertSame('%', $moisture->unit);
         $this->assertSame('irrigation', $moisture->category->slug);
         $this->assertSame(60, $moisture->category->offline_threshold_minutes);
@@ -103,11 +103,50 @@ class ThingsBoardSyncTest extends TestCase
                 ->mapWithKeys(fn ($r) => [$r->read_at->toDateTimeString() => round($r->value, 2)])->all(),
         );
 
-        $valve = $this->param($site, 'reference_valve_2_state');
+        $valve = $this->param($site, 'reference_valve_2_valve_state');
         $this->assertSame('switch', $valve->data_type);
         $this->assertSame('readonly', $valve->control_type);
         $this->assertSame('Reference field', $valve->group->name);
         $this->assertSame(1.0, $valve->latestReading->value);
+    }
+
+    public function test_new_parameters_are_ordered_by_device_named_by_position_and_charted_by_unit(): void
+    {
+        $site  = $this->makeSite();
+        $point = [['ts' => $this->ms('2026-10-07 14:40:00'), 'value' => '20']];
+
+        // ThingsBoard lists devices in no useful order.
+        $this->fakeThingsBoard([
+            'UTG-Reference-Humidity-1'  => ['humidity' => $point],
+            'UTG-APV-Valve-1'           => ['valve_state' => $point],
+            'UTG-APV-Humidity-1-Sun'    => ['humidity' => $point],
+            'UTG-APV-Humidity-1-Shadow' => ['humidity' => $point],
+        ]);
+
+        $this->artisan('thingsboard:sync')->assertSuccessful();
+        $this->artisan('thingsboard:sync')->assertSuccessful();
+
+        $irrigation = $site->categories()->where('slug', 'irrigation')->firstOrFail();
+
+        $this->assertSame([
+            'APV 1 Shadow – Moisture', 'APV 1 Shadow – Conductivity', 'APV 1 Shadow – Temperature',
+            'APV 1 Sun – Moisture', 'APV 1 Sun – Conductivity', 'APV 1 Sun – Temperature',
+            'APV 1 – Valve state',
+            'Reference 1 – Moisture', 'Reference 1 – Conductivity', 'Reference 1 – Temperature',
+        ], $irrigation->parameters()->pluck('name')->all());
+
+        // One chart per unit, valves (not plottable) in none, nothing doubled by the second run.
+        $this->assertSame(
+            ['Soil moisture (%)', 'Soil conductivity (µS/cm)', 'Soil temperature (°C)'],
+            $irrigation->charts()->pluck('title')->all(),
+        );
+
+        $moisture = $irrigation->charts()->where('title', 'Soil moisture (%)')->first();
+        $this->assertSame(
+            ['APV 1 Shadow – Moisture' => false, 'APV 1 Sun – Moisture' => false, 'Reference 1 – Moisture' => true],
+            $moisture->parameters->mapWithKeys(fn ($p) => [$p->name => (bool) $p->pivot->dashed])->all(),
+        );
+        $this->assertCount(3, $moisture->parameters->pluck('pivot.color')->unique());
     }
 
     public function test_tank_height_is_also_stored_as_a_volume_in_litres(): void
@@ -169,7 +208,7 @@ class ThingsBoardSyncTest extends TestCase
         $this->artisan('thingsboard:sync')->assertSuccessful();
 
         $this->assertSame(
-            ['apv_valve_1_state'],
+            ['apv_valve_1_valve_state'],
             SiteParameter::whereHas('category', fn ($q) => $q->where('site_id', $site->id))->pluck('slug')->all(),
         );
         $this->assertSame(1, SensorReading::count());
@@ -241,7 +280,7 @@ class ThingsBoardSyncTest extends TestCase
             ->expectsOutputToContain('1 reading(s) stored')
             ->assertFailed();
 
-        $this->assertSame(0.0, $this->param($site, 'apv_valve_2_state')->latestReading->value);
+        $this->assertSame(0.0, $this->param($site, 'apv_valve_2_valve_state')->latestReading->value);
 
         $site->refresh();
         $this->assertStringStartsWith('UTG-APV-Valve-1: ', $site->thingsboard_sync_error);

@@ -39,6 +39,11 @@ class ThingsBoardSync
         $stats = ['devices' => 0, 'created' => 0, 'stored' => 0, 'rejected' => 0, 'errors' => []];
         $now   = now();
 
+        // Parameters are created in the order devices are met: by name, so
+        // the dashboard lists Humidity-1-Shadow, -1-Sun, -2-Shadow... together
+        // instead of in ThingsBoard's arbitrary order.
+        usort($devices, fn ($a, $b) => strnatcasecmp($a['name'] ?? '', $b['name'] ?? ''));
+
         foreach ($devices as $device) {
             $mapping = $this->mappingFor((string) $site->thingsboard_prefix, $device['name'] ?? '');
             if (!$mapping) {
@@ -179,7 +184,13 @@ class ThingsBoardSync
             return null;
         }
 
-        return $sensor + ['group' => $group, 'label' => str_replace('-', ' ', $label)];
+        return $sensor + [
+            'group'     => $group,
+            'label'     => str_replace('-', ' ', $label),
+            // "APV 1 Shadow": where the sensor is, without repeating what it is.
+            'position'  => implode(' ', array_merge([$parts[0]], array_slice($parts, 2))),
+            'reference' => strcasecmp($parts[0], 'Reference') === 0,
+        ];
     }
 
     /** Device names aren't consistently cased (AfriFarm-Business-valve-1). */
@@ -224,8 +235,10 @@ class ThingsBoardSync
 
         $stats['created']++;
 
-        return $category->parameters()->create([
-            'name'                    => $mapping['label'] . ' – ' . $spec['name'],
+        // Position first: dashboard cards cut long names short, and "where" is
+        // what tells two cards of the same unit apart.
+        $parameter = $category->parameters()->create([
+            'name'                    => $mapping['position'] . ' – ' . $spec['name'],
             'slug'                    => $slug,
             'unit'                    => $spec['unit'] ?? null,
             'data_type'               => $spec['data_type'] ?? 'float',
@@ -236,6 +249,40 @@ class ThingsBoardSync
             'is_active'               => true,
             'show_on_dashboard'       => true,
             'sort_order'              => $category->parameters()->count(),
+        ]);
+
+        if (isset($spec['chart'])) {
+            $this->addToChart($category, $spec['chart'], $parameter, $mapping['reference']);
+        }
+
+        return $parameter;
+    }
+
+    /**
+     * Without a configured chart the dashboard falls back to one "Trends"
+     * chart plotting every parameter of the category on a single axis —
+     * unreadable once %, µS/cm and °C share it. Only done when the parameter
+     * is created, so charts stay the admin's to rearrange afterwards.
+     */
+    private function addToChart(SiteCategory $category, string $title, SiteParameter $parameter, bool $reference): void
+    {
+        $chart = $category->charts()->firstOrCreate(['title' => $title], [
+            'chart_type'  => 'line',
+            'col_span'    => 'half',
+            'show_legend' => true,
+            'is_active'   => true,
+            'sort_order'  => $category->charts()->count(),
+        ]);
+
+        $position = $chart->chartParameters()->count();
+
+        $chart->chartParameters()->create([
+            'site_parameter_id' => $parameter->id,
+            'color'             => SiteParameterGroup::nextPaletteColor($position),
+            'axis'              => 'left',
+            // Reference-field series are dashed, to read APV vs reference at a glance.
+            'dashed'            => $reference,
+            'sort_order'        => $position,
         ]);
     }
 

@@ -52,47 +52,49 @@ return [
 
     // Sensor segment of the device name => category and the parameters read
     // from it. 'key' is the ThingsBoard telemetry key; 'data_type' defaults
-    // to float; 'scale'/'precision' convert the raw value before storing.
+    // to float; 'scale'/'precision' convert the raw value before storing;
+    // 'chart' is the dashboard chart a new parameter is added to, so each
+    // chart only ever mixes values of one unit.
     'sensors' => [
         'Humidity' => [
             'category'   => 'irrigation',
             'parameters' => [
-                ['key' => 'humidity',     'name' => 'Soil moisture',    'unit' => '%'],
-                ['key' => 'conductivity', 'name' => 'Conductivity',     'unit' => 'µS/cm'],
-                ['key' => 'temperature',  'name' => 'Soil temperature', 'unit' => '°C'],
+                ['key' => 'humidity',     'name' => 'Moisture',     'unit' => '%',     'chart' => 'Soil moisture (%)'],
+                ['key' => 'conductivity', 'name' => 'Conductivity', 'unit' => 'µS/cm', 'chart' => 'Soil conductivity (µS/cm)'],
+                ['key' => 'temperature',  'name' => 'Temperature',  'unit' => '°C',    'chart' => 'Soil temperature (°C)'],
             ],
         ],
         'Flow' => [
             'category'   => 'irrigation',
             'parameters' => [
-                ['key' => 'Flow_level', 'name' => 'Total flow', 'unit' => 'L'],
+                ['key' => 'Flow_level', 'name' => 'Total flow', 'unit' => 'L', 'chart' => 'Total flow (L)'],
             ],
         ],
         'Valve' => [
             'category'   => 'irrigation',
             'parameters' => [
-                ['key' => 'valve_state', 'name' => 'State', 'data_type' => 'switch'],
+                ['key' => 'valve_state', 'name' => 'Valve state', 'data_type' => 'switch'],
             ],
         ],
         'Ultrasonic' => [
             'category'   => 'water',
             'parameters' => [
-                ['key' => 'tank_distance', 'name' => 'Water level', 'unit' => 'cm'],
+                ['key' => 'tank_distance', 'name' => 'Water level', 'unit' => 'cm', 'chart' => 'Water level (cm)'],
             ],
         ],
         'Turbidity' => [
             'category'   => 'water',
             'parameters' => [
-                ['key' => 'turbidity', 'name' => 'Turbidity'],
+                ['key' => 'turbidity', 'name' => 'Turbidity', 'chart' => 'Turbidity'],
             ],
         ],
         'Pressure' => [
             'category'   => 'water',
             'parameters' => [
-                ['key' => 'tank_level', 'name' => 'Tank level', 'unit' => 'cm'],
+                ['key' => 'tank_level', 'name' => 'Tank level', 'unit' => 'cm', 'chart' => 'Water level (cm)'],
                 // Volume of the tank from the measured water height, as the
                 // partners compute it: π × r² × height / 1000, r = 180 cm.
-                ['key' => 'tank_level', 'name' => 'Tank volume', 'unit' => 'L', 'scale' => M_PI * 180 * 180 / 1000, 'precision' => 0],
+                ['key' => 'tank_level', 'name' => 'Tank volume', 'unit' => 'L', 'scale' => M_PI * 180 * 180 / 1000, 'precision' => 0, 'chart' => 'Tank volume (L)'],
             ],
         ],
     ],

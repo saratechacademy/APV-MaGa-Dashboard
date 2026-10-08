@@ -154,7 +154,7 @@ const opts = {
 // Sparklines
 SITES.forEach((site, i) => {
   const ctx = document.getElementById('spark-' + site.id);
-  if (!ctx) return;
+  if (!ctx || !(site.categories || []).includes('solar')) return;
   fetch(`/dashboard/${site.slug}/solar/chart-data?hours=1`)
     .then(r => r.json())
     .then(json => {

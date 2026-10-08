@@ -71,7 +71,7 @@ class ThingsBoardSetupTest extends TestCase
         $this->assertNotNull($utg->thingsboard_synced_at);
 
         $this->assertSame(
-            ['apv_valve_1_state', 'reference_valve_2_state'],
+            ['apv_valve_1_valve_state', 'reference_valve_2_valve_state'],
             SiteParameter::orderBy('id')->pluck('slug')->all(),
         );
         $this->assertSame(2, SensorReading::count());
