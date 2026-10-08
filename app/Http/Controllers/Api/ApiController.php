@@ -20,7 +20,9 @@ class ApiController extends Controller
             abort(response()->json(['success' => false, 'error' => 'Site not found.'], 404));
         }
 
-        $key = $request->header('X-API-Key') ?? $request->query('api_key');
+        // Header only: a key passed in the URL ends up in web server access
+        // logs, proxies and browser history.
+        $key = $request->header('X-API-Key');
 
         if (!$key || !hash_equals($site->api_key, $key)) {
             abort(response()->json(['success' => false, 'error' => 'Invalid API key.'], 401));
