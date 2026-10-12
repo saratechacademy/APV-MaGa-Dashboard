@@ -100,6 +100,27 @@ class SiteOverviewTest extends TestCase
         $this->assertSame('normal', $cards[$stale->id]['status']);
     }
 
+    public function test_the_live_badge_reflects_whether_data_is_actually_arriving(): void
+    {
+        $admin = $this->admin();
+        $fresh = Site::factory()->create(['status' => 'active']);
+        $quiet = Site::factory()->create(['status' => 'active']);
+        $empty = Site::factory()->create(['status' => 'active']);
+
+        $this->param($fresh, 'weather', 'air_temperature', ['2026-10-13 11:50:00' => 30]);
+        $this->param($quiet, 'weather', 'air_temperature', ['2026-09-10 13:00:00' => 30]);
+
+        $this->actingAs($admin)->get(route('dashboard.site', $fresh))->assertOk()
+            ->assertSee('Live')->assertDontSee('No recent data');
+        $this->get(route('dashboard.site', $quiet))->assertOk()
+            ->assertSee('No recent data')->assertSee('Last reading: 10 Sep 2026 13:00 UTC');
+        $this->get(route('dashboard.site', $empty))->assertOk()
+            ->assertSee('No sensor reading received yet');
+
+        // Overview: one of the three sites is receiving data.
+        $this->get(route('dashboard'))->assertOk()->assertSee('Live 1/3');
+    }
+
     public function test_overview_data_puts_every_site_on_one_time_axis(): void
     {
         $a = Site::factory()->create(['name' => 'A', 'status' => 'active']);

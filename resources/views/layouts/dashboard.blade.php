@@ -66,6 +66,9 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
 .live-badge{display:flex;align-items:center;gap:5px;background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:500}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;flex-shrink:0}
+.live-badge-stale{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)}
+.live-badge-none{background:var(--bg);color:var(--muted);border-color:var(--border)}
+.live-badge-stale .live-dot,.live-badge-none .live-dot{background:currentColor;animation:none}
 .sync-time{font-size:12px;color:var(--muted)}
 .tr-group{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:2px;gap:1px;flex-shrink:0}
 .tr-btn{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:4px 10px;border:none;background:transparent;border-radius:5px;cursor:pointer;color:var(--muted);transition:all .15s}
@@ -385,7 +388,7 @@ textarea.form-input{resize:vertical;min-height:70px}
       <span class="site-name-col">
         <span class="site-name">{{ $s->name }}</span>
       </span>
-      <span class="site-country-badge">{{ strtoupper(substr($s->country, 0, 3)) }}</span>
+      <span class="site-country-badge">{{ \App\Support\Countries::code($s->country) }}</span>
     </a>
     @endforeach
   </div>
@@ -434,7 +437,27 @@ textarea.form-input{resize:vertical;min-height:70px}
     <span class="tb-title" id="tb-title">@yield('page-title', 'All Sites')</span>
     <span class="tb-crumb" id="tb-crumb">@yield('page-crumb', 'Overview')</span>
     @hasSection('show-toolbar')
-    <div class="live-badge"><span class="live-dot"></span> Live</div>
+    {{-- Reflects whether readings are actually arriving ($liveStatus from
+         SiteOverview::liveStatus), instead of a fixed green "Live". --}}
+    @isset($liveStatus)
+      @php
+        $liveTitle = $liveStatus['at']
+          ? 'Last reading: ' . $liveStatus['at']->format('d M Y H:i') . ' UTC'
+          : 'No sensor reading received yet';
+        if ($liveStatus['total'] > 1) {
+          $liveTitle = $liveStatus['live'] . ' of ' . $liveStatus['total'] . ' sites receiving data. ' . $liveTitle;
+        }
+      @endphp
+      @if($liveStatus['state'] === 'live')
+        <div class="live-badge" title="{{ $liveTitle }}"><span class="live-dot"></span>
+          Live{{ $liveStatus['total'] > 1 ? ' ' . $liveStatus['live'] . '/' . $liveStatus['total'] : '' }}</div>
+      @elseif($liveStatus['state'] === 'stale')
+        <div class="live-badge live-badge-stale" title="{{ $liveTitle }}"><span class="live-dot"></span>
+          No recent data · {{ $liveStatus['at']->diffForHumans(null, true, true) }}</div>
+      @else
+        <div class="live-badge live-badge-none" title="{{ $liveTitle }}"><span class="live-dot"></span> No data</div>
+      @endif
+    @endisset
     <span class="sync-time" id="sync-time">--:--:--</span>
     <div class="tr-group" style="position:relative">
       <button class="tr-btn" data-range="1h" onclick="setRange('1h',this)">1H</button>
@@ -486,8 +509,9 @@ function closeSidebar() {
 function updateClock(){
   const el = document.getElementById('sync-time');
   if (!el) return;
-  const now = new Date();
-  el.textContent = now.toTimeString().slice(0,8) + ' UTC';
+  // Real UTC, like every timestamp in the app (toTimeString() is the
+  // browser's local time, which was being labelled "UTC").
+  el.textContent = new Date().toISOString().slice(11, 19) + ' UTC';
 }
 setInterval(updateClock, 1000);
 updateClock();

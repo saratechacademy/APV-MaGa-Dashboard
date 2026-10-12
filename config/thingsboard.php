@@ -5,8 +5,8 @@
 // thingsboard:check / thingsboard:sync commands).
 //
 // A site is linked to ThingsBoard through its "ThingsBoard device prefix"
-// (admin → edit site, or `php artisan thingsboard:setup` to do it for every
-// site listed under 'sites' below). Devices there are named
+// (admin → edit site, Admin → Data sources, or `php artisan thingsboard:setup`
+// for the sites of database/presets/sites.json). Devices there are named
 // "<prefix>-<zone>-<sensor>-<n>[-<position>]", e.g. UTG-APV-Humidity-1-Shadow,
 // and the mapping below follows the partners' "Sensor Set Up and Parameters"
 // document for The Gambia. Devices in a zone or of a sensor type that is not
@@ -34,14 +34,6 @@ return [
     // report every 15-20 minutes, far slower than the 5-minute default.
     'offline_threshold_minutes' => 60,
 
-    // Sites that `php artisan thingsboard:setup` links (or creates when they
-    // don't exist yet), keyed by ThingsBoard device prefix. Coordinates come
-    // from the partners' document; AfriFarm's are not legible there.
-    'sites' => [
-        'UTG'      => ['name' => 'University of The Gambia', 'country' => 'Gambia', 'latitude' => 13.2478, 'longitude' => -16.5356],
-        'AfriFarm' => ['name' => 'AfriFarm', 'country' => 'Gambia'],
-    ],
-
     // Zone segment of the device name => parameter group on the dashboard.
     'zones' => [
         'APV'       => 'APV field',
@@ -53,6 +45,8 @@ return [
     // Sensor segment of the device name => category and the parameters read
     // from it. 'key' is the ThingsBoard telemetry key; 'data_type' defaults
     // to float; 'scale'/'precision' convert the raw value before storing;
+    // 'tank_volume' converts a water height (cm) into litres using the site's
+    // own tank geometry (admin → edit site) and is skipped for a site without one;
     // 'chart' is the dashboard chart a new parameter is added to, so each
     // chart only ever mixes values of one unit; 'metric' is what it measures,
     // which the All Sites overview is built from (config/overview.php).
@@ -94,8 +88,8 @@ return [
             'parameters' => [
                 ['key' => 'tank_level', 'name' => 'Tank level', 'unit' => 'cm', 'metric' => 'tank_level', 'chart' => 'Water level (cm)'],
                 // Volume of the tank from the measured water height, as the
-                // partners compute it: π × r² × height / 1000, r = 180 cm.
-                ['key' => 'tank_level', 'name' => 'Tank volume', 'unit' => 'L', 'scale' => M_PI * 180 * 180 / 1000, 'precision' => 0, 'metric' => 'tank_volume', 'chart' => 'Tank volume (L)'],
+                // partners compute it: π × r² × height / 1000 × number of tanks.
+                ['key' => 'tank_level', 'name' => 'Tank volume', 'unit' => 'L', 'tank_volume' => true, 'precision' => 0, 'metric' => 'tank_volume', 'chart' => 'Tank volume (L)'],
             ],
         ],
     ],

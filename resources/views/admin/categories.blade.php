@@ -103,7 +103,7 @@
           <div class="form-field" style="margin-bottom:10px;max-width:220px">
             <label class="form-label" for="cat-offline-{{ $cat->id }}">Offline threshold (minutes)</label>
             <input type="number" id="cat-offline-{{ $cat->id }}" name="offline_threshold_minutes" class="form-input" min="1" step="1"
-                   value="{{ $cat->offline_threshold_minutes ?? 5 }}">
+                   value="{{ $cat->offlineThresholdMinutes() }}">
             <span style="font-size:11px;color:var(--muted);margin-top:2px;display:block">
               A parameter shows "No data"/"Stale" if no sensor reading arrives within this delay.
             </span>
@@ -152,7 +152,7 @@
           </div>
           <div class="form-field">
             <label class="form-label" for="new-cat-offline">Offline threshold (minutes)</label>
-            <input type="number" id="new-cat-offline" name="offline_threshold_minutes" class="form-input" min="1" step="1" value="5">
+            <input type="number" id="new-cat-offline" name="offline_threshold_minutes" class="form-input" min="1" step="1" value="{{ \App\Models\SiteCategory::DEFAULT_OFFLINE_THRESHOLD_MINUTES }}">
             <span style="font-size:11px;color:var(--muted);margin-top:2px;display:block">
               A parameter shows "No data"/"Stale" if no sensor reading arrives within this delay.
             </span>

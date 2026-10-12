@@ -7,6 +7,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ManualReadingController;
 use App\Http\Controllers\ActuatorController;
 use App\Http\Controllers\ExportController;
+use App\Http\Controllers\DataSourceController;
 
 Route::get('/', fn() => redirect()->route('login'));
 
@@ -67,6 +68,10 @@ Route::middleware(['auth', 'check.status'])->group(function () {
         Route::put('/sites/{site}',       [AdminController::class, 'updateSite'])->name('sites.update');
         Route::post('/sites/{site}/duplicate', [AdminController::class, 'duplicateSite'])->name('sites.duplicate');
         Route::delete('/sites/{site}',    [AdminController::class, 'destroySite'])->name('sites.destroy');
+
+        // Data sources (ThingsBoard prefixes, LI-COR stations) ↔ sites
+        Route::get('/sources',       [DataSourceController::class, 'index'])->name('sources');
+        Route::post('/sources/link', [DataSourceController::class, 'link'])->name('sources.link');
 
         // Site Users management
         Route::get('/sites/{site}/users',            [AdminController::class, 'siteUsers'])->name('sites.users');

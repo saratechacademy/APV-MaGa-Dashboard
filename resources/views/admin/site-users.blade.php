@@ -54,8 +54,8 @@
                 @csrf
                 <input type="hidden" name="user_id" value="{{ $u->id }}">
                 <select name="role" class="form-input" aria-label="Role for {{ $u->name }}" style="font-size:11px;padding:3px 6px;width:auto" onchange="this.form.requestSubmit()">
-                  <option value="agent"       {{ $u->pivot->role === 'agent'       ? 'selected' : '' }}>Agent</option>
-                  <option value="observateur" {{ $u->pivot->role === 'observateur' ? 'selected' : '' }}>Observer</option>
+                  <option value="{{ \App\Models\User::ROLE_AGENT }}" @selected($u->pivot->role === \App\Models\User::ROLE_AGENT)>Agent</option>
+                  <option value="{{ \App\Models\User::ROLE_OBSERVER }}" @selected($u->pivot->role === \App\Models\User::ROLE_OBSERVER)>Observer</option>
                 </select>
               </form>
             </td>
@@ -112,8 +112,8 @@
             Role on this site *
           </label>
           <select name="role" id="site-add-role" class="form-input" required>
-            <option value="agent">Agent — Can enter manual data</option>
-            <option value="observateur">Observer — Read only</option>
+            <option value="{{ \App\Models\User::ROLE_AGENT }}">Agent — Can enter manual data</option>
+            <option value="{{ \App\Models\User::ROLE_OBSERVER }}">Observer — Read only</option>
           </select>
         </div>
 

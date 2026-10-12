@@ -16,7 +16,7 @@
     </tr>
   </table>
   <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#334155;">
-    @if($role === 'agent')
+    @if($role === \App\Models\User::ROLE_AGENT)
     As an <strong>agent</strong>, you can view live data, enter manual readings, and export reports for this site.
     @else
     As an <strong>observer</strong>, you can view live data and export reports for this site.

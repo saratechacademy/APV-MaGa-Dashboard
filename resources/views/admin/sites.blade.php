@@ -10,7 +10,10 @@
 @endif
 <div class="sec-header">
   <span class="sec-title">All Sites ({{ $sites->count() }})</span>
-  <a href="{{ route('admin.sites.create') }}" class="btn btn-blue">+ New Site</a>
+  <span style="display:flex;gap:8px">
+    <a href="{{ route('admin.sources') }}" class="btn">Data sources</a>
+    <a href="{{ route('admin.sites.create') }}" class="btn btn-blue">+ New Site</a>
+  </span>
 </div>
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)">
   <table class="raw-table" style="font-size:13px">

@@ -201,7 +201,7 @@ Sites whose sensors report to a ThingsBoard instance (soil moisture probes, valv
    php artisan thingsboard:setup --dry-run
    php artisan thingsboard:setup
    ```
-   For each site listed under `sites` in `config/thingsboard.php`, this links the existing site (matched by its name) or creates it, creates the categories, groups and parameters, and loads the history. It is safe to run again. If two existing sites could match, it stops and asks you to set the **ThingsBoard device prefix** on the right one (Admin → Sites → Edit).
+   For each site of the presets file `database/presets/sites.json` that has a ThingsBoard prefix, this links the existing site (matched by its name) or creates it, creates the categories, groups and parameters, and loads the history. It is safe to run again. If two existing sites could match, it stops and asks you to set the **ThingsBoard device prefix** on the right one (Admin → Sites → Edit).
 4. Make the sync automatic by adding the Laravel scheduler to the server cron, run as the web server user:
    ```
    * * * * * cd /path/to/the/project && php artisan schedule:run >> /dev/null 2>&1
@@ -216,7 +216,9 @@ Sites whose sensors report to a ThingsBoard instance (soil moisture probes, valv
 
 ### How devices are mapped
 
-Devices are named `<prefix>-<zone>-<sensor>-<n>`, e.g. `UTG-APV-Humidity-1-Shadow`. The prefix selects the site; the zone (`APV`, `Reference`, `General`, `Normal`) becomes the parameter group; the sensor type selects the category and parameters. `Business`, `Spare` and test devices are ignored. The mapping lives in `config/thingsboard.php`; adding a site is one line under `sites`.
+Devices are named `<prefix>-<zone>-<sensor>-<n>`, e.g. `UTG-APV-Humidity-1-Shadow`. The prefix selects the site; the zone (`APV`, `Reference`, `General`, `Normal`) becomes the parameter group; the sensor type selects the category and parameters. `Business`, `Spare` and test devices are ignored. The mapping of device types to parameters lives in `config/thingsboard.php`. Which sites exist is not code: it comes from the presets file at set-up, and afterwards from **Admin → Data sources**, which lists the prefixes the ThingsBoard account exposes and links any of them to a site (or creates the site) in one click.
+
+The tank volume is computed from the measured water height and the site's own tank (radius and number of tanks, in Admin → Sites → Edit). A site without a tank geometry gets no volume parameter rather than a wrong one.
 
 Parameters created by the sync can be renamed, regrouped, given thresholds or deactivated in the admin like any other.
 
@@ -239,14 +241,21 @@ The weather stations (temperature, humidity, dew point, wind, gusts, wind direct
    php artisan licor:setup --dry-run
    php artisan licor:setup
    ```
-   For each station listed under `sites` in `config/licor.php` (UTG, AfriFarm, Fass), this links the site already used for ThingsBoard, or a site whose name matches, or creates it. It also adds the manual agriculture parameters (leaves per plant, stem girth, plant height, chlorophyll, stand count, bulb diameter and weight, yield, harvest index), then loads the history. Expect a few minutes for the first run. It is safe to run again.
+   For each site of the presets file `database/presets/sites.json` that has a LI-COR station (UTG, AfriFarm, Fass), this links the site already used for ThingsBoard, or a site whose name matches, or creates it. It also adds the manual agriculture parameters (leaves per plant, stem girth, plant height, chlorophyll, stand count, bulb diameter and weight, yield, harvest index), then loads the history. Expect a few minutes for the first run. It is safe to run again.
 4. The scheduler cron described above also runs this sync.
 
 ### Good to know
 
 - Stations upload in batches: data typically appears on the dashboard **2 to 4 hours** after it was measured. The offline threshold of these categories is set accordingly.
 - **Admin → Sites** shows a `LI-COR ok / late / failed` badge per linked site; `php artisan licor:sync` runs a sync by hand.
-- Sensors are named by location where `config/licor.php` → `locations` knows it (currently the PAR sensors: Reference, Module edge, Under PV, Between PV), otherwise by sensor serial (e.g. `Air temperature – 22034652`). Adding a serial there names new parameters; existing ones can be renamed in the admin.
+- Sensors are named by location where the site knows it, otherwise by sensor serial (e.g. `Air temperature – 22034652`). Locations are entered per site in Admin → Sites → Edit (“LI-COR sensor locations”, one `serial = location` per line); saving renames that site's parameters. The presets file provides the PAR locations (Reference, Module edge, Under PV, Between PV).
+- A station that is not in the presets file is linked to a site from **Admin → Data sources**.
+
+---
+
+## Site presets
+
+`database/presets/sites.json` describes the sites the two `…:setup` commands create or link on a fresh installation: name, country, coordinates, ThingsBoard prefix, LI-COR station, tank geometry, sensor locations. It is deployment data, not code — edit it, or pass your own with `--presets=/path/to/file.json`. It is only read by the setup commands; once a site exists, everything in it is edited in the admin, and what an admin entered is never overwritten by the file.
 
 ---
 

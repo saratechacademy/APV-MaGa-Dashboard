@@ -3,8 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Models\Site;
-use App\Models\User;
+use App\Models\SiteParameterGroup;
 use App\Services\LicorClient;
+use App\Support\SitePresets;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -12,25 +13,30 @@ use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
- * One-command provisioning, like thingsboard:setup: links every station in
- * config('licor.sites') to its site (creating the site when it doesn't
- * exist), adds the manual agriculture parameters, then runs a first sync,
- * which creates the weather/PAR parameters. Safe to run again.
+ * One-command provisioning, like thingsboard:setup: links every preset site
+ * that has a LI-COR station to it (creating the site when it doesn't exist),
+ * adds the manual agriculture parameters, then runs a first sync, which
+ * creates the weather/PAR parameters. Safe to run again.
+ *
+ * The sites come from the presets file (database/presets/sites.json), not
+ * from code. A station not in the file is linked from Admin → Data sources.
  */
 class LicorSetup extends Command
 {
     protected $signature = 'licor:setup
+                            {--presets= : Site presets file (default: database/presets/sites.json)}
                             {--owner= : E-mail of the user who owns sites that have to be created (default: the first active admin)}
                             {--dry-run : Show what would be linked or created without changing anything}';
 
-    protected $description = 'Create or link the HOBOnet (LI-COR) sites, add their agriculture parameters, then sync their weather and PAR data';
+    protected $description = 'Create or link the HOBOnet (LI-COR) sites of the presets file, add their agriculture parameters, then sync their weather and PAR data';
 
     public function handle(): int
     {
         try {
+            $presets = SitePresets::load($this->option('presets'));
             $devices = LicorClient::fromConfig()->devices();
         } catch (RuntimeException | ConnectionException | RequestException $e) {
-            $this->error("Cannot reach LI-COR: {$e->getMessage()}");
+            $this->error("Cannot set up LI-COR: {$e->getMessage()}");
 
             return self::FAILURE;
         }
@@ -38,8 +44,12 @@ class LicorSetup extends Command
         $dryRun = $this->option('dry-run');
         $linked = 0;
 
-        foreach (config('licor.sites') as $serial => $definition) {
-            $serial  = (string) $serial;
+        foreach ($presets as $preset) {
+            $serial = (string) ($preset['licor_device_serial'] ?? '');
+            if ($serial === '') {
+                continue;
+            }
+
             $station = collect($devices)->firstWhere('deviceSerialNumber', $serial);
 
             if (!$station) {
@@ -47,7 +57,7 @@ class LicorSetup extends Command
                 continue;
             }
 
-            [$site, $action] = $this->resolveSite($serial, $definition);
+            [$site, $action] = SitePresets::resolve($preset, 'licor_device_serial', $this->option('owner'));
 
             if ($action === 'ambiguous') {
                 $this->error("{$serial}: several sites could match ({$site}). Set the \"LI-COR station serial\" "
@@ -67,8 +77,7 @@ class LicorSetup extends Command
                 continue;
             }
 
-            $site->licor_device_serial = $serial;
-            $site->status ??= 'active';
+            SitePresets::fill($site, $preset);
             $site->save();
             $linked++;
 
@@ -94,44 +103,6 @@ class LicorSetup extends Command
         return $status;
     }
 
-    /**
-     * @return array{0: Site|string|null, 1: string}
-     */
-    private function resolveSite(string $serial, array $definition): array
-    {
-        if ($site = Site::where('licor_device_serial', $serial)->first()) {
-            return [$site, 'already linked to'];
-        }
-
-        $match = $definition['match'];
-
-        // Same site as the ThingsBoard devices, when that is already set up.
-        if ($site = Site::whereNull('licor_device_serial')->where('thingsboard_prefix', $match)->first()) {
-            return [$site, 'linking existing'];
-        }
-
-        $candidates = Site::whereNull('licor_device_serial')
-            ->where(fn ($q) => $q->where('name', 'like', "%{$match}%")->orWhere('name', $definition['name']))
-            ->get();
-
-        if ($candidates->count() > 1) {
-            return [$candidates->pluck('name')->implode(', '), 'ambiguous'];
-        }
-        if ($candidates->count() === 1) {
-            return [$candidates->first(), 'linking existing'];
-        }
-
-        $owner = $this->option('owner')
-            ? User::where('email', $this->option('owner'))->first()
-            : User::where('role', 'admin')->where('status', 'active')->orderBy('id')->first();
-
-        if (!$owner) {
-            return [null, 'no-owner'];
-        }
-
-        return [new Site(collect($definition)->except('match')->all() + ['user_id' => $owner->id]), 'creating'];
-    }
-
     private function addAgricultureParameters(Site $site): void
     {
         $category = $site->categories()->firstOrCreate(['slug' => 'agriculture'], [
@@ -150,7 +121,7 @@ class LicorSetup extends Command
 
             $count = $category->parameterGroups()->count();
             $group = $category->parameterGroups()->firstOrCreate(['name' => $spec['group']], [
-                'color'      => \App\Models\SiteParameterGroup::nextPaletteColor($count),
+                'color'      => SiteParameterGroup::nextPaletteColor($count),
                 'sort_order' => $count,
             ]);
 

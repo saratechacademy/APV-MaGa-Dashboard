@@ -73,7 +73,10 @@ class LicorSyncTest extends TestCase
     private function makeSite(): Site
     {
         $site = Site::factory()->create(['status' => 'active']);
-        $site->forceFill(['licor_device_serial' => '22490036'])->save();
+        $site->forceFill([
+            'licor_device_serial' => '22490036',
+            'licor_locations'     => ['22261664' => 'Under PV'],
+        ])->save();
 
         return $site;
     }

@@ -232,6 +232,20 @@
               </select>
             </div>
             <div class="form-field">
+              <label class="form-label" for="pmetric-{{ $param->id }}">Measures</label>
+              <select name="metric" id="pmetric-{{ $param->id }}" class="form-input">
+                <option value="">— Not used on the All Sites overview —</option>
+                @php $metricCatalog = config('overview.catalog'); @endphp
+                @if($param->metric && !isset($metricCatalog[$param->metric]))
+                  <option value="{{ $param->metric }}" selected>{{ $param->metric }}</option>
+                @endif
+                @foreach($metricCatalog as $metricKey => $metricLabel)
+                  <option value="{{ $metricKey }}" @selected($param->metric === $metricKey)>{{ $metricLabel }}</option>
+                @endforeach
+              </select>
+              <span style="font-size:11px;color:var(--muted);margin-top:2px;display:block">What this parameter measures. Parameters measuring the same thing are averaged and compared across sites.</span>
+            </div>
+            <div class="form-field">
               <label class="form-label" for="input-type-{{ $param->id }}">Input Type</label>
               <select name="input_type" id="input-type-{{ $param->id }}" class="form-input" {{ $param->data_type==='switch' ? 'disabled' : '' }}>
                 <option value="sensor" {{ ($param->input_type ?? 'sensor')==='sensor' ? 'selected' : '' }}>Sensor</option>
@@ -334,6 +348,20 @@
               <option value="string">String (text)</option>
               <option value="switch">Switch (ON/OFF)</option>
             </select>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="new-param-metric">Measures</label>
+            <select name="metric" id="new-param-metric" class="form-input">
+              <option value="">— Not used on the All Sites overview —</option>
+              @php $metricCatalog = config('overview.catalog'); @endphp
+              @if(old('metric') && !isset($metricCatalog[old('metric')]))
+                <option value="{{ old('metric') }}" selected>{{ old('metric') }}</option>
+              @endif
+              @foreach($metricCatalog as $metricKey => $metricLabel)
+                <option value="{{ $metricKey }}" @selected(old('metric') === $metricKey)>{{ $metricLabel }}</option>
+              @endforeach
+            </select>
+            <span style="font-size:11px;color:var(--muted);margin-top:2px;display:block">What this parameter measures. Parameters measuring the same thing are averaged and compared across sites.</span>
           </div>
         </div>
         <div class="form-field">

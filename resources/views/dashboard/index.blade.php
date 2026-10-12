@@ -23,7 +23,6 @@
 {{-- Section: Sites --}}
 <div class="sec-header">
   <span class="sec-title">Installation Sites</span>
-  <span style="font-size:12px;color:var(--muted)">Updated: {{ now()->format('H:i:s') }} UTC</span>
 </div>
 
 <div class="cards-grid">
@@ -35,7 +34,7 @@
   <a href="{{ route('dashboard.site', $site) }}" class="site-card {{ $ui['card'] }}">
     <div class="card-head">
       <div class="card-name">{{ $site->name }}</div>
-      <span class="country-chip">{{ strtoupper(substr($site->country, 0, 3)) }}</span>
+      <span class="country-chip">{{ \App\Support\Countries::code($site->country) }}</span>
       <span class="badge {{ $ui['badge'] }}" style="margin-left:auto;display:inline-flex;align-items:center;gap:4px">
         {!! $card['status'] === 'normal' ? $iconCheckCircle : $iconWarnTriangle !!} {{ $ui['label'] }}
       </span>

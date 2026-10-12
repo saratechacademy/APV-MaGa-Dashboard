@@ -621,7 +621,7 @@
         <div class="help-code">X-API-Key: apv-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</div>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Exemple de requête' : 'Request Example' }}</div>
-        <div class="help-code">POST /api/sensors/fass-agrivoltaic-site/solar
+        <div class="help-code">POST /api/sensors/your-site-slug/solar
 Content-Type: application/json
 X-API-Key: apv-xxxxxxxxxxxxxxxxxx
 
@@ -650,7 +650,7 @@ http.end();</div>
           If the category contains <span class="help-code-inline">data_type=switch</span> and <span class="help-code-inline">control_type=controllable</span> parameters (e.g. <span class="help-code-inline">valve_1</span>), the ESP32 must poll this endpoint regularly to know which state to apply:
           @endif
         </p>
-        <div class="help-code">GET /api/commands/fass-agrivoltaic-site/irrigation
+        <div class="help-code">GET /api/commands/your-site-slug/irrigation
 X-API-Key: apv-xxxxxxxxxxxxxxxxxx
 
 {

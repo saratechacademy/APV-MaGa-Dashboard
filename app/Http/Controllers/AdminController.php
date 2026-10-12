@@ -10,6 +10,9 @@ use App\Models\SiteChart;
 use App\Models\SiteChartParameter;
 use App\Models\SiteParameterGroup;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use App\Services\LicorClient;
+use App\Services\LicorSync;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\WelcomeUserMail;
@@ -97,7 +100,7 @@ class AdminController extends Controller
     public function sites()
     {
         $sites  = Site::with('user')->latest()->get();
-        $agents = User::where('role', '!=', 'observateur')->where('status', 'active')->get();
+        $agents = User::where('role', '!=', User::ROLE_OBSERVER)->where('status', 'active')->get();
         return view('admin.sites', compact('sites', 'agents'));
     }
 
@@ -181,7 +184,18 @@ class AdminController extends Controller
             'description' => 'nullable|string',
             'thingsboard_prefix' => 'nullable|string|max:50',
             'licor_device_serial' => 'nullable|string|max:50',
+            'tank_radius_cm'     => 'nullable|numeric|min:0',
+            'tank_count'         => 'nullable|integer|min:1',
+            'licor_locations'    => 'nullable|string|max:5000',
         ]);
+
+        // "22261662 = Reference", one sensor per line.
+        $locations = collect(preg_split('/\R/', (string) $request->licor_locations))
+            ->map(fn ($line) => array_map('trim', preg_split('/[=:]/', $line, 2)))
+            ->filter(fn ($pair) => count($pair) === 2 && $pair[0] !== '' && $pair[1] !== '')
+            ->mapWithKeys(fn ($pair) => [$pair[0] => $pair[1]])
+            ->all();
+        $previousLocations = $site->licor_locations ?? [];
 
         $site->fill([
             'user_id'     => $request->user_id,
@@ -194,9 +208,16 @@ class AdminController extends Controller
             'description' => $request->description,
             'thingsboard_prefix' => $request->thingsboard_prefix,
             'licor_device_serial' => $request->licor_device_serial,
+            'tank_radius_cm'     => $request->tank_radius_cm ?: null,
+            'tank_count'         => $request->tank_count ?: 1,
+            'licor_locations'    => $locations ?: null,
         ]);
         $site->status = $request->status;
         $site->save();
+
+        if ($locations != $previousLocations) {
+            (new LicorSync(LicorClient::fromConfig()))->applyLocations($site, $previousLocations);
+        }
 
         return redirect()->route('admin.sites')->with('success', "Site \"{$site->name}\" updated successfully.");
     }
@@ -217,6 +238,7 @@ class AdminController extends Controller
             // The copy must not pull the same ThingsBoard devices as the original.
             $newSite->thingsboard_prefix = null;
             $newSite->licor_device_serial = null;
+            $newSite->licor_locations = null;
             $newSite->save();
 
             $categories = $site->categories()->with(['parameters', 'parameterGroups', 'charts.chartParameters'])->get();
@@ -286,7 +308,7 @@ class AdminController extends Controller
             'icon'                      => $request->icon,
             'color'                     => $request->color,
             'description'               => $request->description,
-            'offline_threshold_minutes' => $request->offline_threshold_minutes ?: 5,
+            'offline_threshold_minutes' => $request->offline_threshold_minutes ?: SiteCategory::DEFAULT_OFFLINE_THRESHOLD_MINUTES,
             'is_active'                 => true,
             'sort_order'                => $site->categories()->count(),
         ]);
@@ -362,6 +384,7 @@ class AdminController extends Controller
             ],
             'unit'                     => 'nullable|string|max:20',
             'data_type'                => 'required|in:float,integer,boolean,string,switch',
+            'metric'                   => ['nullable', 'string', 'max:50', 'regex:/^[a-z0-9_]+$/'],
             'control_type'             => 'nullable|in:readonly,controllable',
             'site_parameter_group_id'  => 'nullable|exists:site_parameter_groups,id',
             'min_value'                => 'nullable|numeric',
@@ -389,6 +412,7 @@ class AdminController extends Controller
             'slug'                     => \Str::slug($request->name, '_'),
             'unit'                     => $request->unit,
             'data_type'                => $request->data_type,
+            'metric'                   => $request->metric ?: null,
             'input_type'               => $inputType,
             'control_type'             => $controlType,
             'group_name'               => $group?->name,
@@ -521,7 +545,7 @@ public function updateUser(Request $request, User $user)
         'name'         => 'required|string|max:255',
         'email'        => ['required', 'email', \Illuminate\Validation\Rule::unique('users', 'email')->ignore($user->id)],
         'password'     => 'nullable|min:8|confirmed',
-        'role'         => 'required|in:admin,agent,observateur',
+        'role'         => ['required', Rule::in(array_keys(User::ROLES))],
         'organisation' => 'nullable|string|max:255',
         'country'      => 'nullable|string|max:100',
         'status'       => 'required|in:active,pending,suspended',
@@ -548,7 +572,7 @@ public function storeUser(Request $request)
         'name'         => 'required|string|max:255',
         'email'        => 'required|email|unique:users,email',
         'password'     => 'required|min:8|confirmed',
-        'role'         => 'required|in:admin,agent,observateur',
+        'role'         => ['required', Rule::in(array_keys(User::ROLES))],
         'organisation' => 'nullable|string|max:255',
         'country'      => 'nullable|string|max:100',
         'status'       => 'required|in:active,pending,suspended',
@@ -580,7 +604,7 @@ public function siteUsers(Site $site)
     $assignedUsers  = $site->users()->get();
     $availableUsers = User::where('status', 'active')
                           ->whereNotIn('id', $assignedIds)
-                          ->where('role', '!=', 'admin')
+                          ->where('role', '!=', User::ROLE_ADMIN)
                           ->get();
     return view('admin.site-users', compact('site', 'assignedUsers', 'availableUsers'));
 }
@@ -589,7 +613,7 @@ public function addUserToSite(Request $request, Site $site)
 {
     $request->validate([
         'user_id' => 'required|exists:users,id',
-        'role'    => 'required|in:agent,observateur',
+        'role'    => ['required', Rule::in(User::SITE_ROLES)],
     ]);
     $site->users()->syncWithoutDetaching([
         $request->user_id => ['role' => $request->role]
@@ -623,7 +647,7 @@ public function updateCategory(Request $request, Site $site, SiteCategory $categ
         'icon'                      => $request->icon,
         'color'                     => $request->color,
         'description'               => $request->description,
-        'offline_threshold_minutes' => $request->offline_threshold_minutes ?: 5,
+        'offline_threshold_minutes' => $request->offline_threshold_minutes ?: SiteCategory::DEFAULT_OFFLINE_THRESHOLD_MINUTES,
     ]);
     return back()->with('success', "Category {$category->name} updated.");
 }
@@ -632,6 +656,7 @@ public function updateParameter(Request $request, Site $site, SiteCategory $cate
 {
     $request->validate([
         'data_type'                => 'required|in:float,integer,boolean,string,switch',
+        'metric'                   => ['nullable', 'string', 'max:50', 'regex:/^[a-z0-9_]+$/'],
         'control_type'             => 'nullable|in:readonly,controllable',
         'site_parameter_group_id'  => 'nullable|exists:site_parameter_groups,id',
         'min_value'                => 'nullable|numeric',
@@ -661,6 +686,9 @@ public function updateParameter(Request $request, Site $site, SiteCategory $cate
         'name'                     => $request->name,
         'unit'                     => $request->unit,
         'data_type'                => $request->data_type,
+        // Only when the form carries the field: a request without it must
+        // not silently detach the parameter from the overview.
+        'metric'                   => $request->has('metric') ? ($request->metric ?: null) : $parameter->metric,
         'input_type'               => $inputType,
         'control_type'             => $controlType,
         'group_name'               => $group?->name,

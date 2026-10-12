@@ -42,18 +42,34 @@ class User extends Authenticatable
                     ->withPivot('role')
                     ->withTimestamps();
     }
+    // The role values stored in users.role and site_user.role. Everything
+    // else refers to these constants, never to the strings.
+    public const ROLE_ADMIN    = 'admin';
+    public const ROLE_AGENT    = 'agent';
+    public const ROLE_OBSERVER = 'observateur';
+
+    /** Roles a user account can have => label. */
+    public const ROLES = [
+        self::ROLE_AGENT    => 'Agent',
+        self::ROLE_OBSERVER => 'Observer',
+        self::ROLE_ADMIN    => 'Admin',
+    ];
+
+    /** Roles a user can be given on one site (admins already see every site). */
+    public const SITE_ROLES = [self::ROLE_AGENT, self::ROLE_OBSERVER];
+
     // Helpers rôles
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->role === self::ROLE_ADMIN;
     }
     public function isAgent(): bool
     {
-        return $this->role === 'agent';
+        return $this->role === self::ROLE_AGENT;
     }
     public function isObservateur(): bool
     {
-        return $this->role === 'observateur';
+        return $this->role === self::ROLE_OBSERVER;
     }
     public function isActive(): bool
     {

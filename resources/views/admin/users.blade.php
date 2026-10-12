@@ -40,9 +40,9 @@
         <td style="color:var(--muted)">{{ $user->email }}</td>
         <td>
           <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;
-            background:{{ $user->role==='admin' ? 'var(--blue-bg)' : ($user->role==='agent' ? 'var(--green-bg)' : 'var(--bg)') }};
-            color:{{ $user->role==='admin' ? 'var(--blue)' : ($user->role==='agent' ? 'var(--green)' : 'var(--muted)') }};
-            border:1px solid {{ $user->role==='admin' ? 'var(--blue-bd)' : ($user->role==='agent' ? 'var(--green-bd)' : 'var(--border)') }}">
+            background:{{ $user->isAdmin() ? 'var(--blue-bg)' : ($user->isAgent() ? 'var(--green-bg)' : 'var(--bg)') }};
+            color:{{ $user->isAdmin() ? 'var(--blue)' : ($user->isAgent() ? 'var(--green)' : 'var(--muted)') }};
+            border:1px solid {{ $user->isAdmin() ? 'var(--blue-bd)' : ($user->isAgent() ? 'var(--green-bd)' : 'var(--border)') }}">
             {{ ucfirst($user->role) }}
           </span>
         </td>
@@ -64,7 +64,7 @@
                 <button type="submit" class="btn" style="font-size:11px;padding:3px 8px;background:var(--green-bg);color:var(--green);border-color:var(--green-bd)">Approve</button>
               </form>
             @endif
-            @if($user->status === 'active' && $user->role !== 'admin')
+            @if($user->status === 'active' && !$user->isAdmin())
               <form method="POST" action="{{ route('admin.users.suspend', $user) }}">
                 @csrf
                 <button type="submit" class="btn" style="font-size:11px;padding:3px 8px;background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)">Suspend</button>
@@ -76,7 +76,7 @@
                 <button type="submit" class="btn" style="font-size:11px;padding:3px 8px;background:var(--green-bg);color:var(--green);border-color:var(--green-bd)">Activate</button>
               </form>
             @endif
-            @if($user->role !== 'admin')
+            @if(!$user->isAdmin())
               <form method="POST" action="{{ route('admin.users.destroy', $user) }}"
                     onsubmit="return confirm('Delete user {{ $user->name }}?')">
                 @csrf @method('DELETE')

@@ -31,72 +31,7 @@
           <label class="form-label" for="site-country">Country *</label>
           <select id="site-country" name="country" class="form-input" required>
             <option value="">Select country...</option>
-            <optgroup label="── West Africa ──">
-              <option value="Benin"         {{ old('country',$site->country)=='Benin'         ? 'selected':'' }}>Benin</option>
-              <option value="Burkina Faso"  {{ old('country',$site->country)=='Burkina Faso'  ? 'selected':'' }}>Burkina Faso</option>
-              <option value="Cape Verde"    {{ old('country',$site->country)=='Cape Verde'    ? 'selected':'' }}>Cape Verde</option>
-              <option value="Ivory Coast"   {{ old('country',$site->country)=='Ivory Coast'   ? 'selected':'' }}>Ivory Coast</option>
-              <option value="Gambia"        {{ old('country',$site->country)=='Gambia'        ? 'selected':'' }}>Gambia</option>
-              <option value="Ghana"         {{ old('country',$site->country)=='Ghana'         ? 'selected':'' }}>Ghana</option>
-              <option value="Guinea"        {{ old('country',$site->country)=='Guinea'        ? 'selected':'' }}>Guinea</option>
-              <option value="Guinea-Bissau" {{ old('country',$site->country)=='Guinea-Bissau' ? 'selected':'' }}>Guinea-Bissau</option>
-              <option value="Liberia"       {{ old('country',$site->country)=='Liberia'       ? 'selected':'' }}>Liberia</option>
-              <option value="Mali"          {{ old('country',$site->country)=='Mali'          ? 'selected':'' }}>Mali</option>
-              <option value="Mauritania"    {{ old('country',$site->country)=='Mauritania'    ? 'selected':'' }}>Mauritania</option>
-              <option value="Niger"         {{ old('country',$site->country)=='Niger'         ? 'selected':'' }}>Niger</option>
-              <option value="Nigeria"       {{ old('country',$site->country)=='Nigeria'       ? 'selected':'' }}>Nigeria</option>
-              <option value="Senegal"       {{ old('country',$site->country)=='Senegal'       ? 'selected':'' }}>Senegal</option>
-              <option value="Sierra Leone"  {{ old('country',$site->country)=='Sierra Leone'  ? 'selected':'' }}>Sierra Leone</option>
-              <option value="Togo"          {{ old('country',$site->country)=='Togo'          ? 'selected':'' }}>Togo</option>
-            </optgroup>
-            <optgroup label="── Central Africa ──">
-              <option value="Cameroon"      {{ old('country',$site->country)=='Cameroon'      ? 'selected':'' }}>Cameroon</option>
-              <option value="Central African Republic" {{ old('country',$site->country)=='Central African Republic' ? 'selected':'' }}>Central African Republic</option>
-              <option value="Chad"          {{ old('country',$site->country)=='Chad'          ? 'selected':'' }}>Chad</option>
-              <option value="Congo"         {{ old('country',$site->country)=='Congo'         ? 'selected':'' }}>Congo</option>
-              <option value="DRC"           {{ old('country',$site->country)=='DRC'           ? 'selected':'' }}>DR Congo</option>
-              <option value="Equatorial Guinea" {{ old('country',$site->country)=='Equatorial Guinea' ? 'selected':'' }}>Equatorial Guinea</option>
-              <option value="Gabon"         {{ old('country',$site->country)=='Gabon'         ? 'selected':'' }}>Gabon</option>
-              <option value="Sao Tome and Principe" {{ old('country',$site->country)=='Sao Tome and Principe' ? 'selected':'' }}>São Tomé and Príncipe</option>
-            </optgroup>
-            <optgroup label="── East Africa ──">
-              <option value="Burundi"       {{ old('country',$site->country)=='Burundi'       ? 'selected':'' }}>Burundi</option>
-              <option value="Comoros"       {{ old('country',$site->country)=='Comoros'       ? 'selected':'' }}>Comoros</option>
-              <option value="Djibouti"      {{ old('country',$site->country)=='Djibouti'      ? 'selected':'' }}>Djibouti</option>
-              <option value="Eritrea"       {{ old('country',$site->country)=='Eritrea'       ? 'selected':'' }}>Eritrea</option>
-              <option value="Ethiopia"      {{ old('country',$site->country)=='Ethiopia'      ? 'selected':'' }}>Ethiopia</option>
-              <option value="Kenya"         {{ old('country',$site->country)=='Kenya'         ? 'selected':'' }}>Kenya</option>
-              <option value="Madagascar"    {{ old('country',$site->country)=='Madagascar'    ? 'selected':'' }}>Madagascar</option>
-              <option value="Malawi"        {{ old('country',$site->country)=='Malawi'        ? 'selected':'' }}>Malawi</option>
-              <option value="Mauritius"     {{ old('country',$site->country)=='Mauritius'     ? 'selected':'' }}>Mauritius</option>
-              <option value="Rwanda"        {{ old('country',$site->country)=='Rwanda'        ? 'selected':'' }}>Rwanda</option>
-              <option value="Seychelles"    {{ old('country',$site->country)=='Seychelles'    ? 'selected':'' }}>Seychelles</option>
-              <option value="Somalia"       {{ old('country',$site->country)=='Somalia'       ? 'selected':'' }}>Somalia</option>
-              <option value="South Sudan"   {{ old('country',$site->country)=='South Sudan'   ? 'selected':'' }}>South Sudan</option>
-              <option value="Tanzania"      {{ old('country',$site->country)=='Tanzania'      ? 'selected':'' }}>Tanzania</option>
-              <option value="Uganda"        {{ old('country',$site->country)=='Uganda'        ? 'selected':'' }}>Uganda</option>
-            </optgroup>
-            <optgroup label="── North Africa ──">
-              <option value="Algeria"       {{ old('country',$site->country)=='Algeria'       ? 'selected':'' }}>Algeria</option>
-              <option value="Egypt"         {{ old('country',$site->country)=='Egypt'         ? 'selected':'' }}>Egypt</option>
-              <option value="Libya"         {{ old('country',$site->country)=='Libya'         ? 'selected':'' }}>Libya</option>
-              <option value="Morocco"       {{ old('country',$site->country)=='Morocco'       ? 'selected':'' }}>Morocco</option>
-              <option value="Sudan"         {{ old('country',$site->country)=='Sudan'         ? 'selected':'' }}>Sudan</option>
-              <option value="Tunisia"       {{ old('country',$site->country)=='Tunisia'       ? 'selected':'' }}>Tunisia</option>
-              <option value="Western Sahara" {{ old('country',$site->country)=='Western Sahara' ? 'selected':'' }}>Western Sahara</option>
-            </optgroup>
-            <optgroup label="── Southern Africa ──">
-              <option value="Angola"        {{ old('country',$site->country)=='Angola'        ? 'selected':'' }}>Angola</option>
-              <option value="Botswana"      {{ old('country',$site->country)=='Botswana'      ? 'selected':'' }}>Botswana</option>
-              <option value="Eswatini"      {{ old('country',$site->country)=='Eswatini'      ? 'selected':'' }}>Eswatini</option>
-              <option value="Lesotho"       {{ old('country',$site->country)=='Lesotho'       ? 'selected':'' }}>Lesotho</option>
-              <option value="Mozambique"    {{ old('country',$site->country)=='Mozambique'    ? 'selected':'' }}>Mozambique</option>
-              <option value="Namibia"       {{ old('country',$site->country)=='Namibia'       ? 'selected':'' }}>Namibia</option>
-              <option value="South Africa"  {{ old('country',$site->country)=='South Africa'  ? 'selected':'' }}>South Africa</option>
-              <option value="Zambia"        {{ old('country',$site->country)=='Zambia'        ? 'selected':'' }}>Zambia</option>
-              <option value="Zimbabwe"      {{ old('country',$site->country)=='Zimbabwe'      ? 'selected':'' }}>Zimbabwe</option>
-            </optgroup>
-            <option value="Other"           {{ old('country',$site->country)=='Other'         ? 'selected':'' }}>Other</option>
+              <x-country-options :selected="old('country', $site->country)" />
           </select>
         </div>
 
@@ -152,6 +87,23 @@
           <label class="form-label" for="site-licor-serial">LI-COR station serial</label>
           <input type="text" id="site-licor-serial" name="licor_device_serial" maxlength="50" class="form-input"
                  value="{{ old('licor_device_serial', $site->licor_device_serial) }}" placeholder="e.g. 22490036 — leave empty if no HOBOnet station">
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="site-tank-radius">Water tank radius (cm)</label>
+          <input type="number" id="site-tank-radius" name="tank_radius_cm" step="0.1" min="0" class="form-input"
+                 value="{{ old('tank_radius_cm', $site->tank_radius_cm) }}" placeholder="e.g. 180 — leave empty if unknown">
+          <span style="font-size:11px;color:var(--muted);margin-top:2px;display:block">Used to turn the measured water height into a volume. Without it, no tank volume is computed.</span>
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="site-tank-count">Number of tanks</label>
+          <input type="number" id="site-tank-count" name="tank_count" step="1" min="1" class="form-input"
+                 value="{{ old('tank_count', $site->tank_count ?? 1) }}">
+        </div>
+        <div class="form-field full">
+          <label class="form-label" for="site-licor-locations">LI-COR sensor locations</label>
+          <textarea id="site-licor-locations" name="licor_locations" class="form-input" rows="4"
+                    placeholder="One sensor per line, e.g.&#10;22261662 = Reference&#10;22261664 = Under PV">{{ old('licor_locations', collect($site->licor_locations ?? [])->map(fn ($location, $serial) => "$serial = $location")->implode("\n")) }}</textarea>
+          <span style="font-size:11px;color:var(--muted);margin-top:2px;display:block">Sensor serial (without the “-1”, “-2” channel) = where it stands. Saving renames this site's LI-COR parameters accordingly (“Reference – PAR”); parameters you renamed yourself are kept.</span>
         </div>
         <div class="form-field full">
           <label class="form-label" for="site-description">Description</label>

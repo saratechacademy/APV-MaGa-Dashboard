@@ -499,20 +499,20 @@ public function assignedSites() { return $this->belongsToMany(Site::class, 'site
         <div class="help-h3">POST /api/sensors/{site}/{category}</div>
         <p class="help-p">
           @if($lang==='fr')
-          <span class="help-code-inline">{site}</span> = slug du site (ex: <span class="help-code-inline">fass-6a15122aee52e</span>).
+          <span class="help-code-inline">{site}</span> = slug du site (ex: <span class="help-code-inline">your-site-slug</span>).
           <span class="help-code-inline">{category}</span> = slug de la catégorie (ex: <span class="help-code-inline">solar</span>, <span class="help-code-inline">weather</span>...).
           Le corps JSON doit contenir une clé par paramètre actif de type <span class="help-code-inline">sensor</span>.
           @else
-          <span class="help-code-inline">{site}</span> = site slug (e.g. <span class="help-code-inline">fass-6a15122aee52e</span>).
+          <span class="help-code-inline">{site}</span> = site slug (e.g. <span class="help-code-inline">your-site-slug</span>).
           <span class="help-code-inline">{category}</span> = category slug (e.g. <span class="help-code-inline">solar</span>, <span class="help-code-inline">weather</span>...).
           The JSON body must contain one key per active <span class="help-code-inline">sensor</span> parameter.
           @endif
         </p>
 
         <div class="help-h3">{{ $lang==='fr' ? 'Exemple de requête' : 'Request Example' }}</div>
-        <div class="help-code">curl -X POST https://apvmaga.saratechniger.com/api/sensors/fass-6a15122aee52e/solar \
+        <div class="help-code">curl -X POST {{ url('/') }}/api/sensors/your-site-slug/solar \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: apv-6AJgzjBQKLij27vznGOCPaf2ASoEp9mp" \
+  -H "X-API-Key: apv-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
   -d '{
     "solar_output": 4.2,
     "solar_irradiance": 850,
@@ -521,9 +521,9 @@ public function assignedSites() { return $this->belongsToMany(Site::class, 'site
   }'</div>
 
         <div class="help-h3">{{ $lang==='fr' ? 'PowerShell (Windows)' : 'PowerShell (Windows)' }}</div>
-        <div class="help-code">Invoke-RestMethod -Uri "https://apvmaga.saratechniger.com/api/sensors/fass-6a15122aee52e/solar" `
+        <div class="help-code">Invoke-RestMethod -Uri "{{ url('/') }}/api/sensors/your-site-slug/solar" `
   -Method POST `
-  -Headers @{"Content-Type"="application/json";"X-API-Key"="apv-6AJgzjBQKLij27vznGOCPaf2ASoEp9mp"} `
+  -Headers @{"Content-Type"="application/json";"X-API-Key"="apv-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"} `
   -Body '{"solar_output":4.2,"solar_irradiance":850,"panel_temperature":42.5,"system_efficiency":87.3}'</div>
 
         <div class="help-h3">{{ $lang==='fr' ? 'Réponse (succès)' : 'Response (success)' }}</div>
@@ -563,8 +563,8 @@ public function assignedSites() { return $this->belongsToMany(Site::class, 'site
         </table>
 
         <div class="help-h3">GET /api/sensors/{site}/{category}/latest</div>
-        <div class="help-code">curl https://apvmaga.saratechniger.com/api/sensors/fass-6a15122aee52e/solar/latest \
-  -H "X-API-Key: apv-6AJgzjBQKLij27vznGOCPaf2ASoEp9mp"</div>
+        <div class="help-code">curl {{ url('/') }}/api/sensors/your-site-slug/solar/latest \
+  -H "X-API-Key: apv-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"</div>
         <div class="help-code">{
   "category": "Solar",
   "reading": {
@@ -577,8 +577,8 @@ public function assignedSites() { return $this->belongsToMany(Site::class, 'site
 }</div>
 
         <div class="help-h3">GET /api/sensors/{site}/status</div>
-        <div class="help-code">curl https://apvmaga.saratechniger.com/api/sensors/fass-6a15122aee52e/status \
-  -H "X-API-Key: apv-6AJgzjBQKLij27vznGOCPaf2ASoEp9mp"</div>
+        <div class="help-code">curl {{ url('/') }}/api/sensors/your-site-slug/status \
+  -H "X-API-Key: apv-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"</div>
         <div class="help-code">{
   "site": "Fass Agrivoltaic Site",
   "categories": {
@@ -633,8 +633,8 @@ public function assignedSites() { return $this->belongsToMany(Site::class, 'site
           </tbody>
         </table>
 
-        <div class="help-code">curl "https://apvmaga.saratechniger.com/api/sensors/fass-6a15122aee52e/solar/history?from=2026-05-01&to=2026-05-08&params=solar_output,solar_irradiance" \
-  -H "X-API-Key: apv-6AJgzjBQKLij27vznGOCPaf2ASoEp9mp"</div>
+        <div class="help-code">curl "{{ url('/') }}/api/sensors/your-site-slug/solar/history?from=2026-05-01&to=2026-05-08&params=solar_output,solar_irradiance" \
+  -H "X-API-Key: apv-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"</div>
         <div class="help-code">{
   "success": true,
   "site": "Fass Agrivoltaic Site",
@@ -695,8 +695,8 @@ public function assignedSites() { return $this->belongsToMany(Site::class, 'site
           </tbody>
         </table>
 
-        <div class="help-code">curl "https://apvmaga.saratechniger.com/api/sensors/fass-6a15122aee52e/solar/stats?period=day&from=2026-05-01&to=2026-05-31&params=solar_output" \
-  -H "X-API-Key: apv-6AJgzjBQKLij27vznGOCPaf2ASoEp9mp"</div>
+        <div class="help-code">curl "{{ url('/') }}/api/sensors/your-site-slug/solar/stats?period=day&from=2026-05-01&to=2026-05-31&params=solar_output" \
+  -H "X-API-Key: apv-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"</div>
         <div class="help-code">{
   "success": true,
   "site": "Fass Agrivoltaic Site",
@@ -753,8 +753,8 @@ public function assignedSites() { return $this->belongsToMany(Site::class, 'site
         </div>
 
         <div class="help-h3">GET /api/commands/{site}/{category}</div>
-        <div class="help-code">curl https://apvmaga.saratechniger.com/api/commands/fass-6a15122aee52e/irrigation \
-  -H "X-API-Key: apv-6AJgzjBQKLij27vznGOCPaf2ASoEp9mp"</div>
+        <div class="help-code">curl {{ url('/') }}/api/commands/your-site-slug/irrigation \
+  -H "X-API-Key: apv-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"</div>
         <div class="help-code">{
   "success": true,
   "site": "Fass Agrivoltaic Site",
@@ -1168,7 +1168,7 @@ $apiKey = 'apv-' . Str::random(32);</div>
         <div class="help-h2">{{ $lang==='fr' ? 'Informations serveur' : 'Server Info' }}</div>
         <table class="help-table">
           <tbody>
-            <tr><td><strong>URL</strong></td><td><span class="help-code-inline">https://apvmaga.saratechniger.com</span></td></tr>
+            <tr><td><strong>URL</strong></td><td><span class="help-code-inline">{{ url('/') }}</span></td></tr>
             <tr><td><strong>{{ $lang==='fr'?'Panneau':'Panel' }}</strong></td><td>AAPanel</td></tr>
             <tr><td><strong>{{ $lang==='fr'?'Chemin du projet':'Project path' }}</strong></td><td><span class="help-code-inline">/www/wwwroot/apvmaga</span></td></tr>
             <tr><td><strong>PHP</strong></td><td>8.3</td></tr>
@@ -1258,8 +1258,8 @@ php artisan db:seed --class=DatabaseSeeder --force</div>
 const char* ssid = "YOUR_WIFI_SSID";
 const char* password = "YOUR_WIFI_PASSWORD";
 
-const char* apiUrl = "https://apvmaga.saratechniger.com/api/sensors/fass-6a15122aee52e/solar";
-const char* apiKey = "apv-6AJgzjBQKLij27vznGOCPaf2ASoEp9mp";
+const char* apiUrl = "{{ url('/') }}/api/sensors/your-site-slug/solar";
+const char* apiKey = "apv-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 
 void setup() {
   Serial.begin(115200);
@@ -1307,9 +1307,9 @@ void loop() {
           For a category containing <span class="help-code-inline">data_type=switch</span> + <span class="help-code-inline">control_type=controllable</span> parameters (e.g. Irrigation with <span class="help-code-inline">valve_1</span>, <span class="help-code-inline">cooling_fan</span>), the <span class="help-code-inline">loop()</span> does two extra things: <strong>1)</strong> fetch the desired state via <span class="help-code-inline">GET /api/commands</span> and drive the relay, <strong>2)</strong> include the relay's real state in the regular <span class="help-code-inline">POST /api/sensors</span> call.
           @endif
         </p>
-        <div class="help-code">const char* commandsUrl = "https://apvmaga.saratechniger.com/api/commands/fass-6a15122aee52e/irrigation";
-const char* sensorsUrl  = "https://apvmaga.saratechniger.com/api/sensors/fass-6a15122aee52e/irrigation";
-const char* apiKey = "apv-6AJgzjBQKLij27vznGOCPaf2ASoEp9mp";
+        <div class="help-code">const char* commandsUrl = "{{ url('/') }}/api/commands/your-site-slug/irrigation";
+const char* sensorsUrl  = "{{ url('/') }}/api/sensors/your-site-slug/irrigation";
+const char* apiKey = "apv-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 
 #define VALVE1_PIN 26
 #define FAN_PIN    27
@@ -1401,9 +1401,9 @@ void loop() {
         </p>
         <table class="help-table">
           <tbody>
-            <tr><td><strong>ESP32 #1</strong></td><td> <span class="help-code-inline">/api/sensors/fass-xxx/solar</span></td></tr>
-            <tr><td><strong>ESP32 #2</strong></td><td> <span class="help-code-inline">/api/sensors/fass-xxx/weather</span></td></tr>
-            <tr><td><strong>ESP32 #3</strong></td><td> <span class="help-code-inline">/api/sensors/fass-xxx/irrigation</span></td></tr>
+            <tr><td><strong>ESP32 #1</strong></td><td> <span class="help-code-inline">/api/sensors/your-site-slug/solar</span></td></tr>
+            <tr><td><strong>ESP32 #2</strong></td><td> <span class="help-code-inline">/api/sensors/your-site-slug/weather</span></td></tr>
+            <tr><td><strong>ESP32 #3</strong></td><td> <span class="help-code-inline">/api/sensors/your-site-slug/irrigation</span></td></tr>
           </tbody>
         </table>
 

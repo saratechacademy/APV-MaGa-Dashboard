@@ -80,13 +80,55 @@ class SiteOverview
                 $entry['values'][] = $reading->value;
                 if (!isset($entry['at']) || $reading->read_at->gt($entry['at'])) {
                     $entry['at']    = $reading->read_at;
-                    $entry['stale'] = $reading->read_at->lt(now()->subMinutes($category->offline_threshold_minutes ?? 5));
+                    $entry['stale'] = $reading->read_at->lt(now()->subMinutes($category->offlineThresholdMinutes()));
                 }
                 unset($entry);
             }
         }
 
         return $latest;
+    }
+
+    /**
+     * Whether data is actually arriving, for the top-bar badge:
+     * 'live' when at least one sensor reading is within its category's
+     * offline threshold, 'stale' when the sites have readings but none is
+     * that recent, 'none' when nothing was ever received.
+     *
+     * @param  iterable<Site>  $sites
+     * @return array{state: string, at: ?Carbon, live: int, total: int}
+     */
+    public function liveStatus(iterable $sites): array
+    {
+        $live = $total = 0;
+        $newest = null;
+
+        foreach ($sites as $site) {
+            $total++;
+            $siteLive = false;
+
+            foreach ($site->activeCategories as $category) {
+                $freshSince = now()->subMinutes($category->offlineThresholdMinutes());
+
+                foreach ($category->activeParameters as $parameter) {
+                    $at = $parameter->latestReading?->read_at;
+                    if (!$at) {
+                        continue;
+                    }
+                    $newest   = $newest && $newest->gt($at) ? $newest : $at;
+                    $siteLive = $siteLive || $at->gte($freshSince);
+                }
+            }
+
+            $live += (int) $siteLive;
+        }
+
+        return [
+            'state' => $live ? 'live' : ($newest ? 'stale' : 'none'),
+            'at'    => $newest,
+            'live'  => $live,
+            'total' => $total,
+        ];
     }
 
     /**
@@ -99,7 +141,7 @@ class SiteOverview
         $status = 'normal';
 
         foreach ($site->activeCategories as $category) {
-            $freshSince = now()->subMinutes($category->offline_threshold_minutes ?? 5);
+            $freshSince = now()->subMinutes($category->offlineThresholdMinutes());
 
             foreach ($category->activeParameters as $parameter) {
                 $reading = $parameter->latestReading;

@@ -23,8 +23,9 @@ class DashboardController extends Controller
         ]]);
 
         $chartMetrics = $overview->chartMetrics($sites);
+        $liveStatus   = $overview->liveStatus($sites);
 
-        return view('dashboard.index', compact('sites', 'cards', 'chartMetrics'));
+        return view('dashboard.index', compact('sites', 'cards', 'chartMetrics', 'liveStatus'));
     }
 
     // ── Index : séries des graphiques comparatifs ──────────────
@@ -62,7 +63,7 @@ class DashboardController extends Controller
     }
 
     // ── Site detail ────────────────────────────────────────────
-    public function site(Site $site, Request $request)
+    public function site(Site $site, Request $request, SiteOverview $overview)
     {
         $this->authorizeSiteAccess($site);
 
@@ -79,10 +80,11 @@ class DashboardController extends Controller
             ->where('input_type', 'manual')
             ->count() > 0;
 
-        $range     = $request->get('range', '24h');
-        $chartData = [];
+        $range      = $request->get('range', '24h');
+        $chartData  = [];
+        $liveStatus = $overview->liveStatus([$site]);
 
-        return view('dashboard.site', compact('site', 'hasManual', 'chartData', 'range'));
+        return view('dashboard.site', compact('site', 'hasManual', 'chartData', 'range', 'liveStatus'));
     }
 
     // ── Chart data (JSON) ──────────────────────────────────────

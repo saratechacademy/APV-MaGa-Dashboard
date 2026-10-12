@@ -5,9 +5,10 @@
 // licor:setup / licor:sync commands).
 //
 // A site is linked through its "LI-COR station serial" (admin → edit site,
-// or `php artisan licor:setup` for every station listed under 'sites').
-// Each sensor of the station becomes one parameter; the mapping below
-// follows the partners' "Sensor Set Up and Parameters" document.
+// Admin → Data sources, or `php artisan licor:setup` for the sites of
+// database/presets/sites.json). Each sensor of the station becomes one
+// parameter; where a sensor stands (Reference, Under PV...) is a fact about
+// the site, kept on the site itself ("LI-COR sensor locations").
 return [
     'url'   => env('LICOR_URL', 'https://api.licor.cloud/v2'),
     'token' => env('LICOR_API_TOKEN'),
@@ -29,18 +30,9 @@ return [
     'late_after_minutes' => 60,
     'offline_threshold_minutes' => 360,
 
-    // Stations that `php artisan licor:setup` links or creates, keyed by the
-    // LI-COR gateway serial. 'match' finds an existing site: by its
-    // ThingsBoard prefix first, then by a name containing it.
-    'sites' => [
-        '22490036' => ['match' => 'UTG',      'name' => 'University of The Gambia', 'country' => 'Gambia', 'latitude' => 13.2478, 'longitude' => -16.5356],
-        '22490035' => ['match' => 'AfriFarm', 'name' => 'AfriFarm', 'country' => 'Gambia'],
-        '22490037' => ['match' => 'Fass',     'name' => 'Fass Community Garden', 'country' => 'Gambia'],
-    ],
-
     // LI-COR measurement type => parameter. 'metric' is what it measures, which
     // the All Sites overview is built from (config/overview.php); a PAR sensor
-    // with a known location gets it appended (par_reference, par_under_pv...),
+    // whose location the site knows gets it appended (par_reference, par_under_pv...),
     // since light under the panels and in the open are different things.
     // 'aggregate' says how the 1-minute
     // readings of a bucket are combined: mean, max (gusts), sum (rain) or
@@ -55,18 +47,6 @@ return [
         'Rain'           => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Rain',              'metric' => 'rain',              'unit' => 'mm',  'chart' => 'Rain (mm)', 'aggregate' => 'sum'],
         'Pressure'       => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Air pressure',      'metric' => 'air_pressure',      'unit' => 'hPa', 'chart' => 'Air pressure (hPa)'],
         'PAR'            => ['category' => 'solar',   'group' => 'PAR',              'name' => 'PAR',               'metric' => 'par',               'unit' => 'µmol/m²/s', 'chart' => 'PAR (µmol/m²/s)'],
-    ],
-
-    // Sensor serial (without the "-1/-2/-3" channel) => where it is. Used to
-    // name parameters; sensors not listed here are named by their serial.
-    // Only the PAR sensors have a location in the partners' document so far.
-    'locations' => [
-        // UTG
-        '22261662' => 'Reference', '22261663' => 'Module edge', '22261664' => 'Under PV', '22261665' => 'Between PV',
-        // AfriFarm
-        '22261671' => 'Reference', '22261668' => 'Module edge', '22261669' => 'Under PV', '22261670' => 'Between PV',
-        // Fass
-        '22261666' => 'Reference', '22261667' => 'Module edge', '22261672' => 'Under PV', '22261673' => 'Between PV',
     ],
 
     // Manual-entry agriculture parameters licor:setup adds to every site it

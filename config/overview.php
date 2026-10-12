@@ -22,6 +22,37 @@ return [
         'wind_speed'        => ['title' => 'Wind speed',          'label' => 'Wind',          'unit' => 'm/s'],
     ],
 
+    // Every metric a parameter can be given (admin → parameter → "Measures").
+    // The data-source syncs set it themselves; this list is what an admin
+    // chooses from for a parameter created by hand or fed by another device.
+    'catalog' => [
+        'solar_output'      => 'Solar output (kW)',
+        'par'               => 'PAR — location unknown',
+        'par_reference'     => 'PAR — reference (open sky)',
+        'par_module_edge'   => 'PAR — module edge',
+        'par_under_pv'      => 'PAR — under the panels',
+        'par_between_pv'    => 'PAR — between the panels',
+        'air_temperature'   => 'Air temperature',
+        'relative_humidity' => 'Relative humidity (air)',
+        'dew_point'         => 'Dew point',
+        'wind_speed'        => 'Wind speed',
+        'gust_speed'        => 'Gust speed',
+        'wind_direction'    => 'Wind direction',
+        'rain'              => 'Rain',
+        'air_pressure'      => 'Air pressure',
+        'soil_moisture'     => 'Soil moisture',
+        'soil_conductivity' => 'Soil conductivity',
+        'soil_temperature'  => 'Soil temperature',
+        'total_flow'        => 'Irrigation flow (cumulative)',
+        'valve_state'       => 'Valve state',
+        'tank_level'        => 'Tank water height',
+        'tank_volume'       => 'Tank volume',
+        'tank_fill_level'   => 'Tank fill level (%)',
+        'water_level'       => 'Water level (ultrasonic)',
+        'borehole_level'    => 'Borehole water level',
+        'turbidity'         => 'Turbidity',
+    ],
+
     // Site card: the first 4 of these the site actually has.
     'tiles' => ['solar_output', 'air_temperature', 'soil_moisture', 'par_reference', 'tank_volume', 'tank_fill_level', 'borehole_level', 'relative_humidity', 'wind_speed'],
 

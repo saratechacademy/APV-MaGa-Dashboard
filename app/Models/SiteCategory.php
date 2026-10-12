@@ -16,6 +16,18 @@ class SiteCategory extends Model
 
     protected $casts = ['is_active' => 'boolean'];
 
+    /**
+     * Minutes without a reading before a parameter of the category shows as
+     * "No data"/"Stale", when the category doesn't set its own. Fits devices
+     * posting every minute or so; slower sources set a longer one.
+     */
+    public const DEFAULT_OFFLINE_THRESHOLD_MINUTES = 5;
+
+    public function offlineThresholdMinutes(): int
+    {
+        return $this->offline_threshold_minutes ?? self::DEFAULT_OFFLINE_THRESHOLD_MINUTES;
+    }
+
     public function site()       { return $this->belongsTo(Site::class); }
 
     public function parameters() { return $this->hasMany(SiteParameter::class)->orderBy('sort_order'); }

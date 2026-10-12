@@ -100,7 +100,7 @@ select.ag-input{cursor:pointer}
   $categories = $site->activeCategories ?? collect();
   $firstSlug  = $categories->first()?->slug ?? 'raw';
   $COLORS = \App\Models\SiteParameterGroup::palette();
-  $canControl = auth()->user()->isAdmin() || auth()->user()->role !== 'observateur';
+  $canControl = auth()->user()->isAdmin() || !auth()->user()->isObservateur();
 @endphp
 
 {{-- TABS --}}
@@ -121,13 +121,13 @@ select.ag-input{cursor:pointer}
     Raw Data
   </button>
   <div style="margin-left:auto;display:flex">
-    @if(($hasManual ?? false) && auth()->user()->role !== 'observateur')
+    @if(($hasManual ?? false) && !auth()->user()->isObservateur())
     <button onclick="switchTab('manual-input',this)" data-tab="manual-input"
       style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:11px 16px;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#64748b;margin-bottom:-2px;white-space:nowrap;flex-shrink:0;outline:none">
       Manual Input
     </button>
     @endif
-    @if(auth()->user()->isAdmin() || (auth()->id() === $site->user_id && auth()->user()->role !== 'observateur'))
+    @if(auth()->user()->isAdmin() || (auth()->id() === $site->user_id && !auth()->user()->isObservateur()))
     <button onclick="switchTab('apikey',this)" data-tab="apikey"
       style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:11px 16px;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#64748b;margin-bottom:-2px;white-space:nowrap;flex-shrink:0;outline:none">
       API Key
@@ -153,7 +153,7 @@ select.ag-input{cursor:pointer}
   $params     = $category->activeParameters ?? collect();
   $dashParams = $params->where('show_on_dashboard', true)->values();
   // Au-delà de ce délai sans donnée capteur, un paramètre est "No data"/"Stale".
-  $offlineThresholdMinutes = $category->offline_threshold_minutes ?? 5;
+  $offlineThresholdMinutes = $category->offlineThresholdMinutes();
   $catColor   = $category->color ?? $COLORS[$catIndex % count($COLORS)];
   $readings = [];
   $readingsAt = [];
@@ -258,7 +258,7 @@ select.ag-input{cursor:pointer}
   @endif
 
   @php $allManualParams = $params->filter(fn($p) => ($p->input_type ?? 'sensor') === 'manual'); @endphp
-  @if($allManualParams->count() > 0 && ($hasManual ?? false) && auth()->user()->role !== 'observateur')
+  @if($allManualParams->count() > 0 && ($hasManual ?? false) && !auth()->user()->isObservateur())
   <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:8px;margin-bottom:14px;font-size:12px;color:var(--blue)">
     <span>{{ $allManualParams->count() }} manual parameter(s) in this category.</span>
     <button onclick="switchTab('manual-input', document.querySelector('[data-tab=manual-input]'))"
@@ -528,7 +528,7 @@ select.ag-input{cursor:pointer}
 </div>
 
 {{-- API KEY TAB --}}
-@if(auth()->user()->isAdmin() || (auth()->id() === $site->user_id && auth()->user()->role !== 'observateur'))
+@if(auth()->user()->isAdmin() || (auth()->id() === $site->user_id && !auth()->user()->isObservateur()))
 <div class="tab-panel" id="tab-apikey">
   <div class="chart-card" style="margin-bottom:14px">
     <div class="cc-title" style="margin-bottom:10px">API Key — {{ $site->name }}</div>

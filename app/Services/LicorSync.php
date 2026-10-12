@@ -63,7 +63,7 @@ class LicorSync
                 continue;
             }
 
-            $parameter = $this->parameter($category, $sensor['sensorSerialNumber'], $spec, $stats);
+            $parameter = $this->parameter($site, $category, $sensor['sensorSerialNumber'], $spec, $stats);
             if (!$parameter->is_active) {
                 continue;
             }
@@ -179,7 +179,69 @@ class LicorSync
         return fmod(rad2deg(atan2($sin, $cos)) + 360, 360);
     }
 
-    private function parameter(SiteCategory $category, string $sensorSerial, array $spec, array &$stats): SiteParameter
+    /**
+     * Re-applies the site's sensor locations to its existing LI-COR
+     * parameters, after an admin edited them: names and PAR metrics follow.
+     * A parameter the admin renamed by hand is left alone.
+     *
+     * @param  array<string, string>  $previous  the locations before the edit
+     * @return int  parameters updated
+     */
+    public function applyLocations(Site $site, array $previous = []): int
+    {
+        $specs   = collect(config('licor.measurements'));
+        $updated = 0;
+
+        $parameters = SiteParameter::where('slug', 'like', 'licor%')
+            ->whereHas('category', fn ($q) => $q->where('site_id', $site->id))
+            ->get();
+
+        foreach ($parameters as $parameter) {
+            $base = explode('_', $parameter->slug)[1] ?? null;
+            $spec = $specs->first(fn ($s) => $s['metric'] === $parameter->metric
+                || ($s['metric'] === 'par' && str_starts_with((string) $parameter->metric, 'par')));
+
+            if (!$base || !$spec) {
+                continue;
+            }
+
+            // Only names this class generated itself are regenerated.
+            $generated = [
+                $this->parameterName($spec, $base, null),
+                $this->parameterName($spec, $base, $previous[$base] ?? null),
+            ];
+            $location = $site->licor_locations[$base] ?? null;
+
+            $changes = ['metric' => $this->parameterMetric($spec, $location)];
+            if (in_array($parameter->name, $generated, true)) {
+                $changes['name'] = $this->parameterName($spec, $base, $location);
+            }
+
+            $parameter->fill($changes);
+            if ($parameter->isDirty()) {
+                $parameter->save();
+                $updated++;
+            }
+        }
+
+        return $updated;
+    }
+
+    /**
+     * Location first when known, as for ThingsBoard; otherwise the sensor
+     * serial is the only thing telling two stations apart.
+     */
+    private function parameterName(array $spec, string $base, ?string $location): string
+    {
+        return $location ? "{$location} – {$spec['name']}" : "{$spec['name']} – {$base}";
+    }
+
+    private function parameterMetric(array $spec, ?string $location): string
+    {
+        return $spec['metric'] === 'par' && $location ? 'par_' . Str::slug($location, '_') : $spec['metric'];
+    }
+
+    private function parameter(Site $site, SiteCategory $category, string $sensorSerial, array $spec, array &$stats): SiteParameter
     {
         $slug = 'licor_' . str_replace('-', '_', $sensorSerial);
 
@@ -188,21 +250,17 @@ class LicorSync
         }
 
         $base     = explode('-', $sensorSerial)[0];
-        $location = config('licor.locations')[$base] ?? null;
+        $location = $site->licor_locations[$base] ?? null;
         $group    = $this->ensureGroup($category, $spec['group']);
 
         $stats['created']++;
 
         $parameter = $category->parameters()->create([
-            // Location first when known, as for ThingsBoard; otherwise the
-            // sensor serial is the only thing telling two stations apart.
-            'name'                    => $location ? "{$location} – {$spec['name']}" : "{$spec['name']} – {$base}",
+            'name'                    => $this->parameterName($spec, $base, $location),
             'slug'                    => $slug,
             'unit'                    => $spec['unit'] ?? null,
             'data_type'               => 'float',
-            'metric'                  => $spec['metric'] === 'par' && $location
-                ? 'par_' . Str::slug($location, '_')
-                : $spec['metric'],
+            'metric'                  => $this->parameterMetric($spec, $location),
             'input_type'              => 'sensor',
             'control_type'            => 'readonly',
             'group_name'              => $group->name,

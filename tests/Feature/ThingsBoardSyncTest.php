@@ -153,6 +153,7 @@ class ThingsBoardSyncTest extends TestCase
     public function test_tank_height_is_also_stored_as_a_volume_in_litres(): void
     {
         $site = $this->makeSite('AfriFarm');
+        $site->update(['tank_radius_cm' => 180, 'tank_count' => 1]);
 
         $this->fakeThingsBoard([
             'AfriFarm-General-Pressure-0' => [

@@ -62,6 +62,14 @@ class ThingsBoardSync
             // [parameter, spec, epoch ms of the last instant already stored]
             $targets = [];
             foreach ($mapping['parameters'] as $spec) {
+                if (!empty($spec['tank_volume'])) {
+                    // No tank geometry on the site: no volume, rather than a wrong one.
+                    if (!$litresPerCm = $site->tankLitresPerCm()) {
+                        continue;
+                    }
+                    $spec['scale'] = $litresPerCm;
+                }
+
                 $parameter = $this->parameter($category, $mapping, $spec, $stats);
                 if ($parameter->is_active && $parameter->isSensor()) {
                     $targets[] = [$parameter, $spec, $this->syncedUntil($parameter, $now)];

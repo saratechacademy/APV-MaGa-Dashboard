@@ -27,12 +27,33 @@ class Site extends Model
         'description',
         'thingsboard_prefix',
         'licor_device_serial',
+        'licor_locations',
+        'tank_radius_cm',
+        'tank_count',
     ];
 
     protected $casts = [
         'thingsboard_synced_at' => 'datetime',
         'licor_synced_at'       => 'datetime',
+        'licor_locations'       => 'array',
+        'tank_radius_cm'        => 'float',
+        'tank_count'            => 'integer',
     ];
+
+    /**
+     * Litres of water per centimetre of height in this site's tank(s)
+     * (cylinders: π × r² per cm, ÷ 1000 for litres), or null when the site's
+     * tank geometry isn't known — in which case no volume is computed rather
+     * than a wrong one.
+     */
+    public function tankLitresPerCm(): ?float
+    {
+        if (!$this->tank_radius_cm) {
+            return null;
+        }
+
+        return M_PI * $this->tank_radius_cm ** 2 / 1000 * max(1, (int) $this->tank_count);
+    }
 
     /**
      * ok / late / failed for a site fed by ThingsBoard, null otherwise.

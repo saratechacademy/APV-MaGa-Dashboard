@@ -180,28 +180,7 @@ body{
             <label for="country">Country</label>
             <select id="country" name="country">
               <option value="">Select…</option>
-              <option value="Niger"        {{ old('country')=='Niger'        ? 'selected' : '' }}>🇳🇪 Niger</option>
-              <option value="Nigeria"      {{ old('country')=='Nigeria'      ? 'selected' : '' }}>🇳🇬 Nigeria</option>
-              <option value="Mali"         {{ old('country')=='Mali'         ? 'selected' : '' }}>🇲🇱 Mali</option>
-              <option value="Burkina Faso" {{ old('country')=='Burkina Faso' ? 'selected' : '' }}>🇧🇫 Burkina Faso</option>
-              <option value="Senegal"      {{ old('country')=='Senegal'      ? 'selected' : '' }}>🇸🇳 Senegal</option>
-              <option value="Benin"        {{ old('country')=='Benin'        ? 'selected' : '' }}>🇧🇯 Benin</option>
-              <option value="Togo"         {{ old('country')=='Togo'         ? 'selected' : '' }}>🇹🇬 Togo</option>
-              <option value="Ghana"        {{ old('country')=='Ghana'        ? 'selected' : '' }}>🇬🇭 Ghana</option>
-              <option value="Cote d'Ivoire" {{ old('country')=="Cote d'Ivoire" ? 'selected' : '' }}>🇨🇮 Côte d'Ivoire</option>
-              <option value="Guinea"       {{ old('country')=='Guinea'       ? 'selected' : '' }}>🇬🇳 Guinea</option>
-              <option value="Gambia"       {{ old('country')=='Gambia'       ? 'selected' : '' }}>🇬🇲 Gambia</option>
-              <option value="Cameroon"     {{ old('country')=='Cameroon'     ? 'selected' : '' }}>🇨🇲 Cameroon</option>
-              <option value="Chad"         {{ old('country')=='Chad'         ? 'selected' : '' }}>🇹🇩 Chad</option>
-              <option value="Algeria"      {{ old('country')=='Algeria'      ? 'selected' : '' }}>🇩🇿 Algeria</option>
-              <option value="Morocco"      {{ old('country')=='Morocco'      ? 'selected' : '' }}>🇲🇦 Morocco</option>
-              <option value="Tunisia"      {{ old('country')=='Tunisia'      ? 'selected' : '' }}>🇹🇳 Tunisia</option>
-              <option value="Egypt"        {{ old('country')=='Egypt'        ? 'selected' : '' }}>🇪🇬 Egypt</option>
-              <option value="Kenya"        {{ old('country')=='Kenya'        ? 'selected' : '' }}>🇰🇪 Kenya</option>
-              <option value="Ethiopia"     {{ old('country')=='Ethiopia'     ? 'selected' : '' }}>🇪🇹 Ethiopia</option>
-              <option value="Tanzania"     {{ old('country')=='Tanzania'     ? 'selected' : '' }}>🇹🇿 Tanzania</option>
-              <option value="South Africa" {{ old('country')=='South Africa' ? 'selected' : '' }}>🇿🇦 South Africa</option>
-              <option value="Other"        {{ old('country')=='Other'        ? 'selected' : '' }}>Other</option>
+              <x-country-options :selected="old('country')" flags />
             </select>
           </div>
         </div>

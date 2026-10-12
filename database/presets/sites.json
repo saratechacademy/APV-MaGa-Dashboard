@@ -1,0 +1,49 @@
+{
+  "_comment": "Site presets used by `php artisan thingsboard:setup` and `php artisan licor:setup` to create or link sites on a fresh installation. This is deployment data, not code: edit it, or pass another file with --presets=path. Nothing here is needed once a site exists; everything can also be set per site in Admin > Sites > Edit, and new sources can be linked from Admin > Data sources. Source: the partners' 'Sensor Set Up and Parameters' document (The Gambia). 'match' finds an existing site whose name contains it.",
+  "sites": [
+    {
+      "name": "University of The Gambia",
+      "match": "UTG",
+      "country": "Gambia",
+      "latitude": 13.2478,
+      "longitude": -16.5356,
+      "thingsboard_prefix": "UTG",
+      "tank_radius_cm": 180,
+      "tank_count": 1,
+      "licor_device_serial": "22490036",
+      "licor_locations": {
+        "22261662": "Reference",
+        "22261663": "Module edge",
+        "22261664": "Under PV",
+        "22261665": "Between PV"
+      }
+    },
+    {
+      "name": "AfriFarm",
+      "match": "AfriFarm",
+      "country": "Gambia",
+      "thingsboard_prefix": "AfriFarm",
+      "tank_radius_cm": 180,
+      "tank_count": 1,
+      "licor_device_serial": "22490035",
+      "licor_locations": {
+        "22261671": "Reference",
+        "22261668": "Module edge",
+        "22261669": "Under PV",
+        "22261670": "Between PV"
+      }
+    },
+    {
+      "name": "Fass Community Garden",
+      "match": "Fass",
+      "country": "Gambia",
+      "licor_device_serial": "22490037",
+      "licor_locations": {
+        "22261666": "Reference",
+        "22261667": "Module edge",
+        "22261672": "Under PV",
+        "22261673": "Between PV"
+      }
+    }
+  ]
+}
