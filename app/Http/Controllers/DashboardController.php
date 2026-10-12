@@ -53,7 +53,7 @@ class DashboardController extends Controller
             ->where('input_type', 'manual')
             ->count() > 0;
 
-        $range     = $request->get('range', '1h');
+        $range     = $request->get('range', '24h');
         $chartData = [];
 
         return view('dashboard.site', compact('site', 'hasManual', 'chartData', 'range'));
@@ -145,12 +145,24 @@ class DashboardController extends Controller
             'data'  => array_map(fn($key) => $s['map'][$key] ?? null, $timeKeys),
         ], $seriesByParam);
 
+        // Empty window: say when the data stops, so "no data" reads as
+        // "sensor silent since..." or "not uploaded yet" rather than a bug.
+        $lastReadingAt = null;
+        if (empty($datasets)) {
+            $ids = $parameters->pluck('id');
+            $lastReadingAt = collect([
+                \App\Models\SensorReading::whereIn('site_parameter_id', $ids)->max('read_at'),
+                \App\Models\ManualReading::whereIn('site_parameter_id', $ids)->max('reading_date'),
+            ])->filter()->max();
+        }
+
         return response()->json([
-            'success'  => true,
-            'labels'   => $labels,
-            'datasets' => $datasets,
-            'from'     => $from->toISOString(),
-            'to'       => $to->toISOString(),
+            'success'         => true,
+            'labels'          => $labels,
+            'datasets'        => $datasets,
+            'from'            => $from->toISOString(),
+            'to'              => $to->toISOString(),
+            'last_reading_at' => $lastReadingAt ? \Illuminate\Support\Carbon::parse($lastReadingAt)->toISOString() : null,
         ]);
     }
 

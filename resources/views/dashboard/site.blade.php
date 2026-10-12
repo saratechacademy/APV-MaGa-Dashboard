@@ -714,7 +714,7 @@ async function loadCategoryData(cat) {
         json.datasets.forEach(ds => { row[ds.slug] = ds.data[i] ?? null; });
         return row;
       });
-    } else { cat.dbData = []; }
+    } else { cat.dbData = []; cat.lastReadingAt = json.last_reading_at; }
   } catch(e) { cat.dbData = []; }
   buildMainChart(cat);
   buildLegend(cat);
@@ -737,14 +737,19 @@ setTimeout(() => {
 // "No data" hides the canvas rather than replacing it: replacing it removed
 // the canvas for good, so picking a longer range (24H, 7D...) could never
 // draw the chart again.
-function showNoData(ctx, empty) {
+function showNoData(ctx, empty, lastReadingAt) {
   let msg = ctx.parentElement.querySelector('.no-data-msg');
   if (empty && !msg) {
     msg = document.createElement('div');
     msg.className = 'no-data-msg';
-    msg.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px';
-    msg.textContent = 'No data for selected period';
+    msg.style.cssText = 'display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px;text-align:center';
     ctx.parentElement.appendChild(msg);
+  }
+  if (empty) {
+    const last = lastReadingAt
+      ? 'Last reading: ' + new Date(lastReadingAt).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC'
+      : 'No reading received yet';
+    msg.innerHTML = '<span>No data for selected period</span><span style="font-size:11px">' + last + '</span>';
   }
   if (msg) msg.style.display = empty ? 'flex' : 'none';
   ctx.style.display = empty ? 'none' : '';
@@ -758,7 +763,7 @@ function buildMainChart(cat) {
   if (activeList.length === 0) { ctx._chartInstance = null; return; }
   const dbData = cat.dbData || [];
   if (!dbData.length) {
-    showNoData(ctx, true);
+    showNoData(ctx, true, cat.lastReadingAt);
     return;
   }
   showNoData(ctx, false);
@@ -811,7 +816,7 @@ function loadAdminChart(chartId, catSlug, paramConfigs, hasSecondAxis, chartType
     .then(json => {
       if (ctx._chartInstance) { ctx._chartInstance.destroy(); ctx._chartInstance = null; }
       if (!json.success || !json.datasets || !json.datasets.length) {
-        showNoData(ctx, true);
+        showNoData(ctx, true, json.last_reading_at);
         return;
       }
       showNoData(ctx, false);

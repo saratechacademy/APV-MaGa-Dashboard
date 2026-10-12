@@ -155,7 +155,7 @@ const opts = {
 SITES.forEach((site, i) => {
   const ctx = document.getElementById('spark-' + site.id);
   if (!ctx || !(site.categories || []).includes('solar')) return;
-  fetch(`/dashboard/${site.slug}/solar/chart-data?hours=1`)
+  fetch(`/dashboard/${site.slug}/solar/chart-data?hours=24`)
     .then(r => r.json())
     .then(json => {
       if (!json.success || !json.datasets?.length) return;
@@ -266,6 +266,6 @@ function onRangeChange(r, from, to) {
   loadCrossData(h, from, to);
 }
 
-loadCrossData(1);
+loadCrossData(24);
 </script>
 @endpush

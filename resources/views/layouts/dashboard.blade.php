@@ -437,9 +437,9 @@ textarea.form-input{resize:vertical;min-height:70px}
     <div class="live-badge"><span class="live-dot"></span> Live</div>
     <span class="sync-time" id="sync-time">--:--:--</span>
     <div class="tr-group" style="position:relative">
-      <button class="tr-btn active" data-range="1h" onclick="setRange('1h',this)">1H</button>
+      <button class="tr-btn" data-range="1h" onclick="setRange('1h',this)">1H</button>
       <button class="tr-btn" data-range="6h" onclick="setRange('6h',this)">6H</button>
-      <button class="tr-btn" data-range="24h" onclick="setRange('24h',this)">24H</button>
+      <button class="tr-btn active" data-range="24h" onclick="setRange('24h',this)">24H</button>
       <button class="tr-btn" data-range="7d" onclick="setRange('7d',this)">7D</button>
       <button class="tr-btn" id="custom-range-btn" onclick="toggleCustomRange(event)">Custom</button>
       <div id="custom-range-popover" style="display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow-md);padding:12px;z-index:1100;min-width:200px">
@@ -493,7 +493,9 @@ setInterval(updateClock, 1000);
 updateClock();
 
 // Time range
-let currentRange = '1h';
+// 24H by default: most sensors report every 10-20 minutes, and HOBOnet
+// stations upload hours late, so a 1-hour window is usually empty.
+let currentRange = '24h';
 let customFrom = null, customTo = null;
 
 function setRange(r, btn) {
@@ -558,8 +560,8 @@ function clearCustomRange() {
   const toInput   = document.getElementById('custom-range-to');
   if (fromInput) fromInput.value = '';
   if (toInput)   toInput.value = '';
-  const defaultBtn = document.querySelector('.tr-btn[data-range]');
-  setRange(defaultBtn?.dataset.range || '1h', defaultBtn);
+  const defaultBtn = document.querySelector('.tr-btn[data-range="24h"]');
+  setRange('24h', defaultBtn);
 }
 
 function exportData(format) {

@@ -57,6 +57,28 @@ class ChartDataAlignmentTest extends TestCase
         $this->assertEquals([100, null, 300], $datasetB['data']);
     }
 
+    public function test_an_empty_window_reports_when_the_last_reading_was(): void
+    {
+        $admin    = User::factory()->create(['role' => 'admin']);
+        $site     = Site::factory()->create();
+        $category = SiteCategory::factory()->create(['site_id' => $site->id, 'slug' => 'solar']);
+        $param    = SiteParameter::factory()->create(['site_category_id' => $category->id, 'slug' => 'param_a']);
+
+        SensorReading::factory()->create(['site_id' => $site->id, 'site_parameter_id' => $param->id, 'value' => 1, 'read_at' => '2026-06-01 10:00:00']);
+        SensorReading::factory()->create(['site_id' => $site->id, 'site_parameter_id' => $param->id, 'value' => 2, 'read_at' => '2026-06-01 10:05:00']);
+
+        $url = route('dashboard.chart-data', [$site, 'solar']);
+
+        // The sensor went silent on 1 June: a later window is empty, but says so.
+        $empty = $this->actingAs($admin)->getJson($url . '?from=2026-07-01&to=2026-07-02')->assertOk()->json();
+        $this->assertSame([], $empty['datasets']);
+        $this->assertStringStartsWith('2026-06-01T10:05:00', $empty['last_reading_at']);
+
+        // A window with data doesn't need it.
+        $full = $this->actingAs($admin)->getJson($url . '?from=2026-06-01&to=2026-06-02')->assertOk()->json();
+        $this->assertNull($full['last_reading_at']);
+    }
+
     public function test_manual_only_parameter_appears_alongside_sensor_data_on_the_same_axis(): void
     {
         $admin    = User::factory()->create(['role' => 'admin']);
