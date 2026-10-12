@@ -118,6 +118,8 @@ class DashboardController extends Controller
         // frontend already renders those as gaps via spanGaps: true).
         $seriesByParam = [];
         $timeLabels    = [];
+        // Past two days a bare "14:20" no longer says which day it was.
+        $sensorLabel   = $from->diffInHours($to) > 48 ? 'd/m H:i' : 'H:i';
 
         foreach ($parameters as $param) {
             if (in_array($param->data_type, ['string', 'boolean', 'switch'])) continue;
@@ -130,7 +132,7 @@ class DashboardController extends Controller
                     ->get()
                     ->map(fn($r) => [
                         'key'   => $r->read_at->format('Y-m-d H:i'),
-                        'label' => $r->read_at->format('H:i'),
+                        'label' => $r->read_at->format($sensorLabel),
                         'value' => $r->value,
                     ]);
             } else {
@@ -187,6 +189,10 @@ class DashboardController extends Controller
         return response()->json([
             'success'         => true,
             'labels'          => $labels,
+            // Epoch seconds of each label: the axis is not linear in time (one
+            // slot per reading), so the page needs these to see how long a
+            // silence between two points really was.
+            'timestamps'      => array_map(fn ($key) => \Illuminate\Support\Carbon::parse($key, config('app.timezone'))->getTimestamp(), $timeKeys),
             'datasets'        => $datasets,
             'from'            => $from->toISOString(),
             'to'              => $to->toISOString(),

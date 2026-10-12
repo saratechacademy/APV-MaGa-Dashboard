@@ -703,10 +703,36 @@ function dateRangeQuery() {
   return (siteCustomFrom && siteCustomTo) ? `from=${siteCustomFrom}&to=${siteCustomTo}` : `hours=${HOURS}`;
 }
 
+// Every chart of a category draws from the same chart-data response: one
+// request shared by all of them (a category can have seven charts), reused for
+// a few seconds so a refresh costs one request per category, not per chart.
+const chartDataRequests = {};
+function fetchCategoryData(catSlug) {
+  const url = `/dashboard/${SITE_SLUG}/${catSlug}/chart-data?${dateRangeQuery()}`;
+  const hit = chartDataRequests[url];
+  if (hit && Date.now() - hit.at < 5000) return hit.promise;
+  const promise = fetch(url).then(r => r.json());
+  chartDataRequests[url] = { at: Date.now(), promise };
+  return promise;
+}
+
+// A line drawn across a long silence (power cut, gateway down) reads as
+// measurements that were never taken. Segments spanning far more time than the
+// series' usual interval — at least two hours — are left blank instead.
+function gapSegments(times, values) {
+  const seen = [];
+  values.forEach((v, i) => { if (v !== null && v !== undefined) seen.push(times[i]); });
+  const steps  = seen.slice(1).map((t, i) => t - seen[i]).sort((a, b) => a - b);
+  const usual  = steps.length ? steps[Math.floor(steps.length / 2)] : 0;
+  const limit  = Math.max(2 * 3600, 6 * usual);
+  const hidden = ctx => (times[ctx.p1DataIndex] - times[ctx.p0DataIndex] > limit) ? 'transparent' : undefined;
+  return { borderColor: hidden, backgroundColor: hidden };
+}
+
 async function loadCategoryData(cat) {
   try {
-    const res = await fetch(`/dashboard/${SITE_SLUG}/${cat.slug}/chart-data?${dateRangeQuery()}`);
-    const json = await res.json();
+    const json = await fetchCategoryData(cat.slug);
+    cat.dbTimes = json.timestamps || [];
     if (json.success && json.datasets && json.datasets.length > 0) {
       const lbls = json.labels;
       cat.dbData = lbls.map((t, i) => {
@@ -776,9 +802,10 @@ function buildMainChart(cat) {
   }
   const datasets = activeList.map(p => {
     const isSecondary = needSecondAxis && secParam && p.slug === secParam.slug;
+    const values = dbData.map(r => r[p.slug] !== undefined ? r[p.slug] : null);
     return {
       label: p.name + (p.unit ? ' ('+p.unit+')' : ''),
-      data: dbData.map(r => r[p.slug] !== undefined ? r[p.slug] : null),
+      data: values, segment: gapSegments(cat.dbTimes || [], values),
       borderColor: p.color, backgroundColor: p.color + '15',
       borderWidth: 2, pointRadius: dbData.length <= 20 ? 3 : 0,
       pointHoverRadius: 5, tension: .4, fill: activeList.length === 1,
@@ -811,8 +838,7 @@ const adminChartLoaders = [];
 function loadAdminChart(chartId, catSlug, paramConfigs, hasSecondAxis, chartType, showLegend) {
   const ctx = document.getElementById('admin-chart-' + chartId);
   if (!ctx) return;
-  fetch(`/dashboard/${SITE_SLUG}/${catSlug}/chart-data?${dateRangeQuery()}`)
-    .then(r => r.json())
+  fetchCategoryData(catSlug)
     .then(json => {
       if (ctx._chartInstance) { ctx._chartInstance.destroy(); ctx._chartInstance = null; }
       if (!json.success || !json.datasets || !json.datasets.length) {
@@ -823,8 +849,10 @@ function loadAdminChart(chartId, catSlug, paramConfigs, hasSecondAxis, chartType
       const chartLabels = json.labels;
       const dataMap = {};
       json.datasets.forEach(ds => { dataMap[ds.slug] = ds.data; });
+      const blank = Array(chartLabels.length).fill(null);
       const datasets = paramConfigs.map(p => ({
-        label: p.label, data: dataMap[p.slug] || Array(chartLabels.length).fill(null),
+        label: p.label, data: dataMap[p.slug] || blank,
+        segment: gapSegments(json.timestamps || [], dataMap[p.slug] || blank),
         borderColor: p.color, backgroundColor: p.color + (p.fill ? '22' : '00'),
         borderWidth: 2, pointRadius: chartLabels.length <= 20 ? 3 : 0,
         tension: .4, fill: p.fill, borderDash: p.dashed ? [5,4] : [], yAxisID: p.axis, spanGaps: true,
@@ -898,6 +926,10 @@ function fetchRawData(page) {
     .catch(() => { container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Error loading data</div>'; });
 }
 
-setInterval(() => { catCharts.forEach(cat => loadCategoryData(cat)); }, 30000);
+// Auto-refresh: the configured charts too, not only the default "Trends" ones.
+setInterval(() => {
+  catCharts.forEach(cat => loadCategoryData(cat));
+  adminChartLoaders.forEach(load => load());
+}, 30000);
 </script>
 @endpush

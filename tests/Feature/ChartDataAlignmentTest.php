@@ -47,6 +47,8 @@ class ChartDataAlignmentTest extends TestCase
         $json = $response->json();
 
         $this->assertCount(3, $json['labels']); // union of all timestamps: 10:00, 10:05, 10:10
+        // One epoch per label, so the page can tell a 5-minute step from a 2-day silence.
+        $this->assertSame([300, 300], [$json['timestamps'][1] - $json['timestamps'][0], $json['timestamps'][2] - $json['timestamps'][1]]);
 
         $datasetA = collect($json['datasets'])->firstWhere('slug', 'param_a');
         $datasetB = collect($json['datasets'])->firstWhere('slug', 'param_b');

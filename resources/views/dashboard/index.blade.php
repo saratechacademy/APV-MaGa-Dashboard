@@ -141,7 +141,10 @@ function draw(canvasId, config) {
   if (config) chartInstances[canvasId] = new Chart(ctx, config);
 }
 
+let overviewQuery = 'hours=24';
+
 function loadOverview(query) {
+  overviewQuery = query;
   fetch(`{{ route('dashboard.overview-data') }}?${query}`)
     .then(r => r.json())
     .then(json => {
@@ -164,7 +167,9 @@ function loadOverview(query) {
             datasets: series.map(s => ({
               label: s.name, data: s.data,
               borderColor: SITE_COLOR[s.site_id], backgroundColor: SITE_COLOR[s.site_id] + '18',
-              borderWidth: 2, pointRadius: 0, tension: .4, fill: series.length === 1, spanGaps: true,
+              // No spanGaps: a null bucket means every sensor of the site has been
+              // silent for over an hour, and the line must break there.
+              borderWidth: 2, pointRadius: 0, tension: .4, fill: series.length === 1, spanGaps: false,
             })),
           },
           options: { ...opts, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } } },
@@ -181,7 +186,7 @@ function loadOverview(query) {
         draw('spark-' + siteId, own && {
           type: 'line',
           data: { labels: json.labels, datasets: [{ data: own.data, borderColor: SITE_COLOR[siteId],
-            backgroundColor: SITE_COLOR[siteId] + '18', borderWidth: 1.5, pointRadius: 0, tension: .4, fill: true, spanGaps: true }] },
+            backgroundColor: SITE_COLOR[siteId] + '18', borderWidth: 1.5, pointRadius: 0, tension: .4, fill: true, spanGaps: false }] },
           options: { ...opts, scales: { x: { display: false }, y: { display: false } }, plugins: { legend: { display: false }, tooltip: { enabled: false } } },
         });
       });
@@ -201,6 +206,7 @@ function onRangeChange(r, from, to) {
   loadOverview(custom ? `from=${from}&to=${to}` : `hours=${hours}`);
 }
 
-loadOverview('hours=24');
+loadOverview(overviewQuery);
+setInterval(() => loadOverview(overviewQuery), 60000);
 </script>
 @endpush
