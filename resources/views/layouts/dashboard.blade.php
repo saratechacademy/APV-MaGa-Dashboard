@@ -45,7 +45,7 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
 .site-avatar{position:relative;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
 .site-avatar .status-dot{position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;border:2px solid var(--sidebar-bg)}
 .site-name-col{display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.25}
-.site-name-col .site-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.site-name-col .site-name{overflow:hidden;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
 .site-country-badge{margin-left:auto;font-size:9px;font-weight:700;letter-spacing:.3px;color:#7c8ba1;background:rgba(255,255,255,.06);padding:2px 6px;border-radius:8px;flex-shrink:0}
 .sb-item.active .site-country-badge{color:#4ade80;background:rgba(34,197,94,.12)}
 .sb-divider{border:none;border-top:1px solid #1e2d45;margin:4px 10px}
@@ -377,7 +377,7 @@ textarea.form-input{resize:vertical;min-height:70px}
     @php $sitePalette = \App\Models\SiteParameterGroup::palette(); @endphp
     @foreach($sites ?? [] as $s)
     <a href="{{ route('dashboard.site', $s) }}" onclick="closeSidebar()"
-       class="sb-item {{ request()->route('site')?->id == $s->id ? 'active' : '' }}">
+       class="sb-item {{ request()->route('site')?->id == $s->id ? 'active' : '' }}" title="{{ $s->name }}">
       <span class="site-avatar" style="background:{{ $sitePalette[$s->id % count($sitePalette)] }}">
         {{ strtoupper(substr($s->name, 0, 1)) }}
         <span class="status-dot {{ $s->status === 'active' ? 'd-ok' : 'd-warn' }}"></span>
