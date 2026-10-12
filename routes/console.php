@@ -15,6 +15,12 @@ if ($heartbeat = config('thingsboard.heartbeat_url')) {
     $thingsboardSync->pingOnSuccess($heartbeat);
 }
 
+// HOBOnet stations upload their 1-minute data in batches; readings are
+// stored as 10-minute buckets once complete.
+Schedule::command('licor:sync')
+    ->everyTenMinutes()
+    ->when(fn () => filled(config('licor.token')));
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');

@@ -47,6 +47,12 @@
               ThingsBoard {{ $syncState }}
             </span>
           @endif
+          @if($licorState = $site->licorSyncState())
+            <span class="badge {{ ['ok' => 'badge-ok', 'late' => 'badge-warn', 'failed' => 'badge-err'][$licorState] }}"
+                  title="{{ $site->licor_sync_error ?: 'Last successful LI-COR sync: ' . ($site->licor_synced_at?->diffForHumans() ?? 'never') }}">
+              LI-COR {{ $licorState }}
+            </span>
+          @endif
         </td>
         <td>
           <a href="{{ route('admin.categories', $site) }}" class="btn" style="font-size:11px;padding:4px 10px">Categories</a>

@@ -222,6 +222,34 @@ Parameters created by the sync can be renamed, regrouped, given thresholds or de
 
 ---
 
+## LI-COR (HOBOnet) integration
+
+The weather stations (temperature, humidity, dew point, wind, gusts, wind direction, rain, pressure) and PAR sensors of each site are HOBOnet stations on LI-COR Cloud. Every ten minutes the dashboard pulls their data, averages the 1-minute readings into 10-minute values (sum for rain, maximum for gusts, vector mean for wind direction) and stores them as sensor readings.
+
+### Setting it up on an installation
+
+1. Update the code and database as for ThingsBoard (`git pull`, `composer install --no-dev --optimize-autoloader`, `php artisan migrate --force`).
+2. Add the LI-COR API token to `.env`, then run `php artisan config:clear`:
+   ```
+   LICOR_API_TOKEN=<token>
+   LICOR_LOOKBACK_DAYS=7
+   ```
+3. Preview, then run the setup:
+   ```bash
+   php artisan licor:setup --dry-run
+   php artisan licor:setup
+   ```
+   For each station listed under `sites` in `config/licor.php` (UTG, AfriFarm, Fass), this links the site already used for ThingsBoard, or a site whose name matches, or creates it. It also adds the manual agriculture parameters (leaves per plant, stem girth, plant height, chlorophyll, stand count, bulb diameter and weight, yield, harvest index), then loads the history. Expect a few minutes for the first run. It is safe to run again.
+4. The scheduler cron described above also runs this sync.
+
+### Good to know
+
+- Stations upload in batches: data typically appears on the dashboard **2 to 4 hours** after it was measured. The offline threshold of these categories is set accordingly.
+- **Admin → Sites** shows a `LI-COR ok / late / failed` badge per linked site; `php artisan licor:sync` runs a sync by hand.
+- Sensors are named by location where `config/licor.php` → `locations` knows it (currently the PAR sensors: Reference, Module edge, Under PV, Between PV), otherwise by sensor serial (e.g. `Air temperature – 22034652`). Adding a serial there names new parameters; existing ones can be renamed in the admin.
+
+---
+
 ## Sites
 
 The platform supports an unlimited number of sites. Each site can be configured with its own:

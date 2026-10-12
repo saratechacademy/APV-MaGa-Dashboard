@@ -26,10 +26,12 @@ class Site extends Model
         'area_m2',
         'description',
         'thingsboard_prefix',
+        'licor_device_serial',
     ];
 
     protected $casts = [
         'thingsboard_synced_at' => 'datetime',
+        'licor_synced_at'       => 'datetime',
     ];
 
     /**
@@ -38,16 +40,27 @@ class Site extends Model
      */
     public function thingsboardSyncState(): ?string
     {
-        if (!$this->thingsboard_prefix) {
+        return $this->syncState($this->thingsboard_prefix, $this->thingsboard_sync_error,
+            $this->thingsboard_synced_at, config('thingsboard.late_after_minutes'));
+    }
+
+    /** Same as thingsboardSyncState(), for the LI-COR (HOBOnet) station. */
+    public function licorSyncState(): ?string
+    {
+        return $this->syncState($this->licor_device_serial, $this->licor_sync_error,
+            $this->licor_synced_at, config('licor.late_after_minutes'));
+    }
+
+    private function syncState(?string $link, ?string $error, $syncedAt, int $lateAfterMinutes): ?string
+    {
+        if (!$link) {
             return null;
         }
-        if ($this->thingsboard_sync_error) {
+        if ($error) {
             return 'failed';
         }
 
-        $lateAfter = now()->subMinutes(config('thingsboard.late_after_minutes'));
-
-        return $this->thingsboard_synced_at?->gte($lateAfter) ? 'ok' : 'late';
+        return $syncedAt?->gte(now()->subMinutes($lateAfterMinutes)) ? 'ok' : 'late';
     }
 
     // Génère automatiquement le slug depuis le nom

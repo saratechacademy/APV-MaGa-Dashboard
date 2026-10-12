@@ -148,6 +148,11 @@
           <input type="text" id="site-thingsboard-prefix" name="thingsboard_prefix" maxlength="50" class="form-input"
                  value="{{ old('thingsboard_prefix', $site->thingsboard_prefix) }}" placeholder="e.g. UTG — leave empty if not on ThingsBoard">
         </div>
+        <div class="form-field">
+          <label class="form-label" for="site-licor-serial">LI-COR station serial</label>
+          <input type="text" id="site-licor-serial" name="licor_device_serial" maxlength="50" class="form-input"
+                 value="{{ old('licor_device_serial', $site->licor_device_serial) }}" placeholder="e.g. 22490036 — leave empty if no HOBOnet station">
+        </div>
         <div class="form-field full">
           <label class="form-label" for="site-description">Description</label>
           <textarea id="site-description" name="description" class="form-input" placeholder="Site description, objectives...">{{ old('description', $site->description) }}</textarea>

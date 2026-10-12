@@ -734,17 +734,34 @@ setTimeout(() => {
 }, 150);
 @endif
 
+// "No data" hides the canvas rather than replacing it: replacing it removed
+// the canvas for good, so picking a longer range (24H, 7D...) could never
+// draw the chart again.
+function showNoData(ctx, empty) {
+  let msg = ctx.parentElement.querySelector('.no-data-msg');
+  if (empty && !msg) {
+    msg = document.createElement('div');
+    msg.className = 'no-data-msg';
+    msg.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px';
+    msg.textContent = 'No data for selected period';
+    ctx.parentElement.appendChild(msg);
+  }
+  if (msg) msg.style.display = empty ? 'flex' : 'none';
+  ctx.style.display = empty ? 'none' : '';
+}
+
 function buildMainChart(cat) {
   const ctx = document.getElementById('chart-main-' + cat.slug);
   if (!ctx) return;
-  if (ctx._chartInstance) ctx._chartInstance.destroy();
+  if (ctx._chartInstance) { ctx._chartInstance.destroy(); ctx._chartInstance = null; }
   const activeList = cat.params.filter(p => activeParams[cat.slug][p.slug]);
   if (activeList.length === 0) { ctx._chartInstance = null; return; }
   const dbData = cat.dbData || [];
   if (!dbData.length) {
-    ctx.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px">No data for selected period</div>';
+    showNoData(ctx, true);
     return;
   }
+  showNoData(ctx, false);
   const chartLabels = dbData.map(r => r.t);
   let needSecondAxis = false, secParam = null;
   if (activeList.length > 1) {
@@ -794,9 +811,10 @@ function loadAdminChart(chartId, catSlug, paramConfigs, hasSecondAxis, chartType
     .then(json => {
       if (ctx._chartInstance) { ctx._chartInstance.destroy(); ctx._chartInstance = null; }
       if (!json.success || !json.datasets || !json.datasets.length) {
-        ctx.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px">No data for selected period</div>';
+        showNoData(ctx, true);
         return;
       }
+      showNoData(ctx, false);
       const chartLabels = json.labels;
       const dataMap = {};
       json.datasets.forEach(ds => { dataMap[ds.slug] = ds.data; });

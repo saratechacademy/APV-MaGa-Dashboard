@@ -6,7 +6,7 @@ use App\Models\SensorReading;
 use App\Models\Site;
 use App\Models\SiteCategory;
 use App\Models\SiteParameter;
-use App\Models\SiteParameterGroup;
+use App\Services\Concerns\BuildsSiteStructure;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Carbon;
@@ -22,6 +22,8 @@ use Illuminate\Support\Str;
  */
 class ThingsBoardSync
 {
+    use BuildsSiteStructure;
+
     /** Points fetched per key and per request. */
     private const PAGE_SIZE = 1000;
 
@@ -50,7 +52,7 @@ class ThingsBoardSync
                 continue;
             }
 
-            $category = $this->category($site, $mapping['category']);
+            $category = $this->ensureCategory($site, $mapping['category'], config('thingsboard.offline_threshold_minutes'));
             if (!$category->is_active) {
                 continue;
             }
@@ -205,20 +207,6 @@ class ThingsBoardSync
         return null;
     }
 
-    private function category(Site $site, string $slug): SiteCategory
-    {
-        $defaults = collect(SiteCategory::defaults())->firstWhere('slug', $slug);
-
-        return $site->categories()->firstOrCreate(['slug' => $slug], [
-            'name'                      => $defaults['name'] ?? Str::headline($slug),
-            'icon'                      => $defaults['icon'] ?? null,
-            'color'                     => $defaults['color'] ?? null,
-            'offline_threshold_minutes' => config('thingsboard.offline_threshold_minutes'),
-            'is_active'                 => true,
-            'sort_order'                => $site->categories()->count(),
-        ]);
-    }
-
     private function parameter(SiteCategory $category, array $mapping, array $spec, array &$stats): SiteParameter
     {
         $slug = Str::slug($mapping['label'] . ' ' . $spec['name'], '_');
@@ -227,11 +215,7 @@ class ThingsBoardSync
             return $parameter;
         }
 
-        $groupCount = $category->parameterGroups()->count();
-        $group = SiteParameterGroup::firstOrCreate(
-            ['site_category_id' => $category->id, 'name' => $mapping['group']],
-            ['color' => SiteParameterGroup::nextPaletteColor($groupCount), 'sort_order' => $groupCount],
-        );
+        $group = $this->ensureGroup($category, $mapping['group']);
 
         $stats['created']++;
 
@@ -252,38 +236,11 @@ class ThingsBoardSync
         ]);
 
         if (isset($spec['chart'])) {
+            // Reference-field series are dashed, to read APV vs reference at a glance.
             $this->addToChart($category, $spec['chart'], $parameter, $mapping['reference']);
         }
 
         return $parameter;
-    }
-
-    /**
-     * Without a configured chart the dashboard falls back to one "Trends"
-     * chart plotting every parameter of the category on a single axis —
-     * unreadable once %, µS/cm and °C share it. Only done when the parameter
-     * is created, so charts stay the admin's to rearrange afterwards.
-     */
-    private function addToChart(SiteCategory $category, string $title, SiteParameter $parameter, bool $reference): void
-    {
-        $chart = $category->charts()->firstOrCreate(['title' => $title], [
-            'chart_type'  => 'line',
-            'col_span'    => 'half',
-            'show_legend' => true,
-            'is_active'   => true,
-            'sort_order'  => $category->charts()->count(),
-        ]);
-
-        $position = $chart->chartParameters()->count();
-
-        $chart->chartParameters()->create([
-            'site_parameter_id' => $parameter->id,
-            'color'             => SiteParameterGroup::nextPaletteColor($position),
-            'axis'              => 'left',
-            // Reference-field series are dashed, to read APV vs reference at a glance.
-            'dashed'            => $reference,
-            'sort_order'        => $position,
-        ]);
     }
 
     /**

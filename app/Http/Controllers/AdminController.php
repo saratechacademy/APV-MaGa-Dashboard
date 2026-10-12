@@ -180,6 +180,7 @@ class AdminController extends Controller
             'area_m2'     => 'nullable|numeric',
             'description' => 'nullable|string',
             'thingsboard_prefix' => 'nullable|string|max:50',
+            'licor_device_serial' => 'nullable|string|max:50',
         ]);
 
         $site->fill([
@@ -192,6 +193,7 @@ class AdminController extends Controller
             'area_m2'     => $request->area_m2,
             'description' => $request->description,
             'thingsboard_prefix' => $request->thingsboard_prefix,
+            'licor_device_serial' => $request->licor_device_serial,
         ]);
         $site->status = $request->status;
         $site->save();
@@ -214,6 +216,7 @@ class AdminController extends Controller
             $newSite->name = $site->name . ' (Copy)';
             // The copy must not pull the same ThingsBoard devices as the original.
             $newSite->thingsboard_prefix = null;
+            $newSite->licor_device_serial = null;
             $newSite->save();
 
             $categories = $site->categories()->with(['parameters', 'parameterGroups', 'charts.chartParameters'])->get();
