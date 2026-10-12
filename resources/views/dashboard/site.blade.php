@@ -721,11 +721,21 @@ function fetchCategoryData(catSlug) {
 // series' usual interval — at least two hours — are left blank instead.
 function gapSegments(times, values) {
   const seen = [];
-  values.forEach((v, i) => { if (v !== null && v !== undefined) seen.push(times[i]); });
-  const steps  = seen.slice(1).map((t, i) => t - seen[i]).sort((a, b) => a - b);
-  const usual  = steps.length ? steps[Math.floor(steps.length / 2)] : 0;
-  const limit  = Math.max(2 * 3600, 6 * usual);
-  const hidden = ctx => (times[ctx.p1DataIndex] - times[ctx.p0DataIndex] > limit) ? 'transparent' : undefined;
+  values.forEach((v, i) => { if (v !== null && v !== undefined) seen.push(i); });
+  const steps = seen.slice(1).map((idx, n) => times[idx] - times[seen[n]]).sort((a, b) => a - b);
+  const usual = steps.length ? steps[Math.floor(steps.length / 2)] : 0;
+  const limit = Math.max(2 * 3600, 6 * usual);
+
+  // Chart.js asks about each pair of neighbouring slots, empty ones included,
+  // so the silence has to be marked slot by slot: every slot after a reading
+  // and up to the next one, when those two readings are too far apart.
+  const silent = [];
+  for (let n = 1; n < seen.length; n++) {
+    if (times[seen[n]] - times[seen[n - 1]] > limit) {
+      for (let i = seen[n - 1] + 1; i <= seen[n]; i++) silent[i] = true;
+    }
+  }
+  const hidden = ctx => silent[ctx.p1DataIndex] ? 'transparent' : undefined;
   return { borderColor: hidden, backgroundColor: hidden };
 }
 
