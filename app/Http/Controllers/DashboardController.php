@@ -166,6 +166,33 @@ class DashboardController extends Controller
         }
 
         ksort($timeLabels);
+
+        // The axis has one slot per reading, so a two-day outage would take no
+        // width at all and the curve would look continuous. Long silences —
+        // far beyond the usual interval, and at least two hours — get empty
+        // slots (at most 40 each) so they show as a blank stretch.
+        $stamps = array_map(fn ($key) => strtotime($key), array_keys($timeLabels));
+        $steps  = [];
+        for ($i = 1; $i < count($stamps); $i++) {
+            $steps[] = $stamps[$i] - $stamps[$i - 1];
+        }
+        if ($steps) {
+            sort($steps);
+            $usual = max(60, $steps[intdiv(count($steps), 2)]);
+            $limit = max(2 * 3600, 6 * $usual);
+
+            for ($i = 1; $i < count($stamps); $i++) {
+                $gap = $stamps[$i] - $stamps[$i - 1];
+                if ($gap <= $limit) {
+                    continue;
+                }
+                $step = max($usual, (int) ceil($gap / 40));
+                for ($t = $stamps[$i - 1] + $step; $t < $stamps[$i]; $t += $step) {
+                    $timeLabels[date('Y-m-d H:i', $t)] ??= date($sensorLabel, $t);
+                }
+            }
+            ksort($timeLabels);
+        }
         $timeKeys = array_keys($timeLabels);
         $labels   = array_values($timeLabels);
 

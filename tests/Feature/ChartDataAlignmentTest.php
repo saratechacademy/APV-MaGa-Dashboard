@@ -59,6 +59,34 @@ class ChartDataAlignmentTest extends TestCase
         $this->assertEquals([100, null, 300], $datasetB['data']);
     }
 
+    public function test_a_long_silence_takes_room_on_the_axis_instead_of_vanishing(): void
+    {
+        $admin    = User::factory()->create(['role' => 'admin']);
+        $site     = Site::factory()->create();
+        $category = SiteCategory::factory()->create(['site_id' => $site->id, 'slug' => 'solar']);
+        $param    = SiteParameter::factory()->create(['site_category_id' => $category->id, 'slug' => 'param_a']);
+
+        // Every 20 minutes, then nothing for two days, then again.
+        foreach (['2026-06-01 10:00', '2026-06-01 10:20', '2026-06-01 10:40', '2026-06-03 10:40', '2026-06-03 11:00'] as $at) {
+            SensorReading::factory()->create(['site_id' => $site->id, 'site_parameter_id' => $param->id, 'value' => 5, 'read_at' => $at . ':00']);
+        }
+
+        $json = $this->actingAs($admin)
+            ->getJson(route('dashboard.chart-data', [$site, 'solar']) . '?from=2026-06-01&to=2026-06-03')
+            ->assertOk()->json();
+
+        $data = $json['datasets'][0]['data'];
+
+        // The five readings are all there, in order, with empty slots between the 3rd and 4th.
+        $this->assertSame([5, 5, 5, 5, 5], array_values(array_filter($data, fn ($v) => $v !== null)));
+        $this->assertSame([5, 5, 5], array_slice($data, 0, 3));
+        $this->assertNull($data[3]);
+        $this->assertGreaterThan(20, count($data));
+        $this->assertLessThanOrEqual(5 + 40, count($data));
+        $this->assertCount(count($data), $json['labels']);
+        $this->assertCount(count($data), $json['timestamps']);
+    }
+
     public function test_an_empty_window_reports_when_the_last_reading_was(): void
     {
         $admin    = User::factory()->create(['role' => 'admin']);
