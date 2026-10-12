@@ -176,10 +176,13 @@ class SiteOverview
             ->each(function ($row) use (&$sums, $owners, $first, $bucket) {
                 [$metric, $siteId] = $owners[$row->site_parameter_id];
                 $index = intdiv(Carbon::parse($row->read_at, config('app.timezone'))->getTimestamp() - $first, $bucket);
-                $cell  = &$sums[$metric][$siteId][$index];
+                $cell  = &$sums[$metric][$siteId][$row->site_parameter_id][$index];
                 $cell  = [($cell[0] ?? 0) + $row->value, ($cell[1] ?? 0) + 1];
                 unset($cell);
             }, 2000);
+
+        // How long a sensor's last value stands in for it: an hour, in buckets.
+        $carry = max(1, intdiv(3600, $bucket));
 
         $series = [];
         foreach ($metrics as $metric) {
@@ -188,17 +191,47 @@ class SiteOverview
                 if (empty($sums[$metric][$site->id])) {
                     continue;
                 }
-                $data = array_fill(0, $count, null);
-                foreach ($sums[$metric][$site->id] as $index => [$sum, $n]) {
-                    if ($index >= 0 && $index < $count) {
-                        $data[$index] = round($sum / $n, 2);
-                    }
-                }
+                $data = $this->siteAverage($sums[$metric][$site->id], $count, $carry);
                 $series[$metric][] = ['site_id' => $site->id, 'name' => $site->name, 'data' => $data];
             }
         }
 
         return ['labels' => $labels, 'series' => $series];
+    }
+
+    /**
+     * Mean across a site's sensors, bucket by bucket. Sensors of one site
+     * report at different instants (six soil probes, each every 20 minutes),
+     * so a plain per-bucket mean would average a different subset of sensors
+     * each time and zigzag between them. Each sensor's last value is therefore
+     * carried forward for up to $carry buckets before averaging.
+     *
+     * @param  array<int, array<int, array{0: float, 1: int}>>  $perSensor  sensor => bucket => [sum, count]
+     * @return array<int, float|null>
+     */
+    private function siteAverage(array $perSensor, int $count, int $carry): array
+    {
+        $sum = array_fill(0, $count, 0.0);
+        $n   = array_fill(0, $count, 0);
+
+        foreach ($perSensor as $buckets) {
+            $last = null;
+            $age  = 0;
+            for ($i = 0; $i < $count; $i++) {
+                if (isset($buckets[$i])) {
+                    $last = $buckets[$i][0] / $buckets[$i][1];
+                    $age  = 0;
+                } elseif ($last !== null && ++$age > $carry) {
+                    $last = null;
+                }
+                if ($last !== null) {
+                    $sum[$i] += $last;
+                    $n[$i]++;
+                }
+            }
+        }
+
+        return array_map(fn ($s, $c) => $c ? round($s / $c, 2) : null, $sum, $n);
     }
 
     /** @return array<string, true> */

@@ -122,10 +122,15 @@ class SiteOverviewTest extends TestCase
         $this->assertCount(count($json['labels']), $series['B']['data']);
 
         $this->assertEquals(22, $series['A']['data'][$at('10:00')]);   // mean of 20 and 24
-        $this->assertEquals(22, $series['A']['data'][$at('10:10')]);
-        $this->assertNull($series['A']['data'][$at('10:05')]);
+        // Sensors don't report together: each keeps its last value (for up to an
+        // hour) so the site mean doesn't zigzag between whoever reported last.
+        $this->assertEquals(22, $series['A']['data'][$at('10:05')]);   // both carried forward
+        $this->assertEquals(23, $series['A']['data'][$at('10:10')]);   // 22 (new) and 24 (carried)
+        $this->assertEquals(23, $series['A']['data'][$at('11:00')]);   // 24 still carried, an hour on
+        $this->assertEquals(22, $series['A']['data'][$at('11:05')]);   // 24 expired, 22 carried
+        $this->assertNull($series['A']['data'][$at('11:15')]);          // both expired: a real gap
         $this->assertEquals(30, $series['B']['data'][$at('10:10')]);   // 10:13:27 falls in the 10:10 bucket
-        $this->assertNull($series['B']['data'][$at('10:00')]);
+        $this->assertNull($series['B']['data'][$at('10:00')]);          // nothing before a first reading
     }
 
     public function test_overview_data_only_covers_sites_the_user_may_see(): void
