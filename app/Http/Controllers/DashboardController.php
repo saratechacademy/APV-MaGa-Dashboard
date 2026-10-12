@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\AuthorizesSiteAccess;
 use App\Http\Controllers\Concerns\ResolvesDateRange;
 use App\Models\Site;
+use App\Services\SiteOverview;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -11,28 +12,53 @@ class DashboardController extends Controller
     use AuthorizesSiteAccess, ResolvesDateRange;
 
     // ── Index : tous les sites ─────────────────────────────────
-    public function index()
+    public function index(SiteOverview $overview)
     {
-        $user = Auth::user();
+        $sites = $this->overviewSites();
 
-        if ($user->isAdmin()) {
-            $sites = Site::with(['activeCategories.activeParameters.latestReading'])
-                         ->where('status', 'active')->latest()->get();
-        } else {
-            // Sites via table pivot
-            $pivotSiteIds = $user->assignedSites()->pluck('sites.id')->toArray();
-            // Sites via user_id direct (legacy)
-            $directSiteIds = Site::where('user_id', $user->id)->pluck('id')->toArray();
-            // Fusionner les deux
-            $allSiteIds = array_unique(array_merge($pivotSiteIds, $directSiteIds));
-            $sites = Site::where('status', 'active')
-                ->whereIn('id', $allSiteIds)
-                ->with(['activeCategories.activeParameters.latestReading'])
-                ->latest()
-                ->get();
+        $cards = $sites->mapWithKeys(fn (Site $site) => [$site->id => [
+            'tiles'     => $overview->tiles($site),
+            'status'    => $overview->status($site),
+            'sparkline' => $overview->sparklineMetric($site),
+        ]]);
+
+        $chartMetrics = $overview->chartMetrics($sites);
+
+        return view('dashboard.index', compact('sites', 'cards', 'chartMetrics'));
+    }
+
+    // ── Index : séries des graphiques comparatifs ──────────────
+    // One request for the whole overview: every chart metric plus each site's
+    // sparkline metric, all on the same bucketed time axis.
+    public function overviewData(Request $request, SiteOverview $overview)
+    {
+        $sites = $this->overviewSites();
+        [$from, $to] = $this->resolveDateRange($request, 24);
+
+        $sparklines = $sites->mapWithKeys(fn (Site $site) => [$site->id => $overview->sparklineMetric($site)])->filter();
+        $metrics    = array_values(array_unique(array_merge($overview->chartMetrics($sites), $sparklines->values()->all())));
+
+        return response()->json(['success' => true, 'sparklines' => $sparklines]
+            + $overview->series($sites, $metrics, $from, $to));
+    }
+
+    /** Active sites the current user may see, loaded for the overview. */
+    private function overviewSites()
+    {
+        $user  = Auth::user();
+        $query = Site::where('status', 'active')
+            ->with(['activeCategories.activeParameters.latestReading'])
+            ->latest();
+
+        if (!$user->isAdmin()) {
+            // Sites via table pivot + sites via user_id direct (legacy)
+            $query->whereIn('id', array_unique(array_merge(
+                $user->assignedSites()->pluck('sites.id')->toArray(),
+                Site::where('user_id', $user->id)->pluck('id')->toArray(),
+            )));
         }
 
-        return view('dashboard.index', compact('sites'));
+        return $query->get();
     }
 
     // ── Site detail ────────────────────────────────────────────

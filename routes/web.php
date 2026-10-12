@@ -15,6 +15,7 @@ require __DIR__.'/auth.php';
 Route::middleware(['auth', 'check.status'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/overview-data', [DashboardController::class, 'overviewData'])->name('dashboard.overview-data');
     Route::get('/dashboard/site/{site}', [DashboardController::class, 'site'])->name('dashboard.site');
     Route::post('/dashboard/site/{site}/actuators/{parameter}/toggle', [ActuatorController::class, 'toggle'])->name('actuators.toggle');
     Route::get('/dashboard/{site}/{category}/chart-data', [DashboardController::class, 'chartData'])->name('dashboard.chart-data');

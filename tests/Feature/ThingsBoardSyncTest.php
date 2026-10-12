@@ -94,6 +94,7 @@ class ThingsBoardSyncTest extends TestCase
         $moisture = $this->param($site, 'apv_humidity_1_shadow_moisture');
         $this->assertSame('APV 1 Shadow – Moisture', $moisture->name);
         $this->assertSame('%', $moisture->unit);
+        $this->assertSame('soil_moisture', $moisture->metric);
         $this->assertSame('irrigation', $moisture->category->slug);
         $this->assertSame(60, $moisture->category->offline_threshold_minutes);
         $this->assertSame('APV field', $moisture->group->name);

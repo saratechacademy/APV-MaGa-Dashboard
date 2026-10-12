@@ -54,47 +54,48 @@ return [
     // from it. 'key' is the ThingsBoard telemetry key; 'data_type' defaults
     // to float; 'scale'/'precision' convert the raw value before storing;
     // 'chart' is the dashboard chart a new parameter is added to, so each
-    // chart only ever mixes values of one unit.
+    // chart only ever mixes values of one unit; 'metric' is what it measures,
+    // which the All Sites overview is built from (config/overview.php).
     'sensors' => [
         'Humidity' => [
             'category'   => 'irrigation',
             'parameters' => [
-                ['key' => 'humidity',     'name' => 'Moisture',     'unit' => '%',     'chart' => 'Soil moisture (%)'],
-                ['key' => 'conductivity', 'name' => 'Conductivity', 'unit' => 'µS/cm', 'chart' => 'Soil conductivity (µS/cm)'],
-                ['key' => 'temperature',  'name' => 'Temperature',  'unit' => '°C',    'chart' => 'Soil temperature (°C)'],
+                ['key' => 'humidity',     'name' => 'Moisture',     'unit' => '%',     'metric' => 'soil_moisture',     'chart' => 'Soil moisture (%)'],
+                ['key' => 'conductivity', 'name' => 'Conductivity', 'unit' => 'µS/cm', 'metric' => 'soil_conductivity', 'chart' => 'Soil conductivity (µS/cm)'],
+                ['key' => 'temperature',  'name' => 'Temperature',  'unit' => '°C',    'metric' => 'soil_temperature',  'chart' => 'Soil temperature (°C)'],
             ],
         ],
         'Flow' => [
             'category'   => 'irrigation',
             'parameters' => [
-                ['key' => 'Flow_level', 'name' => 'Total flow', 'unit' => 'L', 'chart' => 'Total flow (L)'],
+                ['key' => 'Flow_level', 'name' => 'Total flow', 'unit' => 'L', 'metric' => 'total_flow', 'chart' => 'Total flow (L)'],
             ],
         ],
         'Valve' => [
             'category'   => 'irrigation',
             'parameters' => [
-                ['key' => 'valve_state', 'name' => 'Valve state', 'data_type' => 'switch'],
+                ['key' => 'valve_state', 'name' => 'Valve state', 'data_type' => 'switch', 'metric' => 'valve_state'],
             ],
         ],
         'Ultrasonic' => [
             'category'   => 'water',
             'parameters' => [
-                ['key' => 'tank_distance', 'name' => 'Water level', 'unit' => 'cm', 'chart' => 'Water level (cm)'],
+                ['key' => 'tank_distance', 'name' => 'Water level', 'unit' => 'cm', 'metric' => 'water_level', 'chart' => 'Water level (cm)'],
             ],
         ],
         'Turbidity' => [
             'category'   => 'water',
             'parameters' => [
-                ['key' => 'turbidity', 'name' => 'Turbidity', 'chart' => 'Turbidity'],
+                ['key' => 'turbidity', 'name' => 'Turbidity', 'metric' => 'turbidity', 'chart' => 'Turbidity'],
             ],
         ],
         'Pressure' => [
             'category'   => 'water',
             'parameters' => [
-                ['key' => 'tank_level', 'name' => 'Tank level', 'unit' => 'cm', 'chart' => 'Water level (cm)'],
+                ['key' => 'tank_level', 'name' => 'Tank level', 'unit' => 'cm', 'metric' => 'tank_level', 'chart' => 'Water level (cm)'],
                 // Volume of the tank from the measured water height, as the
                 // partners compute it: π × r² × height / 1000, r = 180 cm.
-                ['key' => 'tank_level', 'name' => 'Tank volume', 'unit' => 'L', 'scale' => M_PI * 180 * 180 / 1000, 'precision' => 0, 'chart' => 'Tank volume (L)'],
+                ['key' => 'tank_level', 'name' => 'Tank volume', 'unit' => 'L', 'scale' => M_PI * 180 * 180 / 1000, 'precision' => 0, 'metric' => 'tank_volume', 'chart' => 'Tank volume (L)'],
             ],
         ],
     ],

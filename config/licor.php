@@ -38,19 +38,23 @@ return [
         '22490037' => ['match' => 'Fass',     'name' => 'Fass Community Garden', 'country' => 'Gambia'],
     ],
 
-    // LI-COR measurement type => parameter. 'aggregate' says how the 1-minute
+    // LI-COR measurement type => parameter. 'metric' is what it measures, which
+    // the All Sites overview is built from (config/overview.php); a PAR sensor
+    // with a known location gets it appended (par_reference, par_under_pv...),
+    // since light under the panels and in the open are different things.
+    // 'aggregate' says how the 1-minute
     // readings of a bucket are combined: mean, max (gusts), sum (rain) or
     // circular (wind direction, where 350° and 10° average to 0°, not 180°).
     'measurements' => [
-        'Temperature'    => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Air temperature',   'unit' => '°C',  'chart' => 'Air temperature (°C)'],
-        'RH'             => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Relative humidity', 'unit' => '%',   'chart' => 'Relative humidity (%)'],
-        'Dew Point'      => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Dew point',         'unit' => '°C',  'chart' => 'Dew point (°C)'],
-        'Wind Speed'     => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Wind speed',        'unit' => 'm/s', 'chart' => 'Wind (m/s)'],
-        'Gust Speed'     => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Gust speed',        'unit' => 'm/s', 'chart' => 'Wind (m/s)', 'aggregate' => 'max'],
-        'Wind Direction' => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Wind direction',    'unit' => '°',   'chart' => 'Wind direction (°)', 'aggregate' => 'circular'],
-        'Rain'           => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Rain',              'unit' => 'mm',  'chart' => 'Rain (mm)', 'aggregate' => 'sum'],
-        'Pressure'       => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Air pressure',      'unit' => 'hPa', 'chart' => 'Air pressure (hPa)'],
-        'PAR'            => ['category' => 'solar',   'group' => 'PAR',              'name' => 'PAR',               'unit' => 'µmol/m²/s', 'chart' => 'PAR (µmol/m²/s)'],
+        'Temperature'    => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Air temperature',   'metric' => 'air_temperature',   'unit' => '°C',  'chart' => 'Air temperature (°C)'],
+        'RH'             => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Relative humidity', 'metric' => 'relative_humidity', 'unit' => '%',   'chart' => 'Relative humidity (%)'],
+        'Dew Point'      => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Dew point',         'metric' => 'dew_point',         'unit' => '°C',  'chart' => 'Dew point (°C)'],
+        'Wind Speed'     => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Wind speed',        'metric' => 'wind_speed',        'unit' => 'm/s', 'chart' => 'Wind (m/s)'],
+        'Gust Speed'     => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Gust speed',        'metric' => 'gust_speed',        'unit' => 'm/s', 'chart' => 'Wind (m/s)', 'aggregate' => 'max'],
+        'Wind Direction' => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Wind direction',    'metric' => 'wind_direction',    'unit' => '°',   'chart' => 'Wind direction (°)', 'aggregate' => 'circular'],
+        'Rain'           => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Rain',              'metric' => 'rain',              'unit' => 'mm',  'chart' => 'Rain (mm)', 'aggregate' => 'sum'],
+        'Pressure'       => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Air pressure',      'metric' => 'air_pressure',      'unit' => 'hPa', 'chart' => 'Air pressure (hPa)'],
+        'PAR'            => ['category' => 'solar',   'group' => 'PAR',              'name' => 'PAR',               'metric' => 'par',               'unit' => 'µmol/m²/s', 'chart' => 'PAR (µmol/m²/s)'],
     ],
 
     // Sensor serial (without the "-1/-2/-3" channel) => where it is. Used to

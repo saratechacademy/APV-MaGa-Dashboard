@@ -226,6 +226,7 @@ class ThingsBoardSync
             'slug'                    => $slug,
             'unit'                    => $spec['unit'] ?? null,
             'data_type'               => $spec['data_type'] ?? 'float',
+            'metric'                  => $spec['metric'] ?? null,
             'input_type'              => 'sensor',
             'control_type'            => 'readonly',
             'group_name'              => $group->name,

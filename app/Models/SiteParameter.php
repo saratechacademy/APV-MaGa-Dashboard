@@ -11,7 +11,7 @@ class SiteParameter extends Model
     use HasFactory;
 
     protected $fillable = [
-        'site_category_id', 'name', 'slug', 'unit', 'data_type', 'input_type', 'control_type',
+        'site_category_id', 'name', 'slug', 'unit', 'data_type', 'metric', 'input_type', 'control_type',
         'group_name', 'site_parameter_group_id',
         'min_value', 'max_value', 'warning_threshold', 'critical_threshold', 'threshold_direction',
         'description', 'is_active', 'show_on_dashboard', 'sort_order',

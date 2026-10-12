@@ -1,0 +1,218 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\SensorReading;
+use App\Models\Site;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+
+/**
+ * Everything the "All Sites" overview shows, derived from parameter *metrics*
+ * (config/overview.php) rather than from parameter names or slugs, so it is
+ * correct for any site whatever created its parameters.
+ *
+ * Expects sites loaded with activeCategories.activeParameters.latestReading.
+ */
+class SiteOverview
+{
+    /** Bucket sizes (seconds) a time window is cut into, aiming at ~100 points. */
+    private const BUCKETS = [300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400];
+
+    /**
+     * Up to four KPI tiles for a site card: the mean of the latest readings of
+     * each metric, flagged stale when even the newest of them is older than
+     * its category's offline threshold. Fresh metrics come first; stale ones
+     * only fill the remaining tiles, so a sensor silent for months never
+     * hides a live one.
+     *
+     * @return array<int, array{metric: string, label: string, unit: string, value: float, at: Carbon, stale: bool}>
+     */
+    public function tiles(Site $site): array
+    {
+        $latest = $this->latestByMetric($site);
+
+        $tiles = [];
+        foreach (config('overview.tiles') as $metric) {
+            if (isset($latest[$metric])) {
+                $tiles[] = [
+                    'metric' => $metric,
+                    'label'  => config("overview.metrics.{$metric}.label"),
+                    'unit'   => config("overview.metrics.{$metric}.unit"),
+                    'value'  => array_sum($latest[$metric]['values']) / count($latest[$metric]['values']),
+                    'at'     => $latest[$metric]['at'],
+                    'stale'  => $latest[$metric]['stale'],
+                ];
+            }
+        }
+
+        // Stable: keeps the configured order within fresh and within stale.
+        usort($tiles, fn ($a, $b) => $a['stale'] <=> $b['stale']);
+
+        return array_slice($tiles, 0, 4);
+    }
+
+    /**
+     * The metric a site's sparkline shows: the first candidate with fresh
+     * data, else the first with any data, else none.
+     */
+    public function sparklineMetric(Site $site): ?string
+    {
+        $latest     = $this->latestByMetric($site);
+        $candidates = collect(config('overview.sparkline'))->filter(fn ($m) => isset($latest[$m]));
+
+        return $candidates->first(fn ($m) => !$latest[$m]['stale']) ?? $candidates->first();
+    }
+
+    /** @return array<string, array{values: float[], at: Carbon, stale: bool}> */
+    private function latestByMetric(Site $site): array
+    {
+        $latest = [];
+
+        foreach ($site->activeCategories as $category) {
+            foreach ($category->activeParameters as $parameter) {
+                $reading = $parameter->latestReading;
+                if (!$parameter->metric || !$reading || $reading->value === null) {
+                    continue;
+                }
+
+                $entry = &$latest[$parameter->metric];
+                $entry['values'][] = $reading->value;
+                if (!isset($entry['at']) || $reading->read_at->gt($entry['at'])) {
+                    $entry['at']    = $reading->read_at;
+                    $entry['stale'] = $reading->read_at->lt(now()->subMinutes($category->offline_threshold_minutes ?? 5));
+                }
+                unset($entry);
+            }
+        }
+
+        return $latest;
+    }
+
+    /**
+     * 'critical' / 'warning' when a fresh reading of any parameter crosses its
+     * threshold, 'normal' otherwise. Stale readings don't raise alerts: a
+     * sensor silent for a month says nothing about now.
+     */
+    public function status(Site $site): string
+    {
+        $status = 'normal';
+
+        foreach ($site->activeCategories as $category) {
+            $freshSince = now()->subMinutes($category->offline_threshold_minutes ?? 5);
+
+            foreach ($category->activeParameters as $parameter) {
+                $reading = $parameter->latestReading;
+                if (!$reading || $reading->read_at->lt($freshSince)) {
+                    continue;
+                }
+                if ($parameter->isCritical($reading->value)) {
+                    return 'critical';
+                }
+                if ($parameter->isWarn($reading->value)) {
+                    $status = 'warning';
+                }
+            }
+        }
+
+        return $status;
+    }
+
+    /**
+     * The cross-site charts to draw: the first four configured metrics that at
+     * least one of these sites has.
+     *
+     * @return string[]
+     */
+    public function chartMetrics(Collection $sites): array
+    {
+        $has = $sites->reduce(fn ($all, Site $site) => $all + $this->metricsOf($site), []);
+
+        return collect(config('overview.charts'))->filter(fn ($m) => isset($has[$m]))->take(4)->values()->all();
+    }
+
+    /**
+     * Per-metric, per-site series over [$from, $to] on one shared time axis:
+     * readings are averaged into fixed buckets, because sites (and sources)
+     * don't report at the same instants.
+     *
+     * @param  string[]  $metrics
+     * @return array{labels: string[], series: array<string, array<int, array{site_id: int, name: string, data: array<int, float|null>}>>}
+     */
+    public function series(Collection $sites, array $metrics, Carbon $from, Carbon $to): array
+    {
+        $fromTs = $from->getTimestamp();
+        $toTs   = $to->getTimestamp();
+        $span   = max(1, $toTs - $fromTs);
+        $bucket = collect(self::BUCKETS)->first(fn ($b) => $span / $b <= 100, 86400);
+
+        $first  = intdiv($fromTs, $bucket) * $bucket;
+        $count  = intdiv($toTs - $first, $bucket) + 1;
+        $format = $span > 48 * 3600 ? 'd/m H:i' : 'H:i';
+        $labels = [];
+        for ($i = 0; $i < $count; $i++) {
+            $labels[] = Carbon::createFromTimestamp($first + $i * $bucket, config('app.timezone'))->format($format);
+        }
+
+        // parameter id => [metric, site id]
+        $owners = [];
+        foreach ($sites as $site) {
+            foreach ($site->activeCategories as $category) {
+                foreach ($category->activeParameters as $parameter) {
+                    if (in_array($parameter->metric, $metrics, true)) {
+                        $owners[$parameter->id] = [$parameter->metric, $site->id];
+                    }
+                }
+            }
+        }
+
+        $sums = [];
+        SensorReading::query()->toBase()
+            ->select('site_parameter_id', 'value', 'read_at')
+            ->whereIn('site_parameter_id', array_keys($owners))
+            ->whereBetween('read_at', [$from, $to])
+            ->whereNotNull('value')
+            ->orderBy('id')
+            ->each(function ($row) use (&$sums, $owners, $first, $bucket) {
+                [$metric, $siteId] = $owners[$row->site_parameter_id];
+                $index = intdiv(Carbon::parse($row->read_at, config('app.timezone'))->getTimestamp() - $first, $bucket);
+                $cell  = &$sums[$metric][$siteId][$index];
+                $cell  = [($cell[0] ?? 0) + $row->value, ($cell[1] ?? 0) + 1];
+                unset($cell);
+            }, 2000);
+
+        $series = [];
+        foreach ($metrics as $metric) {
+            $series[$metric] = [];
+            foreach ($sites as $site) {
+                if (empty($sums[$metric][$site->id])) {
+                    continue;
+                }
+                $data = array_fill(0, $count, null);
+                foreach ($sums[$metric][$site->id] as $index => [$sum, $n]) {
+                    if ($index >= 0 && $index < $count) {
+                        $data[$index] = round($sum / $n, 2);
+                    }
+                }
+                $series[$metric][] = ['site_id' => $site->id, 'name' => $site->name, 'data' => $data];
+            }
+        }
+
+        return ['labels' => $labels, 'series' => $series];
+    }
+
+    /** @return array<string, true> */
+    private function metricsOf(Site $site): array
+    {
+        $metrics = [];
+        foreach ($site->activeCategories as $category) {
+            foreach ($category->activeParameters as $parameter) {
+                if ($parameter->metric) {
+                    $metrics[$parameter->metric] = true;
+                }
+            }
+        }
+
+        return $metrics;
+    }
+}

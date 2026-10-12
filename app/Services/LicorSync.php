@@ -200,6 +200,9 @@ class LicorSync
             'slug'                    => $slug,
             'unit'                    => $spec['unit'] ?? null,
             'data_type'               => 'float',
+            'metric'                  => $spec['metric'] === 'par' && $location
+                ? 'par_' . Str::slug($location, '_')
+                : $spec['metric'],
             'input_type'              => 'sensor',
             'control_type'            => 'readonly',
             'group_name'              => $group->name,

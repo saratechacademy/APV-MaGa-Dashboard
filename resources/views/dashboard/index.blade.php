@@ -4,10 +4,20 @@
 @section('show-toolbar', '1')
 @section('content')
 
+{{-- Everything on this page is derived from parameter metrics (config/overview.php,
+     App\Services\SiteOverview): each site shows the metrics it actually has, and
+     the cross-site charts compare one metric at a time, so titles and units are
+     always those of the data plotted. --}}
 
 @php
   $iconWarnTriangle = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
   $iconCheckCircle = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+  $metricInfo = config('overview.metrics');
+  $statusUi = [
+    'normal'   => ['card' => '',          'badge' => 'badge-ok',   'label' => 'Normal'],
+    'warning'  => ['card' => 'warn-card', 'badge' => 'badge-warn', 'label' => 'Warning'],
+    'critical' => ['card' => 'err-card',  'badge' => 'badge-err',  'label' => 'Critical'],
+  ];
 @endphp
 
 {{-- Section: Sites --}}
@@ -19,54 +29,44 @@
 <div class="cards-grid">
 @forelse($sites ?? [] as $site)
   @php
-    // KPI depuis sensor_readings
-    $solarCat   = $site->activeCategories->firstWhere('slug', 'solar');
-    $waterCat   = $site->activeCategories->firstWhere('slug', 'water');
-    $weatherCat = $site->activeCategories->firstWhere('slug', 'weather');
-
-    $kwParam    = $solarCat?->activeParameters->firstWhere('slug', 'solar_output');
-    $bhParam    = $waterCat?->activeParameters->firstWhere('slug', 'borehole_level');
-    $tankParam  = $waterCat?->activeParameters->firstWhere('slug', 'tank_fill_level');
-    $tempParam  = $weatherCat?->activeParameters->firstWhere('slug', 'temperature');
-
-    $kw   = $kwParam?->latestReading?->value;
-    $bh   = $bhParam?->latestReading?->value;
-    $tank = $tankParam?->latestReading?->value;
-    $temp = $tempParam?->latestReading?->value;
-
-    $isWarn = $bhParam?->isWarn($bh) ?? false;
+    $card = $cards[$site->id];
+    $ui   = $statusUi[$card['status']];
   @endphp
-  <a href="{{ route('dashboard.site', $site) }}" class="site-card {{ $isWarn ? 'warn-card' : '' }}">
+  <a href="{{ route('dashboard.site', $site) }}" class="site-card {{ $ui['card'] }}">
     <div class="card-head">
       <div class="card-name">{{ $site->name }}</div>
       <span class="country-chip">{{ strtoupper(substr($site->country, 0, 3)) }}</span>
-      <span class="badge {{ $isWarn ? 'badge-warn' : 'badge-ok' }}" style="margin-left:auto;display:inline-flex;align-items:center;gap:4px">
-        {!! $isWarn ? $iconWarnTriangle : $iconCheckCircle !!} {{ $isWarn ? 'Warning' : 'Normal' }}
+      <span class="badge {{ $ui['badge'] }}" style="margin-left:auto;display:inline-flex;align-items:center;gap:4px">
+        {!! $card['status'] === 'normal' ? $iconCheckCircle : $iconWarnTriangle !!} {{ $ui['label'] }}
       </span>
     </div>
-    <div class="kpis">
-      <div class="kpi">
-        <div class="kpi-val">{{ $kw !== null ? number_format((float)$kw, 1) : '—' }}</div>
-        <div class="kpi-lbl">kW Output</div>
+    @if($card['tiles'])
+      <div class="kpis">
+        @foreach($card['tiles'] as $tile)
+          {{-- A stale tile keeps its last value, greyed, and says how old it is:
+               a month-old soil moisture must not read as the current one. --}}
+          <div class="kpi" title="{{ $metricInfo[$tile['metric']]['title'] }} — last reading {{ $tile['at']->format('d M Y H:i') }} UTC">
+            <div class="kpi-val" style="{{ $tile['stale'] ? 'color:var(--muted)' : '' }}">{{ number_format($tile['value'], abs($tile['value']) >= 100 ? 0 : 1) }}<span style="font-size:10px;color:var(--muted);margin-left:2px">{{ $tile['unit'] }}</span></div>
+            <div class="kpi-lbl">{{ $tile['label'] }}</div>
+            @if($tile['stale'])
+              <div style="font-size:9px;color:var(--amber);margin-top:1px;white-space:nowrap">{{ $tile['at']->diffForHumans(null, true, true) }} ago</div>
+            @endif
+          </div>
+        @endforeach
       </div>
-      <div class="kpi">
-        <div class="kpi-val {{ $isWarn ? 'warn' : '' }}">{{ $bh !== null ? number_format((float)$bh, 1) : '—' }}</div>
-        <div class="kpi-lbl">Borehole m</div>
+    @else
+      <div class="kpis" style="grid-template-columns:1fr">
+        <div class="kpi"><div class="kpi-lbl" style="padding:8px 0">No sensor data yet</div></div>
       </div>
-      <div class="kpi">
-        <div class="kpi-val">{{ $tank !== null ? $tank.'%' : '—' }}</div>
-        <div class="kpi-lbl">Tank Fill</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-val">{{ $temp !== null ? number_format((float)$temp, 1).'°' : '—' }}</div>
-        <div class="kpi-lbl">Temp °C</div>
-      </div>
-    </div>
-    <div class="sparkline-wrap">
+    @endif
+    <div class="sparkline-wrap" style="position:relative">
       <canvas id="spark-{{ $site->id }}"></canvas>
+      @if($card['sparkline'])
+        <span style="position:absolute;top:0;left:0;font-size:9px;color:var(--muted)">{{ $metricInfo[$card['sparkline']]['title'] }} · <span class="lbl-range">last 24H</span></span>
+      @endif
     </div>
     <div class="statuses">
-      @foreach($site->activeCategories->take(3) as $cat)
+      @foreach($site->activeCategories as $cat)
       <span class="badge badge-ok">{{ $cat->icon }} {{ $cat->name }}</span>
       @endforeach
       @if($site->capacity_kw)
@@ -91,38 +91,24 @@
 @endforelse
 </div>
 
-{{-- Cross-site charts --}}
-@if(($sites ?? collect())->count() > 0)
+{{-- Cross-site charts: one per metric that at least one site has --}}
+@if(!empty($chartMetrics))
 <div class="sec-header" style="margin-top:20px">
   <span class="sec-title">Cross-Site Trends</span>
 </div>
 <div class="charts-row">
+  @foreach($chartMetrics as $metric)
   <div class="chart-card">
     <div class="cc-head">
-      <div><div class="cc-title">Solar Output (kW)</div><div class="cc-sub">All sites · <span id="lbl-solar-range">last 1h</span></div></div>
+      <div>
+        <div class="cc-title">{{ $metricInfo[$metric]['title'] }} ({{ $metricInfo[$metric]['unit'] }})</div>
+        <div class="cc-sub">Site average · <span class="lbl-range">last 24H</span></div>
+      </div>
     </div>
-    <div style="position:relative;height:140px"><canvas id="chart-solar"></canvas></div>
-    <div class="chart-legend" id="legend-solar"></div>
+    <div style="position:relative;height:140px"><canvas id="chart-{{ $metric }}"></canvas></div>
+    <div class="chart-legend" id="legend-{{ $metric }}"></div>
   </div>
-  <div class="chart-card">
-    <div class="cc-head">
-      <div><div class="cc-title">Borehole Water Level (m)</div><div class="cc-sub">All sites · <span id="lbl-water-range">last 1h</span></div></div>
-    </div>
-    <div style="position:relative;height:140px"><canvas id="chart-water"></canvas></div>
-    <div class="chart-legend" id="legend-water"></div>
-  </div>
-  <div class="chart-card">
-    <div class="cc-head">
-      <div><div class="cc-title">Air Temperature (°C)</div><div class="cc-sub">All sites · <span id="lbl-temp-range">last 1h</span></div></div>
-    </div>
-    <div style="position:relative;height:140px"><canvas id="chart-temp"></canvas></div>
-  </div>
-  <div class="chart-card">
-    <div class="cc-head">
-      <div><div class="cc-title">Tank Fill Level (%)</div><div class="cc-sub">All sites · current</div></div>
-    </div>
-    <div style="position:relative;height:140px"><canvas id="chart-tank"></canvas></div>
-  </div>
+  @endforeach
 </div>
 @endif
 
@@ -132,15 +118,11 @@
 <script>
 const COLORS = @json(\App\Models\SiteParameterGroup::palette());
 
-@php
-$sitesData = ($sites ?? collect())->map(fn($s) => [
-  'id'         => $s->id,
-  'name'       => $s->name,
-  'slug'       => $s->slug,
-  'categories' => $s->activeCategories->pluck('slug')->values(),
-])->values();
-@endphp
-const SITES = @json($sitesData);
+// A site keeps the same colour on every chart, whichever sites a chart includes.
+const SITE_COLOR = {};
+@json(($sites ?? collect())->pluck('id')->values()).forEach((id, i) => { SITE_COLOR[id] = COLORS[i % COLORS.length]; });
+
+const CHART_METRICS = @json($chartMetrics ?? []);
 
 const opts = {
   responsive: true, maintainAspectRatio: false,
@@ -151,121 +133,75 @@ const opts = {
   }
 };
 
-// Sparklines
-SITES.forEach((site, i) => {
-  const ctx = document.getElementById('spark-' + site.id);
-  if (!ctx || !(site.categories || []).includes('solar')) return;
-  fetch(`/dashboard/${site.slug}/solar/chart-data?hours=24`)
+const chartInstances = {};
+
+function draw(canvasId, config) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  if (chartInstances[canvasId]) { chartInstances[canvasId].destroy(); delete chartInstances[canvasId]; }
+  if (config) chartInstances[canvasId] = new Chart(ctx, config);
+}
+
+function loadOverview(query) {
+  fetch(`{{ route('dashboard.overview-data') }}?${query}`)
     .then(r => r.json())
     .then(json => {
-      if (!json.success || !json.datasets?.length) return;
-      const color = COLORS[i % COLORS.length];
-      new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: json.labels,
-          datasets: [{ data: json.datasets[0].data, borderColor: color,
-            backgroundColor: color+'18', borderWidth:1.5, pointRadius:0, tension:.4, fill:true }]
-        },
-        options: { ...opts, scales: { x:{display:false}, y:{display:false} }, plugins:{legend:{display:false}} }
+      if (!json.success) return;
+
+      CHART_METRICS.forEach(metric => {
+        const series = json.series[metric] || [];
+        const legend = document.getElementById('legend-' + metric);
+
+        if (!series.length) {
+          draw('chart-' + metric, null);
+          if (legend) legend.innerHTML = '<span class="legend-item">No data for selected period</span>';
+          return;
+        }
+
+        draw('chart-' + metric, {
+          type: 'line',
+          data: {
+            labels: json.labels,
+            datasets: series.map(s => ({
+              label: s.name, data: s.data,
+              borderColor: SITE_COLOR[s.site_id], backgroundColor: SITE_COLOR[s.site_id] + '18',
+              borderWidth: 2, pointRadius: 0, tension: .4, fill: series.length === 1, spanGaps: true,
+            })),
+          },
+          options: { ...opts, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } } },
+        });
+
+        if (legend) legend.innerHTML = series.map(s =>
+          `<span class="legend-item"><span class="legend-dot" style="background:${SITE_COLOR[s.site_id]}"></span>${s.name}</span>`
+        ).join('');
       });
-    }).catch(err => console.error('Chart data fetch failed:', err));
-});
 
-// Cross-site data
-const crossSolar = {}, crossWater = {}, crossTemp = {}, crossTank = {};
-
-function loadCrossData(hours, from, to) {
-  const query = (from && to) ? `from=${from}&to=${to}` : `hours=${hours}`;
-  SITES.forEach((site, i) => {
-    const cats = site.categories || [];
-
-    if (cats.includes('solar')) {
-      fetch(`/dashboard/${site.slug}/solar/chart-data?${query}`)
-        .then(r => r.json()).then(json => {
-          if (json.success && json.datasets?.length) {
-            crossSolar[site.id] = { name: site.name, labels: json.labels, data: json.datasets[0]?.data || [] };
-          }
-          buildCrossChart('chart-solar', crossSolar, 'legend-solar');
-        }).catch(err => console.error('Chart data fetch failed:', err));
-    }
-
-    if (cats.includes('water')) {
-      fetch(`/dashboard/${site.slug}/water/chart-data?${query}`)
-        .then(r => r.json()).then(json => {
-          if (json.success && json.datasets?.length) {
-            crossWater[site.id] = { name: site.name, labels: json.labels, data: json.datasets[0]?.data || [] };
-            const latest = json.datasets[0]?.data;
-            crossTank[site.id] = { name: site.name, data: latest?.[latest.length-1] || 0 };
-          }
-          buildCrossChart('chart-water', crossWater, 'legend-water');
-          buildTankChart();
-        }).catch(err => console.error('Chart data fetch failed:', err));
-    }
-
-    if (cats.includes('weather')) {
-      fetch(`/dashboard/${site.slug}/weather/chart-data?${query}`)
-        .then(r => r.json()).then(json => {
-          if (json.success && json.datasets?.length) {
-            crossTemp[site.id] = { name: site.name, labels: json.labels, data: json.datasets[0]?.data || [] };
-          }
-          buildCrossChart('chart-temp', crossTemp, null);
-        }).catch(err => console.error('Chart data fetch failed:', err));
-    }
-  });
+      // Sparklines: each site's own headline metric, from the same response.
+      Object.entries(json.sparklines || {}).forEach(([siteId, metric]) => {
+        const own = (json.series[metric] || []).find(s => String(s.site_id) === String(siteId));
+        draw('spark-' + siteId, own && {
+          type: 'line',
+          data: { labels: json.labels, datasets: [{ data: own.data, borderColor: SITE_COLOR[siteId],
+            backgroundColor: SITE_COLOR[siteId] + '18', borderWidth: 1.5, pointRadius: 0, tension: .4, fill: true, spanGaps: true }] },
+          options: { ...opts, scales: { x: { display: false }, y: { display: false } }, plugins: { legend: { display: false }, tooltip: { enabled: false } } },
+        });
+      });
+    })
+    .catch(err => console.error('Overview data fetch failed:', err));
 }
 
-const chartInstances = {};
-function buildCrossChart(id, data, legendId) {
-  const ctx = document.getElementById(id);
-  if (!ctx) return;
-  const ids = Object.keys(data);
-  if (!ids.length) return;
-  if (chartInstances[id]) chartInstances[id].destroy();
-  const allLabels = data[ids[0]]?.labels || [];
-  const datasets = ids.map((sid, i) => ({
-    label: data[sid].name,
-    data: data[sid].data,
-    borderColor: COLORS[i % COLORS.length],
-    backgroundColor: COLORS[i % COLORS.length]+'18',
-    borderWidth: 2, pointRadius: 0, tension: .4, fill: ids.length === 1,
-  }));
-  chartInstances[id] = new Chart(ctx, { type:'line', data:{ labels:allLabels, datasets }, options:{...opts,plugins:{legend:{display:false}}} });
-  if (legendId) {
-    const leg = document.getElementById(legendId);
-    if (leg) leg.innerHTML = ids.map((sid,i) =>
-      `<span class="legend-item"><span class="legend-dot" style="background:${COLORS[i%COLORS.length]}"></span>${data[sid].name}</span>`
-    ).join('');
-  }
-}
-
-function buildTankChart() {
-  const ctx = document.getElementById('chart-tank');
-  if (!ctx) return;
-  const ids = Object.keys(crossTank);
-  if (!ids.length) return;
-  if (chartInstances['chart-tank']) chartInstances['chart-tank'].destroy();
-  chartInstances['chart-tank'] = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ids.map(id => crossTank[id].name),
-      datasets: [{ data: ids.map(id => crossTank[id].data),
-        backgroundColor: COLORS.slice(0, ids.length), borderRadius: 6 }]
-    },
-    options: { ...opts, scales: { x: opts.scales.x, y: { ...opts.scales.y, min:0, max:100 } } }
-  });
-}
-
+// Top-bar 1H/6H/24H/7D/Custom (layouts/dashboard.blade.php's setRange) calls this.
 function onRangeChange(r, from, to) {
-  const h = r==='7d'?168:r==='24h'?24:r==='6h'?6:1;
-  const label = (r === 'custom' && from && to) ? `${from} → ${to}` : 'last '+r.toUpperCase();
-  ['solar','water','temp'].forEach(k => {
-    const el = document.getElementById('lbl-'+k+'-range');
-    if (el) el.textContent = label;
+  const custom = r === 'custom' && from && to;
+  const hours  = { '1h': 1, '6h': 6, '24h': 24, '7d': 168 }[r] ?? 24;
+
+  document.querySelectorAll('.lbl-range').forEach(el => {
+    el.textContent = custom ? `${from} → ${to}` : 'last ' + r.toUpperCase();
   });
-  loadCrossData(h, from, to);
+
+  loadOverview(custom ? `from=${from}&to=${to}` : `hours=${hours}`);
 }
 
-loadCrossData(24);
+loadOverview('hours=24');
 </script>
 @endpush

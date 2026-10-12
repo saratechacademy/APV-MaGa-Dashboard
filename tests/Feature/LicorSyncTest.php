@@ -111,10 +111,12 @@ class LicorSyncTest extends TestCase
 
         $par = SiteParameter::where('slug', 'licor_22261664_1')->first();
         $this->assertSame('Under PV – PAR', $par->name);
+        $this->assertSame('par_under_pv', $par->metric);
         $this->assertSame('solar', $par->category->slug);
 
         $temp = SiteParameter::where('slug', 'licor_22034652_1')->first();
         $this->assertSame('Air temperature – 22034652', $temp->name);
+        $this->assertSame('air_temperature', $temp->metric);
         $this->assertSame('weather', $temp->category->slug);
         $this->assertSame('Weather stations', $temp->group->name);
         $this->assertSame(['Air temperature (°C)', 'Wind (m/s)', 'Wind direction (°)', 'Rain (mm)'],
