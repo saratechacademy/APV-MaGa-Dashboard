@@ -34,7 +34,8 @@ class AdminController extends Controller
     // ── Users ──────────────────────────────────────────────────
     public function users()
     {
-        $users = User::latest()->get();
+        // Owned and assigned sites, for the "Sites" column (see the view).
+        $users = User::with(['sites:id,user_id', 'assignedSites:id'])->latest()->get();
         return view('admin.users', compact('users'));
     }
 

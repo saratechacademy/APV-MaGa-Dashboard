@@ -53,7 +53,11 @@
             {{ ucfirst($user->status) }}
           </span>
         </td>
-        <td style="font-family:'DM Mono',monospace">{{ $user->sites()->count() }}</td>
+        {{-- Sites the user can actually open: an admin sees every site; anyone
+             else, the ones they own or are assigned to (each counted once). --}}
+        <td style="font-family:'DM Mono',monospace" title="{{ $user->isAdmin() ? 'Administrators have access to every site' : 'Sites this user owns or is assigned to' }}">
+          {{ $user->isAdmin() ? 'All' : $user->sites->pluck('id')->merge($user->assignedSites->pluck('id'))->unique()->count() }}
+        </td>
         <td style="color:var(--muted)">{{ $user->created_at->format('d/m/Y') }}</td>
         <td>
           <div style="display:flex;gap:5px;flex-wrap:wrap">
