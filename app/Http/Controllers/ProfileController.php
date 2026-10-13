@@ -7,6 +7,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ProfileController extends Controller
@@ -42,6 +43,14 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
+
+        // The admin screen already refuses these deletions; the profile page
+        // let anyone do them to themselves.
+        if ($reason = $user->deletionBlocker()) {
+            throw ValidationException::withMessages([
+                'password' => "Your account can't be deleted: {$reason}",
+            ])->errorBag('userDeletion');
+        }
 
         Auth::logout();
 

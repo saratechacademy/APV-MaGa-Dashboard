@@ -27,10 +27,12 @@ class ManualReadingController extends Controller
         // Only parameters that actually belong to one of this site's categories
         // are valid targets — otherwise a param_id from another site (guessed
         // or seen elsewhere) could be submitted against this $site->id.
+        // ...and only those in use: a deactivated parameter, or one of a
+        // deactivated category, is no longer shown on the entry form.
         $siteParameters = SiteParameter::whereIn(
             'site_category_id',
-            $site->categories()->pluck('id')
-        )->where('input_type', 'manual')->get()->keyBy('id');
+            $site->activeCategories()->pluck('id')
+        )->where('input_type', 'manual')->where('is_active', true)->get()->keyBy('id');
 
         $validator = Validator::make($request->all(), [
             'readings'              => 'required|array',
@@ -39,7 +41,9 @@ class ManualReadingController extends Controller
             // of a group's fields and leave the rest blank — those blank rows
             // are silently skipped below, not treated as validation failures.
             'readings.*.value'      => 'nullable',
-            'reading_date'          => 'required|date',
+            // A measurement can't be taken in the future ("tomorrow" allows for
+            // users east of the server's clock, which runs on UTC).
+            'reading_date'          => 'required|date|before_or_equal:tomorrow',
             'notes'                 => 'nullable|string',
         ]);
 

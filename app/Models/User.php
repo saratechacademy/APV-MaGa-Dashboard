@@ -73,6 +73,43 @@ class User extends Authenticatable
     }
 
     /**
+     * True when this account is the only one left that can administer the
+     * platform: demoting, suspending or deleting it would lock everyone out.
+     */
+    public function isLastActiveAdmin(): bool
+    {
+        return $this->isAdmin() && $this->status === 'active'
+            && !self::where('role', self::ROLE_ADMIN)->where('status', 'active')->where('id', '!=', $this->id)->exists();
+    }
+
+    /**
+     * Why this account can't be deleted right now, or null when it can.
+     * sites.user_id and manual_readings.user_id both cascade on delete, so
+     * deleting an owner would silently erase their sites, with every category,
+     * parameter and reading, and deleting an agent would erase the field
+     * measurements they entered.
+     */
+    public function deletionBlocker(): ?string
+    {
+        if ($this->isLastActiveAdmin()) {
+            return 'it is the only active administrator account.';
+        }
+
+        $sites = $this->sites()->pluck('name');
+        if ($sites->isNotEmpty()) {
+            return 'it owns ' . $sites->count() . ' site(s) (' . $sites->implode(', ') . '), which would be deleted with all their data. '
+                . 'An administrator must assign those sites to someone else first.';
+        }
+
+        $readings = ManualReading::where('user_id', $this->id)->count();
+        if ($readings > 0) {
+            return "it has {$readings} manual reading(s) on record, which would be erased.";
+        }
+
+        return null;
+    }
+
+    /**
      * May this user change things on that site — enter manual readings,
      * switch actuators? Admins always. Otherwise the role the user was given
      * *on that site* (Manage Users) decides; a site's owner with no explicit

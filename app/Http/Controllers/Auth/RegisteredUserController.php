@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Mail\NewRegistrationMail;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,13 +37,30 @@ class RegisteredUserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'organisation' => ['nullable', 'string', 'max:255'],
+            'country' => ['nullable', 'string', 'max:100'],
+            'phone' => ['nullable', 'string', 'max:50'],
         ]);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'organisation' => $request->organisation,
+            'country' => $request->country,
+            'phone' => $request->phone,
         ]);
+
+        // The account waits for an administrator's approval: tell them, or it
+        // can sit unnoticed for months.
+        try {
+            $admins = User::where('role', User::ROLE_ADMIN)->where('status', 'active')->pluck('email');
+            if ($admins->isNotEmpty()) {
+                Mail::to($admins)->send(new NewRegistrationMail($user));
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Failed to notify administrators of the registration of {$user->email}: " . $e->getMessage());
+        }
 
         event(new Registered($user));
 

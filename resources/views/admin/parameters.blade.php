@@ -442,6 +442,7 @@
           <input type="hidden" name="name"              value="{{ $def['name'] }}">
           <input type="hidden" name="unit"              value="{{ $def['unit'] ?? '' }}">
           <input type="hidden" name="data_type"         value="{{ $def['data_type'] }}">
+          <input type="hidden" name="metric"            value="{{ $def['metric'] ?? '' }}">
           <input type="hidden" name="input_type"        value="{{ $def['input_type'] ?? 'sensor' }}">
           <input type="hidden" name="group_name"        value="{{ $def['group_name'] ?? '' }}">
           <input type="hidden" name="show_on_dashboard" value="{{ ($def['show_on_dashboard'] ?? true) ? '1' : '0' }}">

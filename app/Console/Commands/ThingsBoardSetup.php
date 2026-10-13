@@ -82,12 +82,7 @@ class ThingsBoardSetup extends Command
             $site->save();
             $linked++;
 
-            // Categories that already existed keep the 5-minute default, which
-            // flags every 15-20 minute device as stale between two reports.
-            $site->categories()
-                ->whereIn('slug', array_unique(array_column(config('thingsboard.sensors'), 'category')))
-                ->where('offline_threshold_minutes', '<', config('thingsboard.offline_threshold_minutes'))
-                ->update(['offline_threshold_minutes' => config('thingsboard.offline_threshold_minutes')]);
+            $site->alignOfflineThresholds('thingsboard');
         }
 
         if ($dryRun) {

@@ -84,6 +84,28 @@ class Site extends Model
         return $syncedAt?->gte(now()->subMinutes($lateAfterMinutes)) ? 'ok' : 'late';
     }
 
+    /**
+     * Brings this site's existing categories up to a data source's offline
+     * threshold. Devices on ThingsBoard report every 15-20 minutes and HOBOnet
+     * stations upload every few hours: a category left at the 5-minute default
+     * would look stale between two reports and alert at every cycle.
+     * Only ever raises a threshold; a longer one set by an admin is kept.
+     *
+     * @param  string  $source  'thingsboard' or 'licor'
+     */
+    public function alignOfflineThresholds(string $source): void
+    {
+        $slugs = $source === 'licor'
+            ? array_column(config('licor.measurements'), 'category')
+            : array_column(config('thingsboard.sensors'), 'category');
+        $threshold = config("{$source}.offline_threshold_minutes");
+
+        $this->categories()
+            ->whereIn('slug', array_unique($slugs))
+            ->where('offline_threshold_minutes', '<', $threshold)
+            ->update(['offline_threshold_minutes' => $threshold]);
+    }
+
     // Génère automatiquement le slug depuis le nom
     protected static function boot()
 

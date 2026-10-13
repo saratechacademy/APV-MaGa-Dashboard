@@ -840,7 +840,7 @@ function buildLegend(cat) {
   leg.innerHTML = cat.params.filter(p => activeParams[cat.slug][p.slug])
     .map(p => `<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)">
       <span style="width:10px;height:3px;background:${p.color};display:inline-block;border-radius:2px"></span>
-      ${p.name}${p.unit ? ' ('+p.unit+')' : ''}</span>`).join('');
+      ${esc(p.name)}${p.unit ? ' ('+esc(p.unit)+')' : ''}</span>`).join('');
 }
 
 // Admin charts via fetch — one loader per configured chart, callable again
@@ -867,20 +867,35 @@ function loadAdminChart(chartId, catSlug, paramConfigs, hasSecondAxis, chartType
       // where one of its own series has a value, labelled by date; otherwise
       // each bar would be one slot among thousands — a hairline.
       if (chartType === 'bar' && json.timestamps) {
-        const day  = ts => { const d = new Date(ts * 1000).toISOString(); return d.slice(8, 10) + '/' + d.slice(5, 7); };
-        const days = [];            // in order of appearance
+        const day   = ts => { const d = new Date(ts * 1000).toISOString(); return d.slice(8, 10) + '/' + d.slice(5, 7); };
+        const days  = [];           // in order of appearance
         const byDay = {};           // slug => day => value
+        let daily   = true;         // does every series have at most one value a day?
+        const keep  = [];           // slots where one of this chart's series has a value
         json.timestamps.forEach((ts, i) => {
+          let used = false;
           paramConfigs.forEach(p => {
             const v = (dataMap[p.slug] || [])[i];
             if (v == null) return;
+            used = true;
             const d = day(ts);
             if (!days.includes(d)) days.push(d);
-            (byDay[p.slug] ??= {})[d] = v;   // series of one day line up, whatever the time of their reading
+            if ((byDay[p.slug] ??= {})[d] !== undefined) daily = false;
+            byDay[p.slug][d] = v;
           });
+          if (used) keep.push(i);
         });
-        chartLabels = days;
-        paramConfigs.forEach(p => { dataMap[p.slug] = days.map(d => byDay[p.slug]?.[d] ?? null); });
+
+        if (daily) {
+          // A value per day (daily totals): one slot per date, so series of
+          // the same day line up whatever the time of their reading.
+          chartLabels = days;
+          paramConfigs.forEach(p => { dataMap[p.slug] = days.map(d => byDay[p.slug]?.[d] ?? null); });
+        } else {
+          // Ordinary readings drawn as bars: every reading keeps its bar.
+          chartLabels = keep.map(i => json.labels[i]);
+          paramConfigs.forEach(p => { if (dataMap[p.slug]) dataMap[p.slug] = keep.map(i => dataMap[p.slug][i]); });
+        }
         json = { ...json, timestamps: [] };
       }
 
@@ -909,7 +924,7 @@ function loadAdminChart(chartId, catSlug, paramConfigs, hasSecondAxis, chartType
     '{{ $cat->slug }}',
     [
       @foreach($chart->parameters as $p)
-      { slug: '{{ $p->slug }}', label: '{{ addslashes($p->name) }}{{ $p->unit ? " (".$p->unit.")" : "" }}', color: '{{ $p->pivot->color }}', fill: {{ $p->pivot->fill ? 'true' : 'false' }}, dashed: {{ $p->pivot->dashed ? 'true' : 'false' }}, axis: '{{ $p->pivot->axis === "right" ? "y2" : "y" }}' },
+      { slug: @json($p->slug), label: @json($p->name . ($p->unit ? " ({$p->unit})" : '')), color: '{{ $p->pivot->color }}', fill: {{ $p->pivot->fill ? 'true' : 'false' }}, dashed: {{ $p->pivot->dashed ? 'true' : 'false' }}, axis: '{{ $p->pivot->axis === "right" ? "y2" : "y" }}' },
       @endforeach
     ],
     {{ $chart->parameters->where('pivot.axis','right')->count() > 0 ? 'true' : 'false' }},

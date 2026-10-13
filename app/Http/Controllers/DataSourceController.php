@@ -62,6 +62,7 @@ class DataSourceController extends Controller
 
         $site->{$column} = $data['key'];
         $site->save();
+        $site->alignOfflineThresholds($data['source']);
 
         return back()->with('success', "\"{$data['key']}\" now feeds the site \"{$site->name}\". Its parameters and data appear after the next sync (within 10 minutes).");
     }

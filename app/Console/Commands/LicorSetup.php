@@ -83,13 +83,7 @@ class LicorSetup extends Command
 
             $this->addAgricultureParameters($site);
 
-            // Categories created with a shorter threshold (the 5-minute default,
-            // or an earlier value of this setting) would flag a working station
-            // as stale between two of its uploads.
-            $site->categories()
-                ->whereIn('slug', array_unique(array_column(config('licor.measurements'), 'category')))
-                ->where('offline_threshold_minutes', '<', config('licor.offline_threshold_minutes'))
-                ->update(['offline_threshold_minutes' => config('licor.offline_threshold_minutes')]);
+            $site->alignOfflineThresholds('licor');
         }
 
         if ($dryRun) {

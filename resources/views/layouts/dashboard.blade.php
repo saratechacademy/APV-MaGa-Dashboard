@@ -555,6 +555,13 @@ function toggleSidebarCollapse() {
   }
 })();
 
+// Names (sites, parameters) come from users: text put into innerHTML goes through this.
+function esc(text) {
+  const span = document.createElement('span');
+  span.textContent = text ?? '';
+  return span.innerHTML;
+}
+
 // Clock
 function updateClock(){
   const el = document.getElementById('sync-time');

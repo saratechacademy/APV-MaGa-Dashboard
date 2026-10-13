@@ -55,6 +55,10 @@ class AdminController extends Controller
 
     public function suspendUser(User $user)
     {
+        if ($user->isLastActiveAdmin()) {
+            return back()->with('error', "Can't suspend {$user->name}: it is the only active administrator account.");
+        }
+
         $user->status = 'suspended';
         $user->save();
         return back()->with('success', "User {$user->name} suspended.");
@@ -69,6 +73,10 @@ class AdminController extends Controller
 
     public function destroyUser(User $user)
     {
+        if ($user->isLastActiveAdmin()) {
+            return back()->with('error', "Can't delete {$user->name}: it is the only active administrator account.");
+        }
+
         // sites.user_id cascades on delete: deleting a site owner would silently
         // wipe out every category, parameter and historical reading on their
         // sites. Force the admin to reassign or delete those sites explicitly
@@ -183,8 +191,10 @@ class AdminController extends Controller
             'capacity_kw' => 'nullable|numeric',
             'area_m2'     => 'nullable|numeric',
             'description' => 'nullable|string',
-            'thingsboard_prefix' => 'nullable|string|max:50',
-            'licor_device_serial' => 'nullable|string|max:50',
+            // One source feeds one site: the same devices under two sites would
+            // store every reading twice, once per site.
+            'thingsboard_prefix' => ['nullable', 'string', 'max:50', Rule::unique('sites', 'thingsboard_prefix')->ignore($site->id)],
+            'licor_device_serial' => ['nullable', 'string', 'max:50', Rule::unique('sites', 'licor_device_serial')->ignore($site->id)],
             'tank_radius_cm'     => 'nullable|numeric|min:0',
             'tank_count'         => 'nullable|integer|min:1',
             'licor_locations'    => 'nullable|string|max:5000',
@@ -216,6 +226,15 @@ class AdminController extends Controller
         $site->status = $request->status;
         $site->save();
 
+        // A site newly fed by a slow source: its existing categories must not
+        // keep a threshold shorter than that source's reporting rhythm.
+        if ($site->wasChanged('thingsboard_prefix') && $site->thingsboard_prefix) {
+            $site->alignOfflineThresholds('thingsboard');
+        }
+        if ($site->wasChanged('licor_device_serial') && $site->licor_device_serial) {
+            $site->alignOfflineThresholds('licor');
+        }
+
         if ($locations != $previousLocations) {
             (new LicorSync(LicorClient::fromConfig()))->applyLocations($site, $previousLocations);
         }
@@ -240,6 +259,9 @@ class AdminController extends Controller
             $newSite->thingsboard_prefix = null;
             $newSite->licor_device_serial = null;
             $newSite->licor_locations = null;
+            // Nor inherit its sync results or alert state.
+            $newSite->thingsboard_synced_at = $newSite->thingsboard_sync_error = null;
+            $newSite->licor_synced_at = $newSite->licor_sync_error = null;
             $newSite->save();
 
             $categories = $site->categories()->with(['parameters', 'parameterGroups', 'charts.chartParameters'])->get();
@@ -247,6 +269,7 @@ class AdminController extends Controller
             foreach ($categories as $category) {
                 $newCategory = $category->replicate();
                 $newCategory->site_id = $newSite->id;
+                $newCategory->offline_since = null;
                 $newCategory->save();
 
                 $groupIdMap = [];
@@ -298,10 +321,17 @@ class AdminController extends Controller
     public function storeCategory(Request $request, Site $site)
     {
         $request->validate([
-            'name'                      => 'required|string|max:100',
+            'name' => [
+                'required', 'string', 'max:100',
+                // The slug is how pages, exports and the API address a category.
+                function ($attribute, $value, $fail) use ($site) {
+                    if ($site->categories()->where('slug', \Str::slug($value, '_'))->exists()) {
+                        $fail("This site already has a category named \"{$value}\".");
+                    }
+                },
+            ],
             'offline_threshold_minutes' => 'nullable|integer|min:1',
         ]);
-
         $slug = \Str::slug($request->name, '_');
         $category = $site->categories()->create([
             'name'                      => $request->name,
@@ -552,6 +582,15 @@ public function updateUser(Request $request, User $user)
         'status'       => 'required|in:active,pending,suspended',
     ]);
 
+    // The platform must keep one account able to administer it.
+    if ($user->isLastActiveAdmin() && ($request->role !== User::ROLE_ADMIN || $request->status !== 'active')) {
+        return back()->withInput()->withErrors([
+            'role' => "{$user->name} is the only active administrator: give the role to another active account first.",
+        ]);
+    }
+
+    $wasPending = $user->status === 'pending';
+
     $user->fill([
         'name'         => $request->name,
         'email'        => $request->email,
@@ -562,6 +601,15 @@ public function updateUser(Request $request, User $user)
     $user->role   = $request->role;
     $user->status = $request->status;
     $user->save();
+
+    // Approving through this form is the same event as the "Approve" button.
+    if ($wasPending && $user->status === 'active') {
+        try {
+            Mail::to($user->email)->send(new AccountApprovedMail($user));
+        } catch (\Throwable $e) {
+            \Log::warning("Failed to send approval email to {$user->email}: " . $e->getMessage());
+        }
+    }
 
     return redirect()->route('admin.users')
                      ->with('success', "User {$user->name} updated successfully.");

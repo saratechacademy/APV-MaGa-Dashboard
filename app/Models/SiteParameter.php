@@ -92,32 +92,32 @@ class SiteParameter extends Model
     {
         return match($categorySlug) {
             'solar' => [
-                ['name'=>'Solar output',      'slug'=>'solar_output',      'unit'=>'kW',   'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
+                ['name'=>'Solar output',      'slug'=>'solar_output',      'unit'=>'kW',   'data_type'=>'float',   'metric'=>'solar_output',     'input_type'=>'sensor', 'show_on_dashboard'=>true],
                 ['name'=>'Solar irradiance',  'slug'=>'solar_irradiance',  'unit'=>'W/m²', 'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
                 ['name'=>'Panel temperature', 'slug'=>'panel_temperature', 'unit'=>'°C',   'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true,  'warning_threshold'=>70, 'threshold_direction'=>'above'],
                 ['name'=>'System efficiency', 'slug'=>'system_efficiency', 'unit'=>'%',    'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
             ],
             'water' => [
-                ['name'=>'Borehole level',    'slug'=>'borehole_level',    'unit'=>'m',    'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true,  'warning_threshold'=>5],
-                ['name'=>'Tank fill level',   'slug'=>'tank_fill_level',   'unit'=>'%',    'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true,  'warning_threshold'=>20],
+                ['name'=>'Borehole level',    'slug'=>'borehole_level',    'unit'=>'m',    'data_type'=>'float',   'metric'=>'borehole_level',   'input_type'=>'sensor', 'show_on_dashboard'=>true,  'warning_threshold'=>5],
+                ['name'=>'Tank fill level',   'slug'=>'tank_fill_level',   'unit'=>'%',    'data_type'=>'float',   'metric'=>'tank_fill_level',  'input_type'=>'sensor', 'show_on_dashboard'=>true,  'warning_threshold'=>20],
                 ['name'=>'Water pump',        'slug'=>'water_pump',        'unit'=>null,   'data_type'=>'switch',  'input_type'=>'sensor', 'control_type'=>'controllable', 'show_on_dashboard'=>true],
             ],
             'irrigation' => [
                 ['name'=>'Flow rate',         'slug'=>'flow_rate',         'unit'=>'L/min','data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
-                ['name'=>'Zone A moisture',   'slug'=>'zone_a_moisture',   'unit'=>'%',    'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
-                ['name'=>'Zone B moisture',   'slug'=>'zone_b_moisture',   'unit'=>'%',    'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
-                ['name'=>'Zone C moisture',   'slug'=>'zone_c_moisture',   'unit'=>'%',    'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
+                ['name'=>'Zone A moisture',   'slug'=>'zone_a_moisture',   'unit'=>'%',    'data_type'=>'float',   'metric'=>'soil_moisture',    'input_type'=>'sensor', 'show_on_dashboard'=>true],
+                ['name'=>'Zone B moisture',   'slug'=>'zone_b_moisture',   'unit'=>'%',    'data_type'=>'float',   'metric'=>'soil_moisture',    'input_type'=>'sensor', 'show_on_dashboard'=>true],
+                ['name'=>'Zone C moisture',   'slug'=>'zone_c_moisture',   'unit'=>'%',    'data_type'=>'float',   'metric'=>'soil_moisture',    'input_type'=>'sensor', 'show_on_dashboard'=>true],
                 ['name'=>'Valve 1',           'slug'=>'valve_1',           'unit'=>null,   'data_type'=>'switch',  'input_type'=>'sensor', 'control_type'=>'controllable', 'show_on_dashboard'=>true],
                 ['name'=>'Valve 2',           'slug'=>'valve_2',           'unit'=>null,   'data_type'=>'switch',  'input_type'=>'sensor', 'control_type'=>'controllable', 'show_on_dashboard'=>true],
                 ['name'=>'Valve 3',           'slug'=>'valve_3',           'unit'=>null,   'data_type'=>'switch',  'input_type'=>'sensor', 'control_type'=>'controllable', 'show_on_dashboard'=>true],
                 ['name'=>'Cooling fan',       'slug'=>'cooling_fan',       'unit'=>null,   'data_type'=>'switch',  'input_type'=>'sensor', 'control_type'=>'controllable', 'show_on_dashboard'=>true],
             ],
             'weather' => [
-                ['name'=>'Temperature',       'slug'=>'temperature',       'unit'=>'°C',   'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
-                ['name'=>'Humidity',          'slug'=>'humidity',          'unit'=>'%',    'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
-                ['name'=>'Air pressure',      'slug'=>'air_pressure',      'unit'=>'hPa',  'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
-                ['name'=>'Wind speed',        'slug'=>'wind_speed',        'unit'=>'m/s',  'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
-                ['name'=>'Wind direction',    'slug'=>'wind_direction',    'unit'=>'°',    'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
+                ['name'=>'Temperature',       'slug'=>'temperature',       'unit'=>'°C',   'data_type'=>'float',   'metric'=>'air_temperature',  'input_type'=>'sensor', 'show_on_dashboard'=>true],
+                ['name'=>'Humidity',          'slug'=>'humidity',          'unit'=>'%',    'data_type'=>'float',   'metric'=>'relative_humidity','input_type'=>'sensor', 'show_on_dashboard'=>true],
+                ['name'=>'Air pressure',      'slug'=>'air_pressure',      'unit'=>'hPa',  'data_type'=>'float',   'metric'=>'air_pressure',     'input_type'=>'sensor', 'show_on_dashboard'=>true],
+                ['name'=>'Wind speed',        'slug'=>'wind_speed',        'unit'=>'m/s',  'data_type'=>'float',   'metric'=>'wind_speed',       'input_type'=>'sensor', 'show_on_dashboard'=>true],
+                ['name'=>'Wind direction',    'slug'=>'wind_direction',    'unit'=>'°',    'data_type'=>'float',   'metric'=>'wind_direction',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
                 ['name'=>'Solar irradiance',  'slug'=>'wx_irradiance',     'unit'=>'W/m²', 'data_type'=>'float',   'input_type'=>'sensor', 'show_on_dashboard'=>true],
             ],
             'agriculture' => [

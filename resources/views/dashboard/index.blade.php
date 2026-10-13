@@ -178,7 +178,7 @@ function loadOverview(query) {
         });
 
         if (legend) legend.innerHTML = series.map(s =>
-          `<span class="legend-item"><span class="legend-dot" style="background:${SITE_COLOR[s.site_id]}"></span>${s.name}</span>`
+          `<span class="legend-item"><span class="legend-dot" style="background:${SITE_COLOR[s.site_id]}"></span>${esc(s.name)}</span>`
         ).join('');
       });
 
