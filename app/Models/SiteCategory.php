@@ -14,7 +14,7 @@ class SiteCategory extends Model
         'description', 'is_active', 'sort_order', 'offline_threshold_minutes',
     ];
 
-    protected $casts = ['is_active' => 'boolean'];
+    protected $casts = ['is_active' => 'boolean', 'offline_since' => 'datetime'];
 
     /**
      * Minutes without a reading before a parameter of the category shows as

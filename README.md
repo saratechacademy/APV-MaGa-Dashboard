@@ -253,6 +253,19 @@ The weather stations (temperature, humidity, dew point, wind, gusts, wind direct
 
 ---
 
+## Offline alerts
+
+When part of a site stops sending data, the people concerned get an e-mail, and another one when the data comes back.
+
+- **What is watched**: each category of each active site (Irrigation, Water, Weather…), not the site as a whole — a site whose soil probes died while its weather station still reports is not "offline", yet someone has to look at the probes. A category is offline when none of its sensors has sent a reading within the category's **offline threshold** (Admin → Sites → Categories), the same rule that marks its cards "Stale".
+- **Who is told**: active administrators, plus the active users assigned to that site and its owner.
+- **How often**: once when it stops, once when it resumes. Categories of one site that change together share one message. Nothing is repeated while an outage lasts.
+- **Not announced**: a category that never reported, a deactivated category or site, manual-entry parameters, and silences that occur while the dashboard itself cannot reach ThingsBoard or LI-COR (the sync badge in Admin → Sites covers that case).
+
+The check runs every ten minutes from the scheduler (`php artisan sites:check-offline` runs it by hand) and needs working mail settings in `.env` (`MAIL_MAILER=smtp` and the SMTP account). The first run after installation records what is already silent without e-mailing about it.
+
+---
+
 ## Site presets
 
 `database/presets/sites.json` describes the sites the two `…:setup` commands create or link on a fresh installation: name, country, coordinates, ThingsBoard prefix, LI-COR station, tank geometry, sensor locations. It is deployment data, not code — edit it, or pass your own with `--presets=/path/to/file.json`. It is only read by the setup commands; once a site exists, everything in it is edited in the admin, and what an admin entered is never overwritten by the file.

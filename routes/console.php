@@ -21,6 +21,9 @@ Schedule::command('licor:sync')
     ->everyTenMinutes()
     ->when(fn () => filled(config('licor.token')));
 
+// Offline alerts, a few minutes after each sync so they judge fresh data.
+Schedule::command('sites:check-offline')->cron('5-59/10 * * * *');
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
