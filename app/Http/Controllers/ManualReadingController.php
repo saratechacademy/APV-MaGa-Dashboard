@@ -20,7 +20,7 @@ class ManualReadingController extends Controller
         $this->authorizeSiteAccess($site);
 
         $user = Auth::user();
-        if ($user->isObservateur()) {
+        if (!$user->canWriteTo($site)) {
             abort(403, 'Observers cannot submit manual readings.');
         }
 

@@ -233,7 +233,7 @@ class DashboardController extends Controller
         $site = Site::where('slug', $site)->orWhere('id', $site)->firstOrFail();
         $this->authorizeSiteAccess($site);
 
-        [$from, $to] = $this->resolveDateRange($request, 1);
+        [$from, $to] = $this->resolveDateRange($request, 24);
         $page    = max(1, (int) $request->input('page', 1));
         $perPage = 20;
 
@@ -247,29 +247,36 @@ class DashboardController extends Controller
             $sensorParams = $params->where('input_type', 'sensor');
             $manualParams = $params->where('input_type', 'manual');
 
-            $sensorReadings = \App\Models\SensorReading::where('site_id', $site->id)
+            // Only the timestamps of the requested page are read, then the
+            // readings at those timestamps: a 30-day window holds hundreds of
+            // thousands of readings, far too many to load and slice in PHP.
+            $offset = ($page - 1) * $perPage;
+
+            $sensorQuery = \App\Models\SensorReading::where('site_id', $site->id)
                 ->whereIn('site_parameter_id', $sensorParams->pluck('id'))
-                ->whereBetween('read_at', [$from, $to])
-                ->orderBy('read_at', 'desc')
-                ->get();
-            $sensorGrouped = $sensorReadings->groupBy(fn($r) => $r->read_at->format('Y-m-d H:i:s'));
+                ->whereBetween('read_at', [$from, $to]);
 
-            $manualReadings = \App\Models\ManualReading::where('site_id', $site->id)
+            $totalSensor  = (clone $sensorQuery)->distinct()->count('read_at');
+            $sensorStamps = (clone $sensorQuery)->toBase()->select('read_at')->distinct()
+                ->orderByDesc('read_at')->skip($offset)->take($perPage)->pluck('read_at');
+            $sensorPaged  = $sensorStamps->isEmpty() ? collect() : (clone $sensorQuery)
+                ->whereIn('read_at', $sensorStamps)->orderByDesc('read_at')->get()
+                ->groupBy(fn($r) => $r->read_at->format('Y-m-d H:i:s'));
+
+            $manualQuery = \App\Models\ManualReading::where('site_id', $site->id)
                 ->whereIn('site_parameter_id', $manualParams->pluck('id'))
-                ->whereBetween('reading_date', [$from, $to])
-                ->orderBy('reading_date', 'desc')
-                ->get();
-            $manualGrouped = $manualReadings->groupBy(fn($r) => $r->reading_date->format('Y-m-d H:i:s'));
+                ->whereBetween('reading_date', [$from, $to]);
 
-            $totalSensor = $sensorGrouped->count();
-            $totalManual = $manualGrouped->count();
+            $totalManual  = (clone $manualQuery)->distinct()->count('reading_date');
+            $manualStamps = (clone $manualQuery)->toBase()->select('reading_date')->distinct()
+                ->orderByDesc('reading_date')->skip($offset)->take($perPage)->pluck('reading_date');
+            $manualPaged  = $manualStamps->isEmpty() ? collect() : (clone $manualQuery)
+                ->whereIn('reading_date', $manualStamps)->orderByDesc('reading_date')->get()
+                ->groupBy(fn($r) => $r->reading_date->format('Y-m-d H:i:s'));
 
             if ($totalSensor === 0 && $totalManual === 0) continue;
 
             $totalPages  = max(1, (int) ceil(max($totalSensor, $totalManual) / $perPage));
-            $offset      = ($page - 1) * $perPage;
-            $sensorPaged = $sensorGrouped->slice($offset, $perPage);
-            $manualPaged = $manualGrouped->slice($offset, $perPage);
             $rawPage     = $page;
 
             $html .= view('dashboard.partials.raw-table', compact(

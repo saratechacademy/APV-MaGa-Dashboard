@@ -22,7 +22,7 @@ class ActuatorController extends Controller
 
         // Les observateurs sont en lecture seule : l'UI leur masque déjà le
         // toggle, mais il ne faut jamais se fier uniquement au client.
-        if (auth()->user()->isObservateur()) {
+        if (!auth()->user()->canWriteTo($site)) {
             abort(403, 'Observers cannot control actuators.');
         }
 

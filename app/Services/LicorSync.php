@@ -10,6 +10,7 @@ use App\Services\Concerns\BuildsSiteStructure;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -24,6 +25,9 @@ class LicorSync
     use BuildsSiteStructure;
 
     private const DAY_MS = 24 * 3600 * 1000;
+
+    /** How far behind the most advanced sensor an ordinary run looks. */
+    private const RECENT_WINDOW_MS = 6 * 3600 * 1000;
 
     public function __construct(private readonly LicorClient $client) {}
 
@@ -79,7 +83,7 @@ class LicorSync
                 // a week of 30 sensors does not fit in memory at once.
                 // Days are bucket-aligned, so no bucket straddles two of them.
                 $nowMs = $now->getTimestampMs();
-                for ($dayStart = min(array_column($targets, 2)); $dayStart < $nowMs; $dayStart += self::DAY_MS) {
+                for ($dayStart = $this->fetchFrom($site, array_column($targets, 2)); $dayStart < $nowMs; $dayStart += self::DAY_MS) {
                     $dayEnd  = min($dayStart + self::DAY_MS, $nowMs);
                     $records = $this->client->records($site->licor_device_serial, $dayStart, $dayEnd);
 
@@ -98,6 +102,29 @@ class LicorSync
         ])->save();
 
         return $stats;
+    }
+
+    /**
+     * Where to start fetching the station from. Normally a little before the
+     * most advanced sensor: if it started from the least advanced one, a
+     * single sensor that stopped (or never reported) would make every run
+     * re-download the whole station from further and further back.
+     *
+     * Once a day the fetch does start from the least advanced sensor, bounded
+     * by the lookback: HOBOnet motes buffer their data when out of range and
+     * deliver it late, and that is when it gets picked up.
+     *
+     * @param  int[]  $starts  each sensor's next missing bucket (epoch ms, bucket-aligned)
+     */
+    private function fetchFrom(Site $site, array $starts): int
+    {
+        $oldest = min($starts);
+
+        if (Cache::add("licor-catch-up:{$site->id}", true, now()->addDay())) {
+            return $oldest;
+        }
+
+        return max($oldest, max($starts) - self::RECENT_WINDOW_MS);
     }
 
     private function storeBuckets(Site $site, SiteParameter $parameter, array $spec, array $records, int $from, int $until, int $bucketMs, Carbon $now, array &$stats): void
@@ -141,7 +168,8 @@ class LicorSync
 
         DB::transaction(function () use ($rows) {
             foreach (array_chunk($rows, 500) as $chunk) {
-                SensorReading::insert($chunk);
+                // The table allows one reading per parameter and instant.
+                SensorReading::insertOrIgnore($chunk);
             }
         });
         $stats['stored'] += count($rows);

@@ -71,6 +71,29 @@ class User extends Authenticatable
     {
         return $this->role === self::ROLE_OBSERVER;
     }
+
+    /**
+     * May this user change things on that site — enter manual readings,
+     * switch actuators? Admins always. Otherwise the role the user was given
+     * *on that site* (Manage Users) decides; a site's owner with no explicit
+     * assignment falls back to the account's own role.
+     *
+     * Seeing the site at all is a separate question (AuthorizesSiteAccess).
+     */
+    public function canWriteTo(Site $site): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        $siteRole = $this->assignedSites()->where('sites.id', $site->id)->value('site_user.role');
+
+        if ($siteRole !== null) {
+            return $siteRole === self::ROLE_AGENT;
+        }
+
+        return $site->user_id === $this->id && !$this->isObservateur();
+    }
     public function isActive(): bool
     {
         return $this->status === 'active';

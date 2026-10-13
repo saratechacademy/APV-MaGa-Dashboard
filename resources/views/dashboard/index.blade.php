@@ -17,6 +17,8 @@
     'normal'   => ['card' => '',          'badge' => 'badge-ok',   'label' => 'Normal'],
     'warning'  => ['card' => 'warn-card', 'badge' => 'badge-warn', 'label' => 'Warning'],
     'critical' => ['card' => 'err-card',  'badge' => 'badge-err',  'label' => 'Critical'],
+    'offline'  => ['card' => 'warn-card', 'badge' => 'badge-warn', 'label' => 'No recent data'],
+    'nodata'   => ['card' => 'warn-card', 'badge' => 'badge-warn', 'label' => 'No data'],
   ];
 @endphp
 

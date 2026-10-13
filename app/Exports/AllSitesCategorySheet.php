@@ -39,7 +39,7 @@ class AllSitesCategorySheet implements FromCollection, WithHeadings, WithTitle, 
     {
         $params       = $this->category->activeParameters;
         $sensorParams = $params->where('input_type', 'sensor');
-        $manualParams = $params->where('input_type', 'manual')->where('data_type', '!=', 'string');
+        $manualParams = $params->where('input_type', 'manual');
 
         $headers = ['Timestamp'];
         foreach ($sensorParams as $p) {
@@ -57,7 +57,7 @@ class AllSitesCategorySheet implements FromCollection, WithHeadings, WithTitle, 
     {
         $params       = $this->category->activeParameters;
         $sensorParams = $params->where('input_type', 'sensor');
-        $manualParams = $params->where('input_type', 'manual')->where('data_type', '!=', 'string');
+        $manualParams = $params->where('input_type', 'manual');
 
         $rows = collect();
 

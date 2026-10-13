@@ -97,7 +97,33 @@ class SiteOverviewTest extends TestCase
         $cards = $this->actingAs($this->admin())->get(route('dashboard'))->viewData('cards');
 
         $this->assertSame('critical', $cards[$hot->id]['status']);
-        $this->assertSame('normal', $cards[$stale->id]['status']);
+        // The same alarming value a month ago raises nothing now — but a site
+        // that sends nothing isn't "normal" either.
+        $this->assertSame('offline', $cards[$stale->id]['status']);
+
+        $never = Site::factory()->create(['status' => 'active']);
+        $mixed = Site::factory()->create(['status' => 'active']);
+        $this->param($mixed, 'weather', 'air_temperature', ['2026-10-13 11:50:00' => 30]);
+        $this->param($mixed, 'irrigation', 'soil_moisture', ['2026-09-10 13:00:00' => 20]);
+
+        $response = $this->get(route('dashboard'))->assertOk()->assertSee('No recent data');
+        $cards = $response->viewData('cards');
+
+        $this->assertSame('nodata', $cards[$never->id]['status']);
+        // One source still reporting is enough for the site to be up.
+        $this->assertSame('normal', $cards[$mixed->id]['status']);
+    }
+
+    public function test_a_tile_averages_the_sensors_still_reporting(): void
+    {
+        $site = Site::factory()->create(['status' => 'active']);
+        $this->param($site, 'irrigation', 'soil_moisture', ['2026-10-13 11:50:00' => 20]);
+        $this->param($site, 'irrigation', 'soil_moisture', ['2026-10-13 11:40:00' => 24]);
+        $this->param($site, 'irrigation', 'soil_moisture', ['2026-09-10 13:00:00' => 80]);   // probe dead for a month
+
+        $tile = $this->actingAs($this->admin())->get(route('dashboard'))->viewData('cards')[$site->id]['tiles'][0];
+
+        $this->assertSame([22.0, false], [$tile['value'], $tile['stale']]);
     }
 
     public function test_the_live_badge_reflects_whether_data_is_actually_arriving(): void

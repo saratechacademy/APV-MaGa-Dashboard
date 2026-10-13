@@ -402,10 +402,11 @@ class SensorQueryEndpointsTest extends TestCase
         $category = $this->makeCategory($site);
         $param = $this->makeParam($category, ['slug' => 'solar_output', 'data_type' => 'float']);
 
-        foreach ([10, 20, 30] as $value) {
+        // Three readings the same day (a parameter has one reading per instant).
+        foreach (['10:00:00' => 10, '11:00:00' => 20, '12:00:00' => 30] as $time => $value) {
             SensorReading::factory()->create([
                 'site_id' => $site->id, 'site_parameter_id' => $param->id,
-                'value' => $value, 'read_at' => '2026-06-15 10:00:00',
+                'value' => $value, 'read_at' => '2026-06-15 ' . $time,
             ]);
         }
 

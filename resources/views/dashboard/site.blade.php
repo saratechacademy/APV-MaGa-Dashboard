@@ -100,7 +100,9 @@ select.ag-input{cursor:pointer}
   $categories = $site->activeCategories ?? collect();
   $firstSlug  = $categories->first()?->slug ?? 'raw';
   $COLORS = \App\Models\SiteParameterGroup::palette();
-  $canControl = auth()->user()->isAdmin() || !auth()->user()->isObservateur();
+  // The role held on this site decides, not the account's general role.
+  $canWrite   = auth()->user()->canWriteTo($site);
+  $canControl = $canWrite;
 @endphp
 
 {{-- TABS --}}
@@ -121,13 +123,13 @@ select.ag-input{cursor:pointer}
     Raw Data
   </button>
   <div style="margin-left:auto;display:flex">
-    @if(($hasManual ?? false) && !auth()->user()->isObservateur())
+    @if(($hasManual ?? false) && $canWrite)
     <button onclick="switchTab('manual-input',this)" data-tab="manual-input"
       style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:11px 16px;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#64748b;margin-bottom:-2px;white-space:nowrap;flex-shrink:0;outline:none">
       Manual Input
     </button>
     @endif
-    @if(auth()->user()->isAdmin() || (auth()->id() === $site->user_id && !auth()->user()->isObservateur()))
+    @if(auth()->user()->isAdmin() || (auth()->id() === $site->user_id && $canWrite))
     <button onclick="switchTab('apikey',this)" data-tab="apikey"
       style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:11px 16px;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#64748b;margin-bottom:-2px;white-space:nowrap;flex-shrink:0;outline:none">
       API Key
@@ -258,7 +260,7 @@ select.ag-input{cursor:pointer}
   @endif
 
   @php $allManualParams = $params->filter(fn($p) => ($p->input_type ?? 'sensor') === 'manual'); @endphp
-  @if($allManualParams->count() > 0 && ($hasManual ?? false) && !auth()->user()->isObservateur())
+  @if($allManualParams->count() > 0 && ($hasManual ?? false) && $canWrite)
   <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:8px;margin-bottom:14px;font-size:12px;color:var(--blue)">
     <span>{{ $allManualParams->count() }} manual parameter(s) in this category.</span>
     <button onclick="switchTab('manual-input', document.querySelector('[data-tab=manual-input]'))"
@@ -464,14 +466,14 @@ select.ag-input{cursor:pointer}
     <div style="display:flex;gap:6px" id="raw-period-btns">
       @foreach(['1h'=>'1H','6h'=>'6H','24h'=>'24H','7d'=>'7D','30d'=>'30D'] as $val=>$lbl)
       <button onclick="setRawPeriod('{{ $val }}', this)" data-period="{{ $val }}"
-        style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid {{ $val==='1h' ? '#1d6ed8' : 'var(--border)' }};background:{{ $val==='1h' ? '#1d6ed8' : 'var(--surface)' }};color:{{ $val==='1h' ? '#fff' : 'var(--muted)' }}">
+        style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid {{ $val==='24h' ? '#1d6ed8' : 'var(--border)' }};background:{{ $val==='24h' ? '#1d6ed8' : 'var(--surface)' }};color:{{ $val==='24h' ? '#fff' : 'var(--muted)' }}">
         {{ $lbl }}
       </button>
       @endforeach
     </div>
     <div style="display:flex;gap:8px">
-      <a href="/export/{{ $site->slug }}/all/csv?hours=1" id="btn-all-csv" class="btn" style="text-decoration:none">All CSV</a>
-      <a href="/export/{{ $site->slug }}/all/excel?hours=1" id="btn-all-excel" class="btn btn-blue" style="text-decoration:none">All Excel</a>
+      <a href="/export/{{ $site->slug }}/all/csv?hours=24" id="btn-all-csv" class="btn" style="text-decoration:none">All CSV</a>
+      <a href="/export/{{ $site->slug }}/all/excel?hours=24" id="btn-all-excel" class="btn btn-blue" style="text-decoration:none">All Excel</a>
     </div>
   </div>
 
@@ -528,7 +530,7 @@ select.ag-input{cursor:pointer}
 </div>
 
 {{-- API KEY TAB --}}
-@if(auth()->user()->isAdmin() || (auth()->id() === $site->user_id && !auth()->user()->isObservateur()))
+@if(auth()->user()->isAdmin() || (auth()->id() === $site->user_id && $canWrite))
 <div class="tab-panel" id="tab-apikey">
   <div class="chart-card" style="margin-bottom:14px">
     <div class="cc-title" style="margin-bottom:10px">API Key — {{ $site->name }}</div>
@@ -910,7 +912,7 @@ function onRangeChange(r, from, to) {
   adminChartLoaders.forEach(load => load());
 }
 
-let rawCurrentHours = 1, rawCurrentPage = 1;
+let rawCurrentHours = 24, rawCurrentPage = 1;
 
 function setRawPeriod(period, btn) {
   document.querySelectorAll('#raw-period-btns button').forEach(b => {

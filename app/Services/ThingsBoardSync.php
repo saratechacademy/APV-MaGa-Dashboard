@@ -119,6 +119,22 @@ class ThingsBoardSync
      */
     private function syncDevice(Site $site, string $deviceId, array $targets, Carbon $now, array &$stats): void
     {
+        // Parameters are fetched together only when they resume from the same
+        // instant (the keys of one device message always do). Otherwise one
+        // key that stopped, or never reported, would make every run re-read
+        // the others from as far back as that one.
+        $groups = [];
+        foreach ($targets as $target) {
+            $groups[$target[2]][] = $target;
+        }
+
+        foreach ($groups as $group) {
+            $this->syncKeys($site, $deviceId, $group, $now, $stats);
+        }
+    }
+
+    private function syncKeys(Site $site, string $deviceId, array $targets, Carbon $now, array &$stats): void
+    {
         $keys = array_values(array_unique(array_map(fn ($t) => $t[1]['key'], $targets)));
 
         for ($page = 0; $keys && $page < self::MAX_PAGES; $page++) {
@@ -164,7 +180,8 @@ class ThingsBoardSync
             // parameters ahead of others with no way to tell on the next run.
             DB::transaction(function () use ($rows) {
                 foreach (array_chunk($rows, 500) as $chunk) {
-                    SensorReading::insert($chunk);
+                    // The table allows one reading per parameter and instant.
+                    SensorReading::insertOrIgnore($chunk);
                 }
             });
             $stats['stored'] += count($rows);

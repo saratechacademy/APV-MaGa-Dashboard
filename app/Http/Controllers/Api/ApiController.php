@@ -36,8 +36,18 @@ class ApiController extends Controller
     {
         $site = $this->authenticate($request, $siteSlug);
 
-        $readAt = $request->input('read_at')
-            ? Carbon::parse($request->input('read_at'))
+        // A device with a wrong clock must not be able to plant a reading in
+        // the future: it would stay the parameter's "latest value" for good
+        // and make the site look online. A few minutes of drift are tolerated.
+        $request->validate([
+            'read_at' => ['nullable', 'date', 'before_or_equal:' . now()->addMinutes(10)->toDateTimeString()],
+        ], [
+            'read_at.date'            => 'read_at is not a valid date.',
+            'read_at.before_or_equal' => 'read_at is in the future; check the device clock.',
+        ]);
+
+        $readAt = $request->filled('read_at')
+            ? Carbon::parse($request->input('read_at'))->setTimezone(config('app.timezone'))
             : now();
 
         // Trouver la catégorie
@@ -82,13 +92,16 @@ class ApiController extends Controller
                 }
             }
 
-            SensorReading::create([
-                'site_id'           => $site->id,
-                'site_parameter_id' => $parameter->id,
-                'value'             => is_numeric($value) ? $value : null,
-                'value_text'        => !is_numeric($value) ? (string) $value : null,
-                'read_at'           => $readAt,
-            ]);
+            // One reading per parameter and instant: a device re-sending the
+            // same timestamp corrects its value instead of adding a second row.
+            SensorReading::updateOrCreate(
+                ['site_parameter_id' => $parameter->id, 'read_at' => $readAt->copy()->startOfSecond()],
+                [
+                    'site_id'    => $site->id,
+                    'value'      => is_numeric($value) ? $value : null,
+                    'value_text' => !is_numeric($value) ? (string) $value : null,
+                ],
+            );
 
             // Si ce paramètre est un actionneur contrôlable (switch), on enregistre
             // l'état RAPPORTÉ par l'ESP32 dans actuator_commands.reported_state.

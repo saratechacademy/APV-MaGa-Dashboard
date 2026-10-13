@@ -76,17 +76,25 @@ class SiteOverview
                     continue;
                 }
 
+                $fresh = $reading->read_at->gte(now()->subMinutes($category->offlineThresholdMinutes()));
+
                 $entry = &$latest[$parameter->metric];
-                $entry['values'][] = $reading->value;
+                $entry[$fresh ? 'fresh' : 'old'][] = $reading->value;
                 if (!isset($entry['at']) || $reading->read_at->gt($entry['at'])) {
-                    $entry['at']    = $reading->read_at;
-                    $entry['stale'] = $reading->read_at->lt(now()->subMinutes($category->offlineThresholdMinutes()));
+                    $entry['at'] = $reading->read_at;
                 }
                 unset($entry);
             }
         }
 
-        return $latest;
+        // The value shown is the mean of the sensors still reporting; one that
+        // went silent a month ago must not weigh on today's figure. Only when
+        // none is reporting are the last known values averaged, flagged stale.
+        return array_map(fn (array $entry) => [
+            'values' => $entry['fresh'] ?? $entry['old'],
+            'at'     => $entry['at'],
+            'stale'  => empty($entry['fresh']),
+        ], $latest);
     }
 
     /**
@@ -134,20 +142,27 @@ class SiteOverview
     /**
      * 'critical' / 'warning' when a fresh reading of any parameter crosses its
      * threshold, 'normal' otherwise. Stale readings don't raise alerts: a
-     * sensor silent for a month says nothing about now.
+     * sensor silent for a month says nothing about now. A site with no fresh
+     * reading at all is 'offline' (or 'nodata' if it never sent anything).
      */
     public function status(Site $site): string
     {
         $status = 'normal';
+        $anyReading = $anyFresh = false;
 
         foreach ($site->activeCategories as $category) {
             $freshSince = now()->subMinutes($category->offlineThresholdMinutes());
 
             foreach ($category->activeParameters as $parameter) {
                 $reading = $parameter->latestReading;
-                if (!$reading || $reading->read_at->lt($freshSince)) {
+                if (!$reading) {
                     continue;
                 }
+                $anyReading = true;
+                if ($reading->read_at->lt($freshSince)) {
+                    continue;
+                }
+                $anyFresh = true;
                 if ($parameter->isCritical($reading->value)) {
                     return 'critical';
                 }
@@ -155,6 +170,12 @@ class SiteOverview
                     $status = 'warning';
                 }
             }
+        }
+
+        // "Normal" is a statement about current readings: a site sending
+        // nothing can't be called normal.
+        if (!$anyFresh) {
+            return $anyReading ? 'offline' : 'nodata';
         }
 
         return $status;

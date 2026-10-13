@@ -34,7 +34,7 @@ class ExportController extends Controller
     {
         $params       = $category->activeParameters;
         $sensorParams = $params->where('input_type', 'sensor');
-        $manualParams = $params->where('input_type', 'manual')->where('data_type', '!=', 'string');
+        $manualParams = $params->where('input_type', 'manual');
 
         if ($sectionLabel !== null) {
             fputcsv($handle, SafeExport::row(['=== ' . $sectionLabel . ' ===']));
@@ -50,43 +50,49 @@ class ExportController extends Controller
         $headerRow[] = 'Type';
         fputcsv($handle, SafeExport::row($headerRow));
 
-        $sensorReadings = SensorReading::where('site_id', $site->id)
-            ->whereIn('site_parameter_id', $sensorParams->pluck('id'))
-            ->whereBetween('read_at', [$from, $to])
-            ->orderBy('read_at', 'desc')
-            ->get();
+        // Rows are streamed straight from the database, one timestamp at a
+        // time: a long window holds far more readings than fit in memory.
+        $writeRows = function ($query, string $dateColumn, $ownParams, int $leadingBlanks, int $trailingBlanks, string $type) use ($handle) {
+            $timestamp = null;
+            $values    = [];
 
-        foreach ($sensorReadings->groupBy(fn($r) => $r->read_at->format('Y-m-d H:i:s')) as $timestamp => $readings) {
-            $row = [$timestamp];
-            foreach ($sensorParams as $p) {
-                $r     = $readings->firstWhere('site_parameter_id', $p->id);
-                $row[] = $r ? ($r->value ?? $r->value_text ?? '') : '';
-            }
-            foreach ($manualParams as $p) {
-                $row[] = '';
-            }
-            $row[] = 'Sensor';
-            fputcsv($handle, SafeExport::row($row));
-        }
+            $flush = function () use (&$timestamp, &$values, $handle, $ownParams, $leadingBlanks, $trailingBlanks, $type) {
+                if ($timestamp === null) {
+                    return;
+                }
+                $row = array_merge([$timestamp], array_fill(0, $leadingBlanks, ''));
+                foreach ($ownParams as $p) {
+                    $row[] = $values[$p->id] ?? '';
+                }
+                $row = array_merge($row, array_fill(0, $trailingBlanks, ''), [$type]);
+                fputcsv($handle, SafeExport::row($row));
+                $values = [];
+            };
 
-        $manualReadings = ManualReading::where('site_id', $site->id)
-            ->whereIn('site_parameter_id', $manualParams->pluck('id'))
-            ->whereBetween('reading_date', [$from, $to])
-            ->orderBy('reading_date', 'desc')
-            ->get();
+            foreach ($query->orderBy($dateColumn, 'desc')->orderBy('id')->cursor() as $reading) {
+                $at = $reading->{$dateColumn}->format('Y-m-d H:i:s');
+                if ($at !== $timestamp) {
+                    $flush();
+                    $timestamp = $at;
+                }
+                $values[$reading->site_parameter_id] ??= $reading->value ?? $reading->value_text ?? '';
+            }
+            $flush();
+        };
 
-        foreach ($manualReadings->groupBy(fn($r) => $r->reading_date->format('Y-m-d H:i:s')) as $timestamp => $readings) {
-            $row = [$timestamp];
-            foreach ($sensorParams as $p) {
-                $row[] = '';
-            }
-            foreach ($manualParams as $p) {
-                $r     = $readings->firstWhere('site_parameter_id', $p->id);
-                $row[] = $r ? ($r->value ?? '') : '';
-            }
-            $row[] = 'Manual';
-            fputcsv($handle, SafeExport::row($row));
-        }
+        $writeRows(
+            SensorReading::where('site_id', $site->id)
+                ->whereIn('site_parameter_id', $sensorParams->pluck('id'))
+                ->whereBetween('read_at', [$from, $to]),
+            'read_at', $sensorParams, 0, $manualParams->count(), 'Sensor',
+        );
+
+        $writeRows(
+            ManualReading::where('site_id', $site->id)
+                ->whereIn('site_parameter_id', $manualParams->pluck('id'))
+                ->whereBetween('reading_date', [$from, $to]),
+            'reading_date', $manualParams, $sensorParams->count(), 0, 'Manual',
+        );
 
         if ($sectionLabel !== null) {
             fputcsv($handle, []); // Ligne vide entre catégories
