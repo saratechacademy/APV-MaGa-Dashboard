@@ -138,8 +138,10 @@
             $stack = [
               ['Framework', 'Laravel 12 (PHP 8.2 / 8.3)'],
               [$lang==='fr' ? 'Vues' : 'Views', 'Blade templates'],
-              [$lang==='fr' ? 'Base de données (prod)' : 'Database (prod)', 'MySQL 8'],
-              [$lang==='fr' ? 'Base de données (dev)' : 'Database (dev)', 'SQLite'],
+              [$lang==='fr' ? 'Base de données' : 'Database', $lang==='fr' ? 'SQLite (MySQL 8 possible)' : 'SQLite (MySQL 8 supported)'],
+              [$lang==='fr' ? 'Sources de données' : 'Data sources', 'ThingsBoard REST API, LI-COR Cloud API v2 (HOBOnet), REST API (ESP32)'],
+              [$lang==='fr' ? 'Tâches planifiées' : 'Scheduled tasks', 'Laravel scheduler (cron)'],
+              ['E-mail', 'SMTP'],
               [$lang==='fr' ? 'Graphiques' : 'Charts', 'Chart.js 4'],
               [$lang==='fr' ? 'Export' : 'Export', 'Maatwebsite/Excel (CSV / XLSX)'],
               [$lang==='fr' ? 'Authentification' : 'Authentication', 'Laravel Breeze (session-based)'],
@@ -155,7 +157,7 @@
 
         <div class="help-h2">{{ $lang==='fr' ? 'Flux de données' : 'Data Flow' }}</div>
         <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:20px;background:var(--bg);border-radius:8px;flex-wrap:wrap">
-          @foreach(['ESP32 / Agent terrain', '→', 'API / Formulaire', '→', 'SensorReading / ManualReading', '→', 'Dashboard + Export'] as $item)
+          @foreach(['ThingsBoard · LI-COR · ESP32 · Agent', '→', $lang==='fr' ? 'Sync planifiée / API / Formulaire' : 'Scheduled sync / API / Form', '→', 'SensorReading / ManualReading', '→', $lang==='fr' ? 'Dashboard + Export + Alertes' : 'Dashboard + Export + Alerts'] as $item)
           @if($item === '→')
           <span style="color:var(--muted);font-size:18px">→</span>
           @else
@@ -180,6 +182,13 @@
 │   ├── <span class="file">ExportController.php</span> <span class="comment">{{ $lang==='fr' ? '// Export CSV / Excel' : '// CSV / Excel export' }}</span>
 │   └── <span class="dir">Api/</span>
 │   └── <span class="file">ApiController.php</span> <span class="comment">{{ $lang==='fr' ? '// API ESP32 dynamique' : '// Dynamic ESP32 API' }}</span>
+├── <span class="dir">Services/</span>
+│   ├── <span class="file">ThingsBoardClient.php</span>, <span class="file">ThingsBoardSync.php</span>
+│   ├── <span class="file">LicorClient.php</span>, <span class="file">LicorSync.php</span>
+│   ├── <span class="file">SiteOverview.php</span> <span class="comment">{{ $lang==='fr' ? '// Indicateurs de la page All Sites' : '// All Sites page indicators' }}</span>
+│   └── <span class="file">SiteOfflineMonitor.php</span> <span class="comment">{{ $lang==='fr' ? '// Alertes e-mail hors ligne' : '// Offline e-mail alerts' }}</span>
+├── <span class="dir">Console/Commands/</span> <span class="comment">// thingsboard:*, licor:*, sites:check-offline</span>
+├── <span class="dir">Mail/</span>
 ├── <span class="dir">Exports/</span>
 │   └── <span class="file">ArrayExport.php</span>
 └── <span class="dir">Providers/</span>
@@ -209,7 +218,7 @@
         <div class="help-h2">{{ $lang==='fr' ? 'Prérequis' : 'Requirements' }}</div>
         <table class="help-table">
           <tbody>
-            @foreach(['PHP >= 8.2', 'Composer', 'Node.js + NPM', 'MySQL 8 ('.($lang==='fr'?'production':'production').') / SQLite ('.($lang==='fr'?'développement':'development').')', 'Extension PHP : pdo_sqlite ou pdo_mysql, mbstring, fileinfo'] as $req)
+            @foreach(['PHP >= 8.2', 'Composer', 'Node.js + NPM', 'SQLite '.($lang==='fr'?'ou':'or').' MySQL 8', 'Extension PHP : pdo_sqlite ou pdo_mysql, mbstring, fileinfo'] as $req)
             <tr><td>{{ $req }}</td></tr>
             @endforeach
           </tbody>
@@ -219,7 +228,7 @@
         <ol class="help-steps">
           @php
           $steps = $lang==='fr' ? [
-            'Cloner ou copier le projet dans <span class="help-code-inline">C:\Projects\apv-maga</span>',
+            'Cloner le dépôt : <span class="help-code-inline">git clone https://github.com/saratechacademy/APV-MaGa-Dashboard.git</span>',
             'Installer les dépendances PHP : <span class="help-code-inline">composer install</span>',
             'Copier <span class="help-code-inline">.env.example</span> vers <span class="help-code-inline">.env</span>',
             'Générer la clé d\'application : <span class="help-code-inline">php artisan key:generate</span>',
@@ -228,7 +237,7 @@
             'Créer le compte admin : <span class="help-code-inline">php artisan db:seed --class=AdminSeeder</span>',
             'Démarrer le serveur : <span class="help-code-inline">php artisan serve</span>',
           ] : [
-            'Clone or copy the project into <span class="help-code-inline">C:\Projects\apv-maga</span>',
+            'Clone the repository: <span class="help-code-inline">git clone https://github.com/saratechacademy/APV-MaGa-Dashboard.git</span>',
             'Install PHP dependencies: <span class="help-code-inline">composer install</span>',
             'Copy <span class="help-code-inline">.env.example</span> to <span class="help-code-inline">.env</span>',
             'Generate the app key: <span class="help-code-inline">php artisan key:generate</span>',
@@ -249,28 +258,38 @@ APP_ENV=local
 APP_KEY=base64:xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 APP_URL=http://127.0.0.1:8000
 
-# Production (MySQL)
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=apvmaga_user
-DB_USERNAME=apvmaga_user
-DB_PASSWORD=********
+DB_CONNECTION=sqlite
 
-# Local dev (SQLite)
-# DB_CONNECTION=sqlite</div>
+# ThingsBoard
+THINGSBOARD_URL=http://&lt;host&gt;:&lt;port&gt;
+THINGSBOARD_USERNAME=
+THINGSBOARD_PASSWORD=
+THINGSBOARD_LOOKBACK_DAYS=60
+
+# LI-COR Cloud (HOBOnet)
+LICOR_API_TOKEN=
+LICOR_LOOKBACK_DAYS=7
+
+# E-mail ({{ $lang==='fr' ? 'alertes, comptes' : 'alerts, accounts' }})
+MAIL_MAILER=smtp
+MAIL_HOST=
+MAIL_PORT=587
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_FROM_ADDRESS=</div>
+        <p class="help-p">{{ $lang==='fr' ? 'En production : APP_ENV=production, APP_DEBUG=false et APP_URL à l\'adresse publique en https://.' : 'In production: APP_ENV=production, APP_DEBUG=false and APP_URL set to the public https:// address.' }}</p>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Comptes par défaut' : 'Default Accounts' }}</div>
         <table class="help-table">
           <thead><tr><th>{{ $lang==='fr' ? 'Rôle' : 'Role' }}</th><th>Email</th><th>{{ $lang==='fr' ? 'Mot de passe' : 'Password' }}</th></tr></thead>
           <tbody>
-            <tr><td><strong>Admin</strong></td><td><span class="help-code-inline">admin@apvmaga.com</span></td><td><span class="help-code-inline">apvmaga@2026</span></td></tr>
+            <tr><td><strong>Admin</strong></td><td><span class="help-code-inline">admin@apvmaga.com</span></td><td>{{ $lang==='fr' ? 'défini dans' : 'set in' }} <span class="help-code-inline">database/seeders/AdminSeeder.php</span></td></tr>
           </tbody>
         </table>
 
         <div class="help-warn">
           <span style="flex-shrink:0;display:flex;align-items:center;margin-top:1px">{!! $iconWarning !!}</span>
-          <span>{{ $lang==='fr' ? 'Changez ce mot de passe immédiatement après la mise en production.' : 'Change this password immediately after going to production.' }}</span>
+          <span>{{ $lang==='fr' ? 'Changez ce mot de passe et remplacez cette adresse par une vraie boîte e-mail dès la mise en production : les alertes et les demandes d\'inscription y sont envoyées.' : 'Change this password and replace this address with a real mailbox as soon as you go to production: alerts and registration requests are sent to it.' }}</span>
         </div>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Commandes utiles' : 'Useful Commands' }}</div>
@@ -280,9 +299,18 @@ php artisan cache:clear
 php artisan config:clear
 php artisan route:clear
 
-# {{ $lang==='fr' ? 'Réinitialiser complètement la base de données' : 'Completely reset the database' }}
+# {{ $lang==='fr' ? 'Réinitialiser complètement la base de données (efface tout — jamais en production)' : 'Completely reset the database (erases everything — never in production)' }}
 php artisan migrate:fresh --force
 php artisan db:seed --class=DatabaseSeeder --force
+
+# ThingsBoard / LI-COR
+php artisan thingsboard:check        # {{ $lang==='fr' ? 'teste la connexion, liste les appareils' : 'tests the connection, lists the devices' }}
+php artisan thingsboard:sync
+php artisan licor:sync
+php artisan sites:check-offline
+
+# {{ $lang==='fr' ? 'Lancer les tests' : 'Run the tests' }}
+php artisan test
 
 # {{ $lang==='fr' ? 'Lister toutes les routes' : 'List all routes' }}
 php artisan route:list
@@ -1111,9 +1139,9 @@ $apiKey = 'apv-' . Str::random(32);</div>
         <div class="help-h2">{{ $lang==='fr' ? '9. Détection "No data" / "Stale" (appareils hors-ligne)' : '9. "No data" / "Stale" detection (offline devices)' }}</div>
         <p class="help-p">
           @if($lang==='fr')
-          Chaque <span class="help-code-inline">SiteCategory</span> a un champ <span class="help-code-inline">offline_threshold_minutes</span> (défaut: 5, modifiable via Admin → Categories → Edit). Dans <span class="help-code-inline">site.blade.php</span>, pour chaque paramètre sensor on calcule l'âge de la dernière lecture (<span class="help-code-inline">$readingsAt[$slug]</span>) et on compare à ce seuil.
+          Chaque <span class="help-code-inline">SiteCategory</span> a un champ <span class="help-code-inline">offline_threshold_minutes</span> (défaut: 5, modifiable via Admin → Categories → Edit ; porté à 60 pour ThingsBoard et 720 pour LI-COR par <span class="help-code-inline">Site::alignOfflineThresholds()</span> quand une source est liée). Dans <span class="help-code-inline">site.blade.php</span>, pour chaque paramètre sensor on calcule l'âge de la dernière lecture (<span class="help-code-inline">$readingsAt[$slug]</span>) et on compare à ce seuil.
           @else
-          Each <span class="help-code-inline">SiteCategory</span> has an <span class="help-code-inline">offline_threshold_minutes</span> field (default: 5, editable via Admin → Categories → Edit). In <span class="help-code-inline">site.blade.php</span>, for each sensor parameter we compute the age of the latest reading (<span class="help-code-inline">$readingsAt[$slug]</span>) and compare it to this threshold.
+          Each <span class="help-code-inline">SiteCategory</span> has an <span class="help-code-inline">offline_threshold_minutes</span> field (default: 5, editable via Admin → Categories → Edit; raised to 60 for ThingsBoard and 720 for LI-COR by <span class="help-code-inline">Site::alignOfflineThresholds()</span> when a source is linked). In <span class="help-code-inline">site.blade.php</span>, for each sensor parameter we compute the age of the latest reading (<span class="help-code-inline">$readingsAt[$slug]</span>) and compare it to this threshold.
           @endif
         </p>
 
@@ -1159,9 +1187,9 @@ $apiKey = 'apv-' . Str::random(32);</div>
         <div class="help-h1">{{ $lang==='fr' ? 'Déploiement (VPS / AAPanel)' : 'Deployment (VPS / AAPanel)' }}</div>
         <p class="help-p">
           @if($lang==='fr')
-          La plateforme est hébergée sur un VPS Hostinger géré via <strong>AAPanel</strong> (Nginx + PHP 8.3 + MySQL).
+          La plateforme est hébergée sur un VPS Hostinger géré via <strong>AAPanel</strong> (Nginx + PHP 8.3).
           @else
-          The platform is hosted on a Hostinger VPS managed via <strong>AAPanel</strong> (Nginx + PHP 8.3 + MySQL).
+          The platform is hosted on a Hostinger VPS managed via <strong>AAPanel</strong> (Nginx + PHP 8.3).
           @endif
         </p>
 
@@ -1170,9 +1198,9 @@ $apiKey = 'apv-' . Str::random(32);</div>
           <tbody>
             <tr><td><strong>URL</strong></td><td><span class="help-code-inline">{{ url('/') }}</span></td></tr>
             <tr><td><strong>{{ $lang==='fr'?'Panneau':'Panel' }}</strong></td><td>AAPanel</td></tr>
-            <tr><td><strong>{{ $lang==='fr'?'Chemin du projet':'Project path' }}</strong></td><td><span class="help-code-inline">/www/wwwroot/apvmaga</span></td></tr>
+            <tr><td><strong>{{ $lang==='fr'?'Chemin du projet':'Project path' }}</strong></td><td><span class="help-code-inline">{{ base_path() }}</span></td></tr>
             <tr><td><strong>PHP</strong></td><td>8.3</td></tr>
-            <tr><td><strong>{{ $lang==='fr'?'Base de données':'Database' }}</strong></td><td>MySQL — <span class="help-code-inline">apvmaga_user</span></td></tr>
+            <tr><td><strong>{{ $lang==='fr'?'Base de données':'Database' }}</strong></td><td><span class="help-code-inline">{{ config('database.default') }}</span></td></tr>
             <tr><td><strong>SSL</strong></td><td>{{ $lang==='fr' ? "Let's Encrypt (auto-renouvelé)" : "Let's Encrypt (auto-renewed)" }}</td></tr>
           </tbody>
         </table>
@@ -1181,29 +1209,62 @@ $apiKey = 'apv-' . Str::random(32);</div>
         <ol class="help-steps">
           @php
           $deploy = $lang==='fr' ? [
-            'En local, installer les dépendances de production : <span class="help-code-inline">composer install --optimize-autoloader --no-dev</span>',
-            'Compresser le projet (sans node_modules) : <span class="help-code-inline">Compress-Archive -Path C:\Projects\apv-maga\* -DestinationPath apvmaga-update.zip -Force</span>',
-            'AAPanel Files naviguer vers <span class="help-code-inline">/www/wwwroot/apvmaga</span>',
-            'Uploader le ZIP puis l\'extraire (écrase les fichiers existants)',
-            'Supprimer les anciens fichiers ZIP pour libérer de l\'espace',
-            'Dans le terminal VPS, vider les caches : <span class="help-code-inline">php artisan view:clear && php artisan cache:clear && php artisan config:clear</span>',
-            'Si les routes/migrations ont changé : <span class="help-code-inline">php artisan route:clear</span> et <span class="help-code-inline">php artisan migrate --force</span>',
-            'Recharger le site et vérifier visuellement',
+            'Sauvegarder la base avant toute mise à jour. Avec SQLite : <span class="help-code-inline">sqlite3 database/database.sqlite ".backup /chemin/copie.sqlite"</span>',
+            'Récupérer le code : <span class="help-code-inline">git pull origin main</span>',
+            'Mettre à jour les dépendances : <span class="help-code-inline">composer install --no-dev --optimize-autoloader</span>',
+            'Appliquer les migrations : <span class="help-code-inline">php artisan migrate --force</span>',
+            'Vider les caches : <span class="help-code-inline">php artisan view:clear && php artisan config:clear && php artisan cache:clear</span>',
+            'Recharger le site et vérifier : Admin → Sites doit afficher les badges de synchronisation « ok »',
           ] : [
-            'Locally, install production dependencies: <span class="help-code-inline">composer install --optimize-autoloader --no-dev</span>',
-            'Compress the project (excluding node_modules): <span class="help-code-inline">Compress-Archive -Path C:\Projects\apv-maga\* -DestinationPath apvmaga-update.zip -Force</span>',
-            'AAPanel Files navigate to <span class="help-code-inline">/www/wwwroot/apvmaga</span>',
-            'Upload the ZIP then extract it (overwrites existing files)',
-            'Delete old ZIP files to free up space',
-            'In the VPS terminal, clear caches: <span class="help-code-inline">php artisan view:clear && php artisan cache:clear && php artisan config:clear</span>',
-            'If routes/migrations changed: <span class="help-code-inline">php artisan route:clear</span> and <span class="help-code-inline">php artisan migrate --force</span>',
-            'Reload the site and check visually',
+            'Back up the database before any update. With SQLite: <span class="help-code-inline">sqlite3 database/database.sqlite ".backup /path/to/copy.sqlite"</span>',
+            'Fetch the code: <span class="help-code-inline">git pull origin main</span>',
+            'Update the dependencies: <span class="help-code-inline">composer install --no-dev --optimize-autoloader</span>',
+            'Apply the migrations: <span class="help-code-inline">php artisan migrate --force</span>',
+            'Clear the caches: <span class="help-code-inline">php artisan view:clear && php artisan config:clear && php artisan cache:clear</span>',
+            'Reload the site and check: Admin → Sites must show the sync badges as "ok"',
           ];
           @endphp
           @foreach($deploy as $step)
           <li>{!! $step !!}</li>
           @endforeach
         </ol>
+
+        <div class="help-warn">
+          <span style="flex-shrink:0;display:flex;align-items:center;margin-top:1px">{!! $iconWarning !!}</span>
+          <span>{{ $lang==='fr' ? 'Lancez ces commandes avec l\'utilisateur du serveur web (ex. sudo -u www php artisan …), sinon les fichiers de log et de cache appartiennent à root et le site ne peut plus y écrire.' : 'Run these commands as the web server user (e.g. sudo -u www php artisan …), otherwise log and cache files end up owned by root and the site can no longer write to them.' }}</span>
+        </div>
+
+        <div class="help-h2">{{ $lang==='fr' ? 'Tâches planifiées (synchronisations, alertes)' : 'Scheduled tasks (syncs, alerts)' }}</div>
+        <p class="help-p">{{ $lang==='fr' ? 'Le cron du serveur doit lancer le planificateur Laravel chaque minute, avec l\'utilisateur du serveur web. Sans lui, plus aucune donnée ThingsBoard ou LI-COR n\'arrive et aucune alerte ne part.' : 'The server cron must run the Laravel scheduler every minute, as the web server user. Without it, no ThingsBoard or LI-COR data arrives any more and no alert is sent.' }}</p>
+        <div class="help-code">* * * * * cd {{ base_path() }} && php artisan schedule:run >> /dev/null 2>&1</div>
+        <table class="help-table">
+          <thead><tr><th>{{ $lang==='fr' ? 'Commande' : 'Command' }}</th><th>{{ $lang==='fr' ? 'Fréquence' : 'Frequency' }}</th><th>{{ $lang==='fr' ? 'Rôle' : 'Purpose' }}</th></tr></thead>
+          <tbody>
+            @php
+            $tasks = $lang==='fr' ? [
+              ['thingsboard:sync', '10 min', 'Récupère la télémétrie ThingsBoard des sites liés (ThingsBoardSync).'],
+              ['licor:sync', '10 min', 'Récupère les stations LI-COR / HOBOnet, agrégées par pas de 10 minutes (LicorSync).'],
+              ['sites:check-offline', '10 min', 'Envoie les e-mails d\'arrêt et de retour des données par catégorie (SiteOfflineMonitor). Nécessite MAIL_MAILER=smtp.'],
+            ] : [
+              ['thingsboard:sync', '10 min', 'Pulls the ThingsBoard telemetry of the linked sites (ThingsBoardSync).'],
+              ['licor:sync', '10 min', 'Pulls the LI-COR / HOBOnet stations, aggregated in 10-minute steps (LicorSync).'],
+              ['sites:check-offline', '10 min', 'Sends the data-stopped and data-back e-mails per category (SiteOfflineMonitor). Needs MAIL_MAILER=smtp.'],
+            ];
+            @endphp
+            @foreach($tasks as $row)
+            <tr><td><span class="help-code-inline">{{ $row[0] }}</span></td><td>{{ $row[1] }}</td><td>{{ $row[2] }}</td></tr>
+            @endforeach
+          </tbody>
+        </table>
+        <p class="help-p">
+          @if($lang==='fr')
+          Première installation des sources : <span class="help-code-inline">php artisan thingsboard:setup</span> puis <span class="help-code-inline">php artisan licor:setup</span> (ajoutez <span class="help-code-inline">--dry-run</span> pour prévisualiser). Elles créent ou relient les sites du fichier <span class="help-code-inline">database/presets/sites.json</span> et peuvent être relancées sans risque. Un site absent du fichier se relie depuis Admin → Data sources. Le détail est dans le README.
+          <br>HTTPS : si <span class="help-code-inline">APP_URL</span> commence par <span class="help-code-inline">https://</span>, les pages demandées en http:// sont redirigées vers https:// (middleware <span class="help-code-inline">ForceHttps</span>).
+          @else
+          First installation of the sources: <span class="help-code-inline">php artisan thingsboard:setup</span> then <span class="help-code-inline">php artisan licor:setup</span> (add <span class="help-code-inline">--dry-run</span> to preview). They create or link the sites of <span class="help-code-inline">database/presets/sites.json</span> and are safe to run again. A site that is not in the file is linked from Admin → Data sources. Details are in the README.
+          <br>HTTPS: when <span class="help-code-inline">APP_URL</span> starts with <span class="help-code-inline">https://</span>, pages requested over http:// are redirected to https:// (<span class="help-code-inline">ForceHttps</span> middleware).
+          @endif
+        </p>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Pièges connus (AAPanel)' : 'Known Pitfalls (AAPanel)' }}</div>
         <table class="help-table">
@@ -1229,12 +1290,12 @@ $apiKey = 'apv-' . Str::random(32);</div>
         </table>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Réinitialiser les données (démo / tests)' : 'Resetting data (demo / testing)' }}</div>
-        <div class="help-code">cd /www/wwwroot/apvmaga
+        <div class="help-code">cd {{ base_path() }}
 php artisan migrate:fresh --force
 php artisan db:seed --class=DatabaseSeeder --force</div>
         <div class="help-warn">
           <span style="flex-shrink:0;display:flex;align-items:center;margin-top:1px">{!! $iconWarning !!}</span>
-          <span>{{ $lang==='fr' ? 'Cette commande supprime TOUTES les données (sites, lectures, utilisateurs sauf admin). À utiliser uniquement en phase de test.' : 'This command deletes ALL data (sites, readings, users except admin). Use only during testing phase.' }}</span>
+          <span>{{ $lang==='fr' ? 'Cette commande supprime TOUTES les données (sites, lectures, utilisateurs sauf admin). À utiliser uniquement en phase de test, jamais sur un serveur contenant des mesures réelles.' : 'This command deletes ALL data (sites, readings, users except admin). Use only during testing, never on a server holding real measurements.' }}</span>
         </div>
       </div>
     </div>

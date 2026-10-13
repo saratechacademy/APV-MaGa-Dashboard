@@ -12,6 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
     health: '/up',
 )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->prepend(\App\Http\Middleware\ForceHttps::class);
         $middleware->alias([
             'check.status' => \App\Http\Middleware\CheckUserStatus::class,
             'admin'        => \App\Http\Middleware\AdminMiddleware::class,

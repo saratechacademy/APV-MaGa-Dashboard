@@ -302,7 +302,7 @@ php artisan config:clear
 php artisan cache:clear
 ```
 
-Run these as the web server user (e.g. `sudo -u www php artisan ...`), otherwise log and cache files end up owned by `root` and the site can no longer write to them. `.env` must have `APP_ENV=production`, `APP_DEBUG=false` and `APP_URL` set to the public address.
+Run these as the web server user (e.g. `sudo -u www php artisan ...`), otherwise log and cache files end up owned by `root` and the site can no longer write to them. `.env` must have `APP_ENV=production`, `APP_DEBUG=false` and `APP_URL` set to the public address. When `APP_URL` starts with `https://`, pages requested over `http://` are redirected to HTTPS (API `POST`s are not, so a device still configured with an `http://` address keeps delivering its readings).
 
 The server cron must run the Laravel scheduler every minute (it drives the ThingsBoard sync):
 ```

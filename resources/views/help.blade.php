@@ -86,7 +86,8 @@
           ['6', 'Raw Data & Export'],
           ['7', 'API ESP32'],
           ['8', 'Administration'],
-          ['9', 'FAQ'],
+          ['9', 'Sources & Alertes'],
+          ['10', 'FAQ'],
         ] : [
           ['1', 'Introduction'],
           ['2', 'Login & Roles'],
@@ -96,7 +97,8 @@
           ['6', 'Raw Data & Export'],
           ['7', 'ESP32 API'],
           ['8', 'Administration'],
-          ['9', 'FAQ'],
+          ['9', 'Sources & Alerts'],
+          ['10', 'FAQ'],
         ];
       @endphp
       @foreach($sections as $i => $s)
@@ -132,7 +134,7 @@
           APV-MaGa est un tableau de bord de monitoring développé par <strong>Saratech</strong> pour la collecte
           et la surveillance en temps réel des installations agrivoltaïques, partout dans le monde.
           <br><br>
-          La plateforme reçoit automatiquement les données des capteurs et systèmes IoT (ESP32, Arduino) via une
+          La plateforme récupère automatiquement, toutes les 10 minutes, les mesures des capteurs connectés à <strong>ThingsBoard</strong> (humidité du sol, vannes, débit, cuve) et des stations <strong>LI-COR / HOBOnet</strong> (météo, PAR). Elle accepte aussi les données d'appareils IoT (ESP32, Arduino) via une
           API REST dynamique. Elle permet également la saisie manuelle par les agents de terrain pour les paramètres
           importants non collectés par les capteurs — tels que la taille des plantes, le nombre de feuilles,
           le rendement de récolte en kg ou en valeur monétaire.
@@ -143,7 +145,7 @@
           APV-MaGa is a monitoring dashboard developed by <strong>Saratech</strong> for the collection
           and real-time surveillance of agrivoltaic installations, anywhere in the world.
           <br><br>
-          The platform automatically receives data from IoT sensors and systems (ESP32, Arduino) via a
+          Every 10 minutes the platform automatically collects the measurements of the sensors connected to <strong>ThingsBoard</strong> (soil moisture, valves, flow, tank) and of the <strong>LI-COR / HOBOnet</strong> stations (weather, PAR). It also accepts data from IoT devices (ESP32, Arduino) via a
           dynamic REST API. It also allows manual entry by field agents for important parameters not collected
           by sensors — such as plant height, leaf count, harvest yield in kg or monetary value.
           <br><br>
@@ -156,19 +158,23 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           @php
           $features = $lang==='fr' ? [
-            ['Temps réel', 'Données actualisées automatiquement toutes les 30 secondes'],
-            ['API dynamique', 'Endpoint REST pour chaque catégorie de capteur'],
+            ['Temps réel', 'Affichage actualisé automatiquement, sans recharger la page'],
+            ['Sources automatiques', 'ThingsBoard, LI-COR (HOBOnet) et API REST pour ESP32'],
             ['Graphiques', 'Visualisation Chart.js avec filtre de période'],
             ['Saisie manuelle', 'Formulaires structurés pour les données terrain'],
             ['Export', 'CSV et Excel par catégorie ou site complet'],
             ['Multi-utilisateurs', 'Rôles Admin, Agent, Observateur'],
+            ['Alertes e-mail', 'Message quand une partie d\'un site cesse d\'envoyer des données'],
+            ['Valeurs calculées', 'Volume de la cuve, consommation d\'eau journalière'],
           ] : [
-            ['Real-time', 'Data automatically refreshed every 30 seconds'],
-            ['Dynamic API', 'REST endpoint for each sensor category'],
+            ['Real-time', 'Display refreshed automatically, without reloading the page'],
+            ['Automatic sources', 'ThingsBoard, LI-COR (HOBOnet) and REST API for ESP32'],
             ['Charts', 'Chart.js visualization with period filter'],
             ['Manual entry', 'Structured forms for field data'],
             ['Export', 'CSV and Excel by category or full site'],
             ['Multi-user', 'Admin, Agent, Observer roles'],
+            ['E-mail alerts', 'A message when part of a site stops sending data'],
+            ['Computed values', 'Tank volume, daily water use'],
           ];
           @endphp
           @foreach($features as $f)
@@ -183,7 +189,7 @@
 
         <div class="help-h2">{{ $lang==='fr' ? 'Architecture du système' : 'System Architecture' }}</div>
         <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:20px;background:var(--bg);border-radius:8px;flex-wrap:wrap">
-          @foreach(['ESP32 / Arduino', '→', 'API REST', '→', 'Base de données', '→', 'Dashboard Web'] as $item)
+          @foreach(['ThingsBoard · LI-COR · ESP32', '→', $lang==='fr' ? 'Synchronisation / API' : 'Sync / API', '→', $lang==='fr' ? 'Base de données' : 'Database', '→', $lang==='fr' ? 'Dashboard & alertes' : 'Dashboard & alerts'] as $item)
           @if($item === '→')
           <span style="color:var(--muted);font-size:18px">→</span>
           @else
@@ -201,7 +207,8 @@
 
         <div class="help-h2">{{ $lang==='fr' ? 'Connexion' : 'Login' }}</div>
         <p class="help-p">{{ $lang==='fr' ? 'Accédez à la plateforme via votre navigateur et entrez vos identifiants.' : 'Access the platform via your browser and enter your credentials.' }}</p>
-        <div class="help-code">https://votre-domaine.com/login</div>
+        <div class="help-code">{{ url('/login') }}</div>
+        <p class="help-p">{{ $lang==='fr' ? 'Pas encore de compte ? La page d\'inscription enregistre une demande : le compte reste en attente jusqu\'à son approbation par un administrateur, et vous recevez un e-mail dès qu\'il est activé.' : 'No account yet? The registration page records a request: the account stays pending until an administrator approves it, and you get an e-mail as soon as it is activated.' }}</p>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Rôles utilisateurs' : 'User Roles' }}</div>
         <div class="role-card" style="background:var(--blue-bg);border-color:var(--blue-bd)">
@@ -228,6 +235,9 @@
             </div>
           </div>
         </div>
+        <div class="help-tip">
+          <span>{{ $lang==='fr' ? 'Le rôle Agent ou Observateur se choisit aussi site par site : une même personne peut saisir des données sur un site et seulement consulter un autre.' : 'The Agent or Observer role is also chosen site by site: the same person can enter data on one site and only view another.' }}</span>
+        </div>
       </div>
     </div>
 
@@ -243,16 +253,18 @@
           <tbody>
             @php
             $ui = $lang==='fr' ? [
-              ['Sidebar', 'Liste des sites avec statut coloré (vert=actif, orange=alerte)'],
+              ['Sidebar', 'Liste des sites avec statut coloré (vert=actif, orange=alerte). Sur ordinateur elle se réduit aux icônes ; le choix est mémorisé.'],
+              ['Badge Live', 'Vert = des données arrivent ; orange = la dernière donnée est trop ancienne ; gris = aucune donnée. Survolez-le pour voir l\'heure de la dernière lecture.'],
               ['Topbar', 'Titre, horloge UTC, filtre période 1H/6H/24H/7D/Custom (dates précises), boutons CSV/Excel'],
-              ['Carte de site', 'KPIs : puissance solaire, niveau forage, remplissage cuve, température'],
-              ['Sparkline', 'Mini-graphique de la dernière heure'],
+              ['Carte de site', 'Indicateurs disponibles pour le site (humidité du sol, cuve, météo, PAR…) et son statut : Normal, Warning, Critical, No recent data ou No data'],
+              ['Sparkline', 'Mini-graphique de l\'indicateur principal du site'],
               ['Cross-Site Trends', 'Graphiques comparatifs entre tous les sites'],
             ] : [
-              ['Sidebar', 'Sites list with colored status (green=active, orange=alert)'],
+              ['Sidebar', 'Sites list with colored status (green=active, orange=alert). On a computer it collapses to icons; the choice is remembered.'],
+              ['Live badge', 'Green = data is arriving; orange = the latest data is too old; grey = no data. Hover it to see the time of the last reading.'],
               ['Topbar', 'Title, UTC clock, period filter 1H/6H/24H/7D/Custom (exact dates), CSV/Excel buttons'],
-              ['Site Card', 'KPIs: solar power, borehole level, tank fill, temperature'],
-              ['Sparkline', 'Mini-chart of the last hour'],
+              ['Site Card', 'Indicators available for the site (soil moisture, tank, weather, PAR…) and its status: Normal, Warning, Critical, No recent data or No data'],
+              ['Sparkline', 'Mini-chart of the site\'s main indicator'],
               ['Cross-Site Trends', 'Comparative charts across all sites'],
             ];
             @endphp
@@ -263,7 +275,7 @@
         </table>
 
         <div class="help-tip">
-          <span>{{ $lang==='fr' ? 'Les données se rafraîchissent automatiquement toutes les 30 secondes sans recharger la page.' : 'Data refreshes automatically every 30 seconds without reloading the page.' }}</span>
+          <span>{{ $lang==='fr' ? 'L\'affichage se rafraîchit automatiquement sans recharger la page : chaque minute ici, toutes les 30 secondes sur la page d\'un site.' : 'The display refreshes automatically without reloading the page: every minute here, every 30 seconds on a site\'s page.' }}</span>
         </div>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Période personnalisée' : 'Custom Date Range' }}</div>
@@ -331,7 +343,7 @@
           </div>
           <div style="padding:12px;border-radius:8px;border:1px solid var(--amber-bd);background:var(--amber-bg)">
             <div style="font-size:11px;font-weight:600;color:var(--amber);margin-bottom:4px">Stale (Xm)</div>
-            <div style="font-size:12px;color:var(--muted)">{{ $lang==='fr' ? 'Une donnée existe mais date de plus longtemps que le seuil configuré (5 min par défaut)' : 'Data exists but is older than the configured threshold (5 min by default)' }}</div>
+            <div style="font-size:12px;color:var(--muted)">{{ $lang==='fr' ? 'Une donnée existe mais date de plus longtemps que le seuil de la catégorie (60 min pour les capteurs ThingsBoard, 12 h pour les stations LI-COR, 5 min sinon)' : 'Data exists but is older than the category\'s threshold (60 min for ThingsBoard sensors, 12 h for LI-COR stations, 5 min otherwise)' }}</div>
           </div>
           <div style="padding:12px;border-radius:8px;border:1px solid var(--amber-bd);background:var(--amber-bg)">
             <div style="font-size:11px;font-weight:600;color:var(--amber);margin-bottom:4px">Warning</div>
@@ -581,7 +593,7 @@
     <div class="help-section" id="section-6">
       <div class="help-card">
         <div class="help-h1">{{ $lang==='fr' ? 'API ESP32' : 'ESP32 API' }}</div>
-        <p class="help-p">{{ $lang==='fr' ? 'API REST dynamique pour connecter vos capteurs ESP32/Arduino.' : 'Dynamic REST API for connecting your ESP32/Arduino sensors.' }}</p>
+        <p class="help-p">{{ $lang==='fr' ? 'API REST dynamique pour connecter vos capteurs ESP32/Arduino. Les capteurs ThingsBoard et les stations LI-COR n\'en ont pas besoin : ils sont synchronisés automatiquement (voir « Sources & Alertes »).' : 'Dynamic REST API for connecting your ESP32/Arduino sensors. ThingsBoard sensors and LI-COR stations do not need it: they are synchronised automatically (see "Sources & Alerts").' }}</p>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Endpoints disponibles' : 'Available Endpoints' }}</div>
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px">
@@ -619,6 +631,9 @@
 
         <div class="help-h2">{{ $lang==='fr' ? 'Authentification' : 'Authentication' }}</div>
         <div class="help-code">X-API-Key: apv-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</div>
+        <div class="help-tip">
+          <span>{{ $lang==='fr' ? 'La clé se transmet uniquement dans cet en-tête ; elle n\'est pas acceptée dans l\'URL. Utilisez toujours une adresse en https://.' : 'The key is only accepted in this header, never in the URL. Always use an https:// address.' }}</span>
+        </div>
 
         <div class="help-h2">{{ $lang==='fr' ? 'Exemple de requête' : 'Request Example' }}</div>
         <div class="help-code">POST /api/sensors/your-site-slug/solar
@@ -730,16 +745,16 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
             @php
             $ua = $lang==='fr' ? [
               ['+ Add User', 'Créer un utilisateur avec rôle, statut et pays'],
-              ['Approve', 'Approuver un utilisateur en attente d\'activation'],
+              ['Approve', 'Approuver un utilisateur en attente d\'activation ; il en est informé par e-mail. Chaque nouvelle demande d\'inscription est signalée par e-mail aux administrateurs.'],
               ['Suspend', 'Suspendre temporairement l\'accès'],
               ['Activate', 'Réactiver un utilisateur suspendu'],
-              ['Delete', 'Supprimer définitivement (protégé pour admin)'],
+              ['Delete', 'Supprimer définitivement. Le dernier administrateur actif ne peut être ni supprimé, ni suspendu, ni rétrogradé.'],
             ] : [
               ['+ Add User', 'Create a user with role, status and country'],
-              ['Approve', 'Approve a user pending activation'],
+              ['Approve', 'Approve a user pending activation; they are told by e-mail. Each new registration request is e-mailed to the administrators.'],
               ['Suspend', 'Temporarily suspend access'],
               ['Activate', 'Reactivate a suspended user'],
-              ['Delete', 'Permanently delete (protected for admin)'],
+              ['Delete', 'Permanently delete. The last active administrator cannot be deleted, suspended or demoted.'],
             ];
             @endphp
             @foreach($ua as $row)
@@ -797,7 +812,7 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
           <tbody>
             <tr>
               <td><strong>Edit</strong></td>
-              <td>{{ $lang==='fr' ? 'Modifie le nom, pays, agent assigné, statut, coordonnées, capacité, surface et description du site. La clé API reste inchangée pour ne pas casser les appareils IoT déjà configurés.' : 'Updates the site\'s name, country, assigned agent, status, coordinates, capacity, area and description. The API key stays unchanged so already-configured IoT devices keep working.' }}</td>
+              <td>{{ $lang==='fr' ? 'Modifie le nom, pays, agent assigné, statut, coordonnées, capacité, surface et description du site, ainsi que ses sources de données (préfixe ThingsBoard, station LI-COR, emplacement des capteurs) et les dimensions de sa cuve. La clé API reste inchangée pour ne pas casser les appareils IoT déjà configurés.' : 'Updates the site\'s name, country, assigned agent, status, coordinates, capacity, area and description, as well as its data sources (ThingsBoard prefix, LI-COR station, sensor locations) and its tank dimensions. The API key stays unchanged so already-configured IoT devices keep working.' }}</td>
             </tr>
             <tr>
               <td><strong>Duplicate</strong></td>
@@ -805,6 +820,17 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
             </tr>
           </tbody>
         </table>
+
+        <div class="help-h2">{{ $lang==='fr' ? 'Sources de données' : 'Data sources' }}</div>
+        <p class="help-p">
+          @if($lang==='fr')
+          Admin Panel → <span class="help-code-inline">Data sources</span> liste ce que les comptes ThingsBoard et LI-COR exposent, et le site alimenté par chaque source. Un clic relie une source à un site existant ou crée le site ; ses catégories, paramètres et données apparaissent à la synchronisation suivante (10 minutes au plus). Une source ne peut alimenter qu'un seul site.
+          <br>Dans Admin Panel → Sites, un badge par site indique l'état de chaque synchronisation : <strong>ok</strong>, <strong>late</strong> (aucune synchronisation réussie récemment) ou <strong>failed</strong> (survolez-le pour lire l'erreur).
+          @else
+          Admin Panel → <span class="help-code-inline">Data sources</span> lists what the ThingsBoard and LI-COR accounts expose, and the site each source feeds. One click links a source to an existing site or creates the site; its categories, parameters and data appear at the next sync (10 minutes at most). A source can feed one site only.
+          <br>In Admin Panel → Sites, a badge per site shows the state of each sync: <strong>ok</strong>, <strong>late</strong> (no successful sync recently) or <strong>failed</strong> (hover it to read the error).
+          @endif
+        </p>
 
         <div class="help-h2">{{ $lang==='fr' ? '8.4 Catégories & Paramètres' : '8.4 Categories & Parameters' }}</div>
         <p class="help-p">
@@ -820,9 +846,9 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
         <div class="help-tip">
           <span>
             @if($lang==='fr')
-            <strong>Seuil "No data" / "Stale" :</strong> en cliquant sur <span class="help-code-inline">Edit</span> sur une catégorie, vous pouvez régler le champ <strong>"Offline threshold (minutes)"</strong> (5 par défaut). Si un capteur de cette catégorie n'envoie rien pendant plus longtemps que ce délai, ses paramètres affichent "Stale" sur le dashboard.
+            <strong>Seuil "No data" / "Stale" :</strong> en cliquant sur <span class="help-code-inline">Edit</span> sur une catégorie, vous pouvez régler le champ <strong>"Offline threshold (minutes)"</strong> (5 par défaut ; 60 pour les catégories alimentées par ThingsBoard et 720 pour celles alimentées par LI-COR, réglés automatiquement à la liaison de la source). Si un capteur de cette catégorie n'envoie rien pendant plus longtemps que ce délai, ses paramètres affichent "Stale" sur le dashboard.
             @else
-            <strong>"No data" / "Stale" threshold:</strong> click <span class="help-code-inline">Edit</span> on a category to set the <strong>"Offline threshold (minutes)"</strong> field (5 by default). If a sensor in this category sends nothing for longer than this delay, its parameters show "Stale" on the dashboard.
+            <strong>"No data" / "Stale" threshold:</strong> click <span class="help-code-inline">Edit</span> on a category to set the <strong>"Offline threshold (minutes)"</strong> field (5 by default; 60 for categories fed by ThingsBoard and 720 for those fed by LI-COR, set automatically when the source is linked). If a sensor in this category sends nothing for longer than this delay, its parameters show "Stale" on the dashboard.
             @endif
           </span>
         </div>
@@ -941,13 +967,13 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
             @php
             $charts = $lang==='fr' ? [
               ['Titre', 'Texte libre', 'Titre affiché en haut du graphique (ex: Production solaire vs Irradiance)'],
-              ['Type', 'line / bar / area', 'line = courbe lisse. bar = barres verticales. area = courbe avec zone remplie sous la courbe.'],
+              ['Type', 'line / bar / area', 'line = courbe lisse. bar = barres verticales, adaptées aux totaux journaliers (pluie, consommation d\'eau). area = courbe avec zone remplie sous la courbe.'],
               ['Largeur', 'full / half / third', 'full = pleine largeur. half = 2 graphiques côte à côte. third = 3 graphiques côte à côte.'],
               ['Hauteur', 'Pixels (ex: 220)', 'Hauteur du graphique en pixels. 220px recommandé pour half/third, 280px pour full.'],
               ['Afficher légende', 'Oui / Non', 'Affiche ou masque la légende des séries de données sous le graphique.'],
             ] : [
               ['Title', 'Free text', 'Title displayed at the top of the chart (e.g. Solar Output vs Irradiance)'],
-              ['Type', 'line / bar / area', 'line = smooth curve. bar = vertical bars. area = curve with filled zone below.'],
+              ['Type', 'line / bar / area', 'line = smooth curve. bar = vertical bars, suited to daily totals (rain, water use). area = curve with filled zone below.'],
               ['Width', 'full / half / third', 'full = full width. half = 2 charts side by side. third = 3 charts side by side.'],
               ['Height', 'Pixels (e.g. 220)', 'Chart height in pixels. 220px recommended for half/third, 280px for full.'],
               ['Show legend', 'Yes / No', 'Show or hide the data series legend below the chart.'],
@@ -1026,8 +1052,88 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
       </div>
     </div>
 
-    {{-- SECTION 9 — FAQ --}}
+    {{-- SECTION 9 — DATA SOURCES & ALERTS --}}
     <div class="help-section" id="section-8">
+      <div class="help-card">
+        <div class="help-h1">{{ $lang==='fr' ? 'Sources de données & Alertes' : 'Data Sources & Alerts' }}</div>
+        <p class="help-p">{{ $lang==='fr' ? 'D\'où viennent les données affichées, avec quel délai, et quand la plateforme vous prévient.' : 'Where the displayed data comes from, how fresh it is, and when the platform warns you.' }}</p>
+
+        <div class="help-h2">{{ $lang==='fr' ? 'D\'où viennent les données' : 'Where the data comes from' }}</div>
+        <table class="help-table">
+          <thead><tr><th>Source</th><th>{{ $lang==='fr' ? 'Mesures' : 'Measurements' }}</th><th>{{ $lang==='fr' ? 'Délai' : 'Delay' }}</th></tr></thead>
+          <tbody>
+            @php
+            $sources = $lang==='fr' ? [
+              ['ThingsBoard', 'Humidité du sol, vannes, débit, niveau et turbidité de la cuve', 'Récupérées automatiquement toutes les 10 minutes. Les capteurs émettent toutes les 15 à 20 minutes.'],
+              ['LI-COR (HOBOnet)', 'Station météo (température, humidité, vent, pluie, pression) et capteurs PAR', 'Les stations téléversent leurs mesures par lots, toutes les 6 à 10 heures : les données apparaissent avec ce retard, à leur horodatage d\'origine. Valeurs par pas de 10 minutes.'],
+              ['API REST (ESP32)', 'Tout paramètre de type sensor', 'Immédiat, à chaque envoi de l\'appareil.'],
+              ['Saisie manuelle', 'Mesures de terrain (plantes, récolte…)', 'À l\'enregistrement du formulaire.'],
+            ] : [
+              ['ThingsBoard', 'Soil moisture, valves, flow, tank level and turbidity', 'Collected automatically every 10 minutes. The sensors report every 15 to 20 minutes.'],
+              ['LI-COR (HOBOnet)', 'Weather station (temperature, humidity, wind, rain, pressure) and PAR sensors', 'Stations upload their measurements in batches, every 6 to 10 hours: data appears with that delay, at its original timestamp. Values in 10-minute steps.'],
+              ['REST API (ESP32)', 'Any sensor-type parameter', 'Immediate, each time the device sends.'],
+              ['Manual entry', 'Field measurements (plants, harvest…)', 'When the form is saved.'],
+            ];
+            @endphp
+            @foreach($sources as $row)
+            <tr><td><strong>{{ $row[0] }}</strong></td><td>{{ $row[1] }}</td><td>{{ $row[2] }}</td></tr>
+            @endforeach
+          </tbody>
+        </table>
+
+        <div class="help-h2">{{ $lang==='fr' ? 'Valeurs calculées' : 'Computed values' }}</div>
+        <table class="help-table">
+          <tbody>
+            <tr>
+              <td><strong>{{ $lang==='fr' ? 'Volume de la cuve' : 'Tank volume' }}</strong></td>
+              <td>{{ $lang==='fr' ? 'Calculé à partir de la hauteur d\'eau mesurée et des dimensions de la cuve du site (rayon et nombre de cuves, dans Admin Panel → Sites → Edit). Sans dimensions, aucun volume n\'est affiché plutôt qu\'un volume faux.' : 'Computed from the measured water height and the site\'s own tank (radius and number of tanks, in Admin Panel → Sites → Edit). Without dimensions, no volume is shown rather than a wrong one.' }}</td>
+            </tr>
+            <tr>
+              <td><strong>Daily water use</strong></td>
+              <td>{{ $lang==='fr' ? 'Consommation d\'eau de chaque journée, calculée à partir du compteur de débit et affichée en barres.' : 'Water used each day, computed from the flow meter and shown as bars.' }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="help-tip">
+          <span>{{ $lang==='fr' ? 'Une courbe interrompue signifie qu\'aucune donnée n\'a été reçue pendant cet intervalle : la plateforme ne relie pas les points de part et d\'autre d\'une coupure.' : 'A broken line means no data was received during that interval: the platform does not join the points on either side of a gap.' }}</span>
+        </div>
+
+        <div class="help-h2">{{ $lang==='fr' ? 'Alertes e-mail' : 'E-mail alerts' }}</div>
+        <p class="help-p">
+          @if($lang==='fr')
+          Quand une catégorie d'un site (Irrigation, Water, Weather…) n'envoie plus rien au-delà de son seuil <strong>Offline threshold</strong>, un e-mail part ; un second annonce le retour des données.
+          @else
+          When a category of a site (Irrigation, Water, Weather…) sends nothing for longer than its <strong>Offline threshold</strong>, an e-mail goes out; a second one announces that data is back.
+          @endif
+        </p>
+        <table class="help-table">
+          <tbody>
+            @php
+            $alerts = $lang==='fr' ? [
+              ['Qui est prévenu', 'Les administrateurs actifs, les utilisateurs actifs affectés au site et son propriétaire.'],
+              ['Fréquence', 'Un message à l\'arrêt, un au retour. Rien n\'est répété pendant la panne. Les catégories d\'un même site qui changent ensemble partagent un seul message.'],
+              ['Non signalé', 'Une catégorie qui n\'a jamais envoyé de données, une catégorie ou un site désactivé, les paramètres saisis à la main, et les silences dus à une panne de liaison entre la plateforme et ThingsBoard ou LI-COR.'],
+            ] : [
+              ['Who is told', 'Active administrators, the active users assigned to the site, and its owner.'],
+              ['How often', 'One message when it stops, one when it resumes. Nothing is repeated during the outage. Categories of one site that change together share one message.'],
+              ['Not announced', 'A category that never sent data, a deactivated category or site, manually entered parameters, and silences caused by the platform itself not reaching ThingsBoard or LI-COR.'],
+            ];
+            @endphp
+            @foreach($alerts as $row)
+            <tr><td><strong>{{ $row[0] }}</strong></td><td>{{ $row[1] }}</td></tr>
+            @endforeach
+          </tbody>
+        </table>
+        <div class="help-warn">
+          <span style="flex-shrink:0;display:flex;align-items:center;margin-top:1px">{!! $iconWarning !!}</span>
+          <span>{{ $lang==='fr' ? 'Les dépassements de seuil de valeur (Warning / Critical) s\'affichent sur les cartes mais ne sont pas envoyés par e-mail.' : 'Value thresholds (Warning / Critical) show on the cards but are not sent by e-mail.' }}</span>
+        </div>
+      </div>
+    </div>
+
+    {{-- SECTION 10 — FAQ --}}
+    <div class="help-section" id="section-9">
       <div class="help-card">
         <div class="help-h1">FAQ</div>
 
@@ -1057,6 +1163,12 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
            'readonly = simple voyant ON/OFF, non cliquable, reflète l\'état du capteur. controllable = interrupteur cliquable qui envoie une commande à l\'appareil, avec un badge de synchronisation (Synced/Pending/Stale).'],
           ['Une carte affiche "No data" ou "Stale", que faire ?',
            '"No data" = aucune donnée n\'a jamais été reçue pour ce paramètre — vérifiez le slug et la clé API. "Stale" = une donnée existe mais est plus ancienne que le seuil configuré — vérifiez que l\'ESP32 envoie bien à l\'intervalle attendu, ou ajustez le seuil dans Admin Panel → Categories → Edit.'],
+          ['Les données météo ou PAR ont plusieurs heures de retard ?',
+           'C\'est normal : les stations LI-COR (HOBOnet) téléversent leurs mesures par lots, toutes les 6 à 10 heures. Les données apparaissent à ce moment-là, à leur horodatage d\'origine. Une lecture n\'est marquée "Stale" qu\'au-delà de 12 heures.'],
+          ['Une courbe est interrompue sur un graphique ?',
+           'Aucune donnée n\'a été reçue pendant cet intervalle (capteur, alimentation ou réseau du site). La plateforme ne relie pas les points de part et d\'autre de la coupure.'],
+          ['Je ne reçois pas les alertes e-mail ?',
+           'Les alertes sont envoyées aux administrateurs et aux utilisateurs affectés au site concerné. Vérifiez votre adresse dans My Profile, votre affectation au site auprès d\'un administrateur, et le dossier des indésirables.'],
         ] : [
           ['My sensor sends data but it doesn\'t appear?',
            'Check that category and parameter slugs match exactly those in the Admin Panel. The API key must be for the correct site. Check the site\'s API Key tab.'],
@@ -1082,6 +1194,12 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
            'readonly = simple ON/OFF indicator, not clickable, reflects the sensor\'s state. controllable = clickable toggle that sends a command to the device, with a sync badge (Synced/Pending/Stale).'],
           ['A card shows "No data" or "Stale" — what should I do?',
            '"No data" = no data has ever been received for this parameter — check the slug and API key. "Stale" = data exists but is older than the configured threshold — check that the ESP32 sends at the expected interval, or adjust the threshold in Admin Panel → Categories → Edit.'],
+          ['Weather or PAR data is several hours late?',
+           'This is expected: LI-COR (HOBOnet) stations upload their measurements in batches, every 6 to 10 hours. The data appears at that point, at its original timestamp. A reading is only marked "Stale" past 12 hours.'],
+          ['A line is broken on a chart?',
+           'No data was received during that interval (sensor, power or network at the site). The platform does not join the points on either side of the gap.'],
+          ['I do not receive the e-mail alerts?',
+           'Alerts go to the administrators and to the users assigned to the site concerned. Check your address in My Profile, your assignment to the site with an administrator, and your spam folder.'],
         ];
         @endphp
 
