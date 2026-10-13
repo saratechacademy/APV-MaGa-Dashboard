@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+  // Sidebar collapsed on desktop? Applied before anything is drawn.
+  try { if (localStorage.getItem('apv-sidebar') === 'collapsed') document.documentElement.classList.add('sb-collapsed'); } catch (e) {}
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -54,6 +58,27 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
 .sb-user-info{min-width:0}
 .sb-user-name{font-size:12px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-user-role{font-size:10px;color:#7c8ba1}
+.sb-user-link{display:flex;align-items:center;gap:8px;min-width:0;flex:1;padding:6px 8px;border-radius:7px;text-decoration:none;transition:background .15s}
+.sb-user-link:hover,.sb-user-link.active{background:var(--sidebar-hover)}
+.sb-logout{width:100%;background:none;border:none;font-family:inherit;text-align:left}
+.sb-collapse{background:none;border:none;color:#7c8ba1;cursor:pointer;padding:4px;border-radius:6px;display:flex;align-items:center;transition:background .15s,color .15s,transform .2s}
+.sb-collapse:hover{background:var(--sidebar-hover);color:#f8fafc}
+
+/* SIDEBAR collapsed to icons — desktop only; on small screens it is an off-canvas drawer */
+@media (min-width: 901px) {
+  .sidebar{transition:width .2s ease,min-width .2s ease}
+  .sb-collapsed .sidebar{width:60px;min-width:60px}
+  .sb-collapsed .sb-logo{justify-content:center!important;padding:16px 0 12px}
+  .sb-collapsed .sb-logo-text,.sb-collapsed .sb-label,.sb-collapsed .sb-text,.sb-collapsed .site-name-col,
+  .sb-collapsed .site-country-badge,.sb-collapsed .sb-user-info,.sb-collapsed .sb-copy{display:none}
+  .sb-collapsed .sb-collapse{transform:rotate(180deg)}
+  .sb-collapsed .sb-section{padding:14px 8px 6px}
+  .sb-collapsed .sb-item{justify-content:center;padding:8px 0;gap:0}
+  .sb-collapsed .sb-user-row{padding:10px 8px 2px!important;justify-content:center}
+  .sb-collapsed .sb-user-link{flex:0;padding:6px}
+  .sb-collapsed .sb-user-actions{padding:0 8px 8px!important}
+}
+@media (max-width: 900px) { .sb-collapse{display:none} }
 
 /* OVERLAY mobile */
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999}
@@ -356,10 +381,13 @@ textarea.form-input{resize:vertical;min-height:70px}
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
   <div class="sb-logo" style="display:flex;align-items:center;justify-content:space-between">
-    <div>
+    <div class="sb-logo-text">
       <div class="sb-logo-name">APV-MaGa</div>
       <div class="sb-logo-sub">Agrivoltaic Monitoring Platform</div>
     </div>
+    <button type="button" class="sb-collapse" id="btn-collapse-sidebar" onclick="toggleSidebarCollapse()" aria-label="Collapse menu" title="Collapse menu">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline></svg>
+    </button>
     <button onclick="closeSidebar()" style="display:none;background:none;border:none;color:#475569;font-size:18px;cursor:pointer;padding:4px" id="btn-close-sidebar" aria-label="Close menu" title="Close menu">✕</button>
   </div>
 
@@ -374,8 +402,8 @@ textarea.form-input{resize:vertical;min-height:70px}
   <div class="sb-section">
     <div class="sb-label">Sites</div>
     <a href="{{ route('dashboard') }}" onclick="closeSidebar()"
-       class="sb-item {{ request()->routeIs('dashboard') && !request()->route('site') ? 'active' : '' }}">
-      <span class="sb-icon">⊞</span> All Sites
+       class="sb-item {{ request()->routeIs('dashboard') && !request()->route('site') ? 'active' : '' }}" title="All Sites">
+      <span class="sb-icon">⊞</span> <span class="sb-text">All Sites</span>
     </a>
     @php $sitePalette = \App\Models\SiteParameterGroup::palette(); @endphp
     @foreach($sites ?? [] as $s)
@@ -395,33 +423,39 @@ textarea.form-input{resize:vertical;min-height:70px}
 
   <div class="sb-section">
     @if(auth()->user()->isAdmin())
-    <a href="{{ route('admin.dashboard') }}" onclick="closeSidebar()" class="sb-item {{ request()->is('admin*') ? 'active' : '' }}">
-      <span class="sb-icon">{!! $iconSettings !!}</span> Admin Panel
+    <a href="{{ route('admin.dashboard') }}" onclick="closeSidebar()" class="sb-item {{ request()->is('admin*') ? 'active' : '' }}" title="Admin Panel">
+      <span class="sb-icon">{!! $iconSettings !!}</span> <span class="sb-text">Admin Panel</span>
     </a>
     @endif
-    <a href="{{ route('help') }}" onclick="closeSidebar()" class="sb-item {{ request()->routeIs('help') ? 'active' : '' }}">
-      <span class="sb-icon">{!! $iconHelp !!}</span> Help
+    <a href="{{ route('help') }}" onclick="closeSidebar()" class="sb-item {{ request()->routeIs('help') ? 'active' : '' }}" title="Help">
+      <span class="sb-icon">{!! $iconHelp !!}</span> <span class="sb-text">Help</span>
     </a>
     @if(auth()->user()->isAdmin())
-    <a href="{{ route('docs') }}" onclick="closeSidebar()" class="sb-item {{ request()->routeIs('docs') ? 'active' : '' }}">
-      <span class="sb-icon">{!! $iconDocs !!}</span> Docs
+    <a href="{{ route('docs') }}" onclick="closeSidebar()" class="sb-item {{ request()->routeIs('docs') ? 'active' : '' }}" title="Docs">
+      <span class="sb-icon">{!! $iconDocs !!}</span> <span class="sb-text">Docs</span>
     </a>
     @endif
   </div>
 
   <div class="sb-user" style="flex-direction:column;align-items:stretch;padding:0;margin-top:auto">
-    <div style="display:flex;align-items:center;gap:8px;padding:12px 14px">
-      <div class="sb-avatar" title="{{ auth()->user()->name }} — {{ auth()->user()->email }}">{{ substr(auth()->user()->name, 0, 1) }}</div>
-      <div class="sb-user-info" title="{{ auth()->user()->name }} — {{ auth()->user()->email }}">
-        <div class="sb-user-name">{{ auth()->user()->name }}</div>
-        <div class="sb-user-role">{{ ucfirst(auth()->user()->role) }}</div>
-      </div>
-      <form method="POST" action="{{ route('logout') }}" style="margin-left:auto">
-        @csrf
-        <button type="submit" style="background:none;border:none;padding:4px;cursor:pointer;color:#475569;font-size:14px" title="Logout">⏻</button>
-      </form>
+    <div class="sb-user-row" style="display:flex;align-items:center;padding:8px 6px 2px">
+      <a href="{{ route('profile.edit') }}" onclick="closeSidebar()" class="sb-user-link {{ request()->routeIs('profile.*') ? 'active' : '' }}"
+         title="My profile — {{ auth()->user()->name }} ({{ auth()->user()->email }})">
+        <div class="sb-avatar">{{ substr(auth()->user()->name, 0, 1) }}</div>
+        <div class="sb-user-info">
+          <div class="sb-user-name">{{ auth()->user()->name }}</div>
+          <div class="sb-user-role">{{ \App\Models\User::ROLES[auth()->user()->role] ?? ucfirst(auth()->user()->role) }}</div>
+        </div>
+      </a>
     </div>
-    <div style="padding:6px 14px 8px;font-size:9px;color:#475569;text-align:center;border-top:1px solid #1e2d45">
+    <form method="POST" action="{{ route('logout') }}" class="sb-user-actions" style="padding:0 10px 8px">
+      @csrf
+      <button type="submit" class="sb-item sb-logout" title="Log out">
+        <span class="sb-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></span>
+        <span class="sb-text">Log out</span>
+      </button>
+    </form>
+    <div class="sb-copy" style="padding:6px 14px 8px;font-size:9px;color:#475569;text-align:center;border-top:1px solid #1e2d45">
       © 2026 APV-MaGa · <span style="color:#64748b">Saratech</span>
     </div>
   </div>
@@ -504,6 +538,22 @@ function closeSidebar() {
   document.getElementById('sidebar-overlay').classList.remove('open');
   document.getElementById('btn-close-sidebar').style.display = 'none';
 }
+
+// Collapse the sidebar to its icons on desktop; the choice is remembered.
+function toggleSidebarCollapse() {
+  const collapsed = document.documentElement.classList.toggle('sb-collapsed');
+  try { localStorage.setItem('apv-sidebar', collapsed ? 'collapsed' : 'expanded'); } catch (e) {}
+  const btn = document.getElementById('btn-collapse-sidebar');
+  if (btn) { btn.title = collapsed ? 'Expand menu' : 'Collapse menu'; btn.setAttribute('aria-label', btn.title); }
+  // Charts size themselves on their container: let them follow once the width has settled.
+  setTimeout(() => window.dispatchEvent(new Event('resize')), 220);
+}
+(function () {
+  const btn = document.getElementById('btn-collapse-sidebar');
+  if (btn && document.documentElement.classList.contains('sb-collapsed')) {
+    btn.title = 'Expand menu'; btn.setAttribute('aria-label', 'Expand menu');
+  }
+})();
 
 // Clock
 function updateClock(){
