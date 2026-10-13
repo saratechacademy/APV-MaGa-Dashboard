@@ -11,7 +11,7 @@
         <p style="margin:0 0 6px;font-size:12px;color:#64748b;">Site</p>
         <p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#0d1321;">{{ $site->name }}</p>
         <p style="margin:0 0 6px;font-size:12px;color:#64748b;">Your role on this site</p>
-        <p style="margin:0;font-size:14px;font-weight:600;color:#0d1321;text-transform:capitalize;">{{ $role }}</p>
+        <p style="margin:0;font-size:14px;font-weight:600;color:#0d1321;">{{ AppModelsSER::ROLES[$ROLE] ?? $ROLE }}</P>
       </td>
     </tr>
   </table>
