@@ -61,7 +61,15 @@ class ThingsBoardSync
 
             // [parameter, spec, epoch ms of the last instant already stored]
             $targets = [];
+            // [computed parameter, the parameter it is computed from]
+            $computed = [];
             foreach ($mapping['parameters'] as $spec) {
+                if (isset($spec['daily_increase_of'])) {
+                    $source = collect($mapping['parameters'])->firstWhere('key', $spec['daily_increase_of']);
+                    $computed[] = [$this->parameter($category, $mapping, $spec, $stats), $this->parameter($category, $mapping, $source, $stats)];
+                    continue;
+                }
+
                 if (!empty($spec['tank_volume'])) {
                     // No tank geometry on the site: no volume, rather than a wrong one.
                     if (!$litresPerCm = $site->tankLitresPerCm()) {
@@ -86,6 +94,12 @@ class ThingsBoardSync
                 $this->syncDevice($site, $device['id']['id'], $targets, $now, $stats);
             } catch (ConnectionException | RequestException $e) {
                 $stats['errors'][] = "{$device['name']}: {$e->getMessage()}";
+            }
+
+            foreach ($computed as [$parameter, $source]) {
+                if ($parameter->is_active) {
+                    $this->storeDailyIncrease($site, $parameter, $source);
+                }
             }
         }
 
@@ -263,10 +277,72 @@ class ThingsBoardSync
 
         if (isset($spec['chart'])) {
             // Reference-field series are dashed, to read APV vs reference at a glance.
-            $this->addToChart($category, $spec['chart'], $parameter, $mapping['reference']);
+            $this->addToChart($category, $spec['chart'], $parameter, $mapping['reference'], $spec['chart_type'] ?? 'line');
         }
 
         return $parameter;
+    }
+
+    /**
+     * Daily growth of a cumulative counter (a flow meter's running total), one
+     * reading per day, timestamped at that day's last counter reading — so the
+     * current day's figure moves with the data and a finished day's stays put.
+     *
+     * Each increase is counted on the day of the reading that revealed it:
+     * water used while the meter was offline lands on the day it came back,
+     * since nothing says when in between it flowed. A counter going down is a
+     * reset or a replaced meter and counts for nothing. Days without any
+     * reading get no value rather than a zero that was never measured.
+     */
+    private function storeDailyIncrease(Site $site, SiteParameter $parameter, SiteParameter $source): void
+    {
+        $lastComputed = SensorReading::where('site_parameter_id', $parameter->id)->max('read_at');
+        $lastSource   = SensorReading::where('site_parameter_id', $source->id)->max('read_at');
+
+        if (!$lastSource || $lastComputed === $lastSource) {
+            return;
+        }
+
+        // The last computed day may have been partial: redo it, and all after it.
+        $from = $lastComputed ? Carbon::parse($lastComputed, config('app.timezone'))->startOfDay() : null;
+
+        $previous = $from
+            ? SensorReading::where('site_parameter_id', $source->id)->where('read_at', '<', $from)->orderByDesc('read_at')->value('value')
+            : null;
+
+        $days = [];
+        SensorReading::where('site_parameter_id', $source->id)
+            ->when($from, fn ($q) => $q->where('read_at', '>=', $from))
+            ->whereNotNull('value')
+            ->orderBy('read_at')
+            ->toBase()
+            ->select('value', 'read_at')
+            ->each(function ($row) use (&$days, &$previous) {
+                $day = substr($row->read_at, 0, 10);
+                $days[$day] ??= ['total' => 0.0, 'at' => $row->read_at];
+                $days[$day]['at'] = $row->read_at;
+
+                if ($previous !== null && $row->value > $previous) {
+                    $days[$day]['total'] += $row->value - $previous;
+                }
+                $previous = $row->value;
+            }, 2000);
+
+        DB::transaction(function () use ($site, $parameter, $from, $days) {
+            SensorReading::where('site_parameter_id', $parameter->id)
+                ->when($from, fn ($q) => $q->where('read_at', '>=', $from))
+                ->delete();
+
+            $now = now();
+            SensorReading::insertOrIgnore(array_map(fn (array $day) => [
+                'site_id'           => $site->id,
+                'site_parameter_id' => $parameter->id,
+                'value'             => round($day['total'], 2),
+                'read_at'           => $day['at'],
+                'created_at'        => $now,
+                'updated_at'        => $now,
+            ], array_values($days)));
+        });
     }
 
     /**

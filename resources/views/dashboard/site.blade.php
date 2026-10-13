@@ -858,14 +858,37 @@ function loadAdminChart(chartId, catSlug, paramConfigs, hasSecondAxis, chartType
         return;
       }
       showNoData(ctx, false);
-      const chartLabels = json.labels;
+      let chartLabels = json.labels;
       const dataMap = {};
       json.datasets.forEach(ds => { dataMap[ds.slug] = ds.data; });
+
+      // The response's axis has a slot for every reading of every parameter
+      // of the category. A bar chart (a value per day) keeps only the slots
+      // where one of its own series has a value, labelled by date; otherwise
+      // each bar would be one slot among thousands — a hairline.
+      if (chartType === 'bar' && json.timestamps) {
+        const day  = ts => { const d = new Date(ts * 1000).toISOString(); return d.slice(8, 10) + '/' + d.slice(5, 7); };
+        const days = [];            // in order of appearance
+        const byDay = {};           // slug => day => value
+        json.timestamps.forEach((ts, i) => {
+          paramConfigs.forEach(p => {
+            const v = (dataMap[p.slug] || [])[i];
+            if (v == null) return;
+            const d = day(ts);
+            if (!days.includes(d)) days.push(d);
+            (byDay[p.slug] ??= {})[d] = v;   // series of one day line up, whatever the time of their reading
+          });
+        });
+        chartLabels = days;
+        paramConfigs.forEach(p => { dataMap[p.slug] = days.map(d => byDay[p.slug]?.[d] ?? null); });
+        json = { ...json, timestamps: [] };
+      }
+
       const blank = Array(chartLabels.length).fill(null);
       const datasets = paramConfigs.map(p => ({
         label: p.label, data: dataMap[p.slug] || blank,
-        segment: gapSegments(json.timestamps || [], dataMap[p.slug] || blank),
-        borderColor: p.color, backgroundColor: p.color + (p.fill ? '22' : '00'),
+        segment: chartType === 'bar' ? undefined : gapSegments(json.timestamps || [], dataMap[p.slug] || blank),
+        borderColor: p.color, backgroundColor: p.color + (chartType === 'bar' ? 'cc' : (p.fill ? '22' : '00')),
         borderWidth: 2, pointRadius: chartLabels.length <= 20 ? 3 : 0,
         tension: .4, fill: p.fill, borderDash: p.dashed ? [5,4] : [], yAxisID: p.axis, spanGaps: true,
       }));

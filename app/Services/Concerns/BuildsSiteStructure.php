@@ -45,10 +45,10 @@ trait BuildsSiteStructure
      * unreadable once units differ. Only done when the parameter is created,
      * so charts stay the admin's to rearrange afterwards.
      */
-    protected function addToChart(SiteCategory $category, string $title, SiteParameter $parameter, bool $dashed = false): void
+    protected function addToChart(SiteCategory $category, string $title, SiteParameter $parameter, bool $dashed = false, string $type = 'line'): void
     {
         $chart = $category->charts()->firstOrCreate(['title' => $title], [
-            'chart_type'  => 'line',
+            'chart_type'  => $type,
             'col_span'    => 'half',
             'show_legend' => true,
             'is_active'   => true,
@@ -62,6 +62,8 @@ trait BuildsSiteStructure
             'color'             => SiteParameterGroup::nextPaletteColor($position),
             'axis'              => 'left',
             'dashed'            => $dashed,
+            // Bars are drawn with the series' fill colour.
+            'fill'              => $type === 'bar',
             'sort_order'        => $position,
         ]);
     }

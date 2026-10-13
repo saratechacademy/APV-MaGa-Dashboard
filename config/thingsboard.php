@@ -47,6 +47,9 @@ return [
     // to float; 'scale'/'precision' convert the raw value before storing;
     // 'tank_volume' converts a water height (cm) into litres using the site's
     // own tank geometry (admin → edit site) and is skipped for a site without one;
+    // 'daily_increase_of' makes a parameter that isn't read from ThingsBoard
+    // but computed: how much the named cumulative key grew each day (a flow
+    // meter only reports its ever-growing total);
     // 'chart' is the dashboard chart a new parameter is added to, so each
     // chart only ever mixes values of one unit; 'metric' is what it measures,
     // which the All Sites overview is built from (config/overview.php).
@@ -63,6 +66,7 @@ return [
             'category'   => 'irrigation',
             'parameters' => [
                 ['key' => 'Flow_level', 'name' => 'Total flow', 'unit' => 'L', 'metric' => 'total_flow', 'chart' => 'Total flow (L)'],
+                ['daily_increase_of' => 'Flow_level', 'name' => 'Daily water use', 'unit' => 'L', 'metric' => 'daily_water_use', 'chart' => 'Daily water use (L)', 'chart_type' => 'bar'],
             ],
         ],
         'Valve' => [

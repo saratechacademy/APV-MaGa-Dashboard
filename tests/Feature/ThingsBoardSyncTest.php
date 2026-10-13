@@ -150,6 +150,56 @@ class ThingsBoardSyncTest extends TestCase
         $this->assertCount(3, $moisture->parameters->pluck('pivot.color')->unique());
     }
 
+    public function test_daily_water_use_is_computed_from_the_flow_meters_running_total(): void
+    {
+        $site = $this->makeSite();
+        $at   = fn (string $time, float $total) => ['ts' => $this->ms($time), 'value' => (string) $total];
+
+        $this->fakeThingsBoard(['UTG-APV-Flow-0' => Http::sequence()
+            ->push(['Flow_level' => [
+                $at('2026-10-04 09:00:00', 1000),   // first reading ever: nothing to compare it with
+                $at('2026-10-04 18:00:00', 1040),
+                $at('2026-10-05 08:00:00', 1040),   // a day with readings and no water used: a real zero
+                $at('2026-10-05 20:00:00', 1040),
+                // the meter is offline on the 6th
+                $at('2026-10-07 07:00:00', 1100),   // what flowed meanwhile shows up when it comes back
+                $at('2026-10-07 10:00:00', 1125.5),
+                $at('2026-10-07 12:00:00', 3),      // meter replaced: the drop is not a negative use
+                $at('2026-10-07 14:00:00', 10),
+            ]])
+            ->push(['Flow_level' => [$at('2026-10-07 14:30:00', 22)]])
+            ->whenEmpty(Http::response([])),
+        ]);
+
+        $daily = fn () => SensorReading::where('site_parameter_id', $this->param($site, 'apv_flow_0_daily_water_use')->id)
+            ->orderBy('read_at')->get()->mapWithKeys(fn ($r) => [$r->read_at->toDateTimeString() => $r->value])->all();
+
+        $this->artisan('thingsboard:sync')->assertSuccessful();
+
+        // One value per day that has readings, dated at that day's last reading.
+        $this->assertSame([
+            '2026-10-04 18:00:00' => 40.0,
+            '2026-10-05 20:00:00' => 0.0,
+            '2026-10-07 14:00:00' => 60.0 + 25.5 + 7.0,
+        ], $daily());
+
+        $parameter = $this->param($site, 'apv_flow_0_daily_water_use');
+        $this->assertSame(['APV 0 – Daily water use', 'L', 'daily_water_use'], [$parameter->name, $parameter->unit, $parameter->metric]);
+        $this->assertSame('bar', $parameter->category->charts()->where('title', 'Daily water use (L)')->value('chart_type'));
+
+        // The current day's figure grows with the data; finished days don't move.
+        $this->artisan('thingsboard:sync')->assertSuccessful();
+        $this->assertSame([
+            '2026-10-04 18:00:00' => 40.0,
+            '2026-10-05 20:00:00' => 0.0,
+            '2026-10-07 14:30:00' => 60.0 + 25.5 + 7.0 + 12.0,
+        ], $daily());
+
+        // Nothing new: nothing recomputed, nothing duplicated.
+        $this->artisan('thingsboard:sync')->assertSuccessful();
+        $this->assertCount(3, $daily());
+    }
+
     public function test_tank_height_is_also_stored_as_a_volume_in_litres(): void
     {
         $site = $this->makeSite('AfriFarm');

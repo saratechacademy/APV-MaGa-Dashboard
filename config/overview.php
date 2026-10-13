@@ -17,6 +17,7 @@ return [
         'relative_humidity' => ['title' => 'Relative humidity',   'label' => 'Air humidity',  'unit' => '%'],
         'soil_moisture'     => ['title' => 'Soil moisture',       'label' => 'Soil moisture', 'unit' => '%'],
         'tank_volume'       => ['title' => 'Tank volume',         'label' => 'Tank',          'unit' => 'L'],
+        'daily_water_use'   => ['title' => 'Water used today',    'label' => 'Water today',   'unit' => 'L'],
         'tank_fill_level'   => ['title' => 'Tank fill level',     'label' => 'Tank fill',     'unit' => '%'],
         'borehole_level'    => ['title' => 'Borehole water level', 'label' => 'Borehole',     'unit' => 'm'],
         'wind_speed'        => ['title' => 'Wind speed',          'label' => 'Wind',          'unit' => 'm/s'],
@@ -44,6 +45,7 @@ return [
         'soil_conductivity' => 'Soil conductivity',
         'soil_temperature'  => 'Soil temperature',
         'total_flow'        => 'Irrigation flow (cumulative)',
+        'daily_water_use'   => 'Irrigation water used per day',
         'valve_state'       => 'Valve state',
         'tank_level'        => 'Tank water height',
         'tank_volume'       => 'Tank volume',
@@ -54,7 +56,7 @@ return [
     ],
 
     // Site card: the first 4 of these the site actually has.
-    'tiles' => ['solar_output', 'air_temperature', 'soil_moisture', 'par_reference', 'tank_volume', 'tank_fill_level', 'borehole_level', 'relative_humidity', 'wind_speed'],
+    'tiles' => ['solar_output', 'air_temperature', 'soil_moisture', 'par_reference', 'tank_volume', 'daily_water_use', 'tank_fill_level', 'borehole_level', 'relative_humidity', 'wind_speed'],
 
     // Site card sparkline: the first of these the site has.
     'sparkline' => ['solar_output', 'par_reference', 'air_temperature', 'soil_moisture'],
