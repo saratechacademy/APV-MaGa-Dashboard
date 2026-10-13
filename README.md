@@ -246,7 +246,7 @@ The weather stations (temperature, humidity, dew point, wind, gusts, wind direct
 
 ### Good to know
 
-- Stations upload in batches: data typically appears on the dashboard **2 to 4 hours** after it was measured. The offline threshold of these categories is set accordingly.
+- Stations upload in batches, every 6 to 10 hours as measured on the Gambian stations: data appears on the dashboard that long after it was measured, and a reading only counts as stale past 12 hours. How often a station connects is a setting of the station itself (HOBOlink).
 - **Admin → Sites** shows a `LI-COR ok / late / failed` badge per linked site; `php artisan licor:sync` runs a sync by hand.
 - Sensors are named by location where the site knows it, otherwise by sensor serial (e.g. `Air temperature – 22034652`). Locations are entered per site in Admin → Sites → Edit (“LI-COR sensor locations”, one `serial = location` per line); saving renames that site's parameters. The presets file provides the PAR locations (Reference, Module edge, Under PV, Between PV).
 - A station that is not in the presets file is linked to a site from **Admin → Data sources**.

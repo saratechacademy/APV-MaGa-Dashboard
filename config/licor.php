@@ -24,11 +24,13 @@ return [
     // Logging interval of the stations, used to tell when a bucket is complete.
     'logging_interval_seconds' => 60,
 
-    // Stations upload their data in batches, typically 2-4 hours after it was
-    // measured: a sync is "late" (badge in admin) only after an hour without
-    // a successful run, but a reading is "stale" only past 6 hours.
+    // Stations don't stream: they upload in batches every 6 to 10 hours
+    // (measured on the three Gambian stations), so the newest reading is
+    // routinely that old. A sync is "late" (badge in admin) after an hour
+    // without a successful run, but a reading is "stale" only past 12 hours —
+    // anything shorter declares working stations offline between two uploads.
     'late_after_minutes' => 60,
-    'offline_threshold_minutes' => 360,
+    'offline_threshold_minutes' => 720,
 
     // LI-COR measurement type => parameter. 'metric' is what it measures, which
     // the All Sites overview is built from (config/overview.php); a PAR sensor

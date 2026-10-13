@@ -232,8 +232,12 @@ class LicorSyncTest extends TestCase
         $this->assertSame(9, $agri->parameters()->where('input_type', 'manual')->count());
         $this->assertSame('mg/g FM', $agri->parameters()->where('slug', 'chlorophyll_content')->value('unit'));
 
+        // A category created with a shorter threshold is brought up to the station's upload rhythm.
+        $weather = $fass->categories()->create(['name' => 'Weather', 'slug' => 'weather', 'is_active' => true, 'offline_threshold_minutes' => 360, 'sort_order' => 9]);
+
         $this->artisan('licor:setup')->assertSuccessful();
         $this->assertSame(2, Site::count());
+        $this->assertSame(720, $weather->refresh()->offline_threshold_minutes);
         $this->assertSame(9, $agri->parameters()->count());
     }
 }
