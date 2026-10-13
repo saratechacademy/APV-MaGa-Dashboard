@@ -19,10 +19,6 @@
     </tr>
     @endforeach
   </table>
-  <p style="margin:0 0 20px;font-size:13px;line-height:1.6;color:#64748b;">
-    This usually means a power cut, a gateway that lost its connection, or a sensor that needs attention on site.
-    You will get another message when the data comes back.
-  </p>
   @endif
 
   @if($up)
@@ -35,9 +31,8 @@
       <td style="padding:12px 16px;{{ $loop->last ? '' : 'border-bottom:1px solid #bbf7d0;' }}">
         <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#0d1321;">{{ $event['category']->name }}</p>
         <p style="margin:0;font-size:12px;color:#64748b;">
-          No data from {{ $event['since']->format('d M Y, H:i') }} UTC
-          — silent for {{ $event['since']->diffForHumans($event['back'], true) }} at most.
-          Latest reading: {{ $event['back']->format('d M Y, H:i') }} UTC.
+          Silent for {{ $event['since']->diffForHumans($event['back'], true) }},
+          since {{ $event['since']->format('d M Y, H:i') }} UTC
         </p>
       </td>
     </tr>
@@ -54,8 +49,4 @@
       </td>
     </tr>
   </table>
-
-  <p style="margin:20px 0 0;font-size:11px;line-height:1.6;color:#94a3b8;">
-    You receive this because you are an administrator of APV-MaGa or assigned to this site.
-  </p>
 @endsection

@@ -101,7 +101,7 @@ class SiteOfflineAlertTest extends TestCase
             $mail->build();
 
             return $mail->subject === 'UTG: Irrigation reporting again'
-                && str_contains($mail->render(), 'silent for 1 day at most');
+                && str_contains($mail->render(), 'Silent for 1 day');
         });
         $this->assertNull($irrigation->refresh()->offline_since);
     }
