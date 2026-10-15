@@ -315,48 +315,90 @@ With SQLite, the whole database is the single file `database/database.sqlite`. T
 
 ### Moving the installation to another server
 
-Everything the dashboard knows — sites, categories and parameters, links to ThingsBoard and LI-COR, sensor locations, the whole reading history, users and their alert choices — is in `database/database.sqlite`. Moving to a new server means installing the code and bringing that one file over; nothing is set up again by hand, and no sensor needs reconfiguring (the dashboard fetches from ThingsBoard and LI-COR; devices do not send to it).
+Everything the dashboard knows — sites, categories and parameters, links to ThingsBoard and LI-COR, sensor locations, the whole reading history, users and their alert choices — is in one file, `database/database.sqlite`. Moving to a new server means bringing the code up to date there and bringing that file over. Nothing is set up again by hand, and no sensor needs reconfiguring: the dashboard fetches its data from ThingsBoard and LI-COR, no device sends to it.
 
-Below, *old* is the server running the dashboard today and *new* the one taking over. Run `php artisan` commands as the web server user (`sudo -u www …` on AAPanel).
+**Who does what.** The *old* server is the one running the dashboard today (Saratech); the *new* one takes over (its own team). Steps marked **[old]** are done by whoever manages the old server; everything else is done on the new server.
 
-**On the new server — prepare**
+**What the new server's team receives** before the switch: the database copy (step 6) and a settings file with the ThingsBoard and LI-COR accounts (step 4). Both contain secrets: they travel server to server (`scp`) or through a password-sharing tool, never by plain e-mail.
 
-1. Back up whatever database it has today (`mysqldump …` for MySQL, `sqlite3 … ".backup …"` for SQLite): it is about to be replaced.
-2. Check PHP: `php -v` must be 8.2 or later, and `php -m | grep -i sqlite` must list `pdo_sqlite` and `sqlite3`. Composer must be installed.
-3. Bring the code to the current version:
-   - already a clone of this repository: `git fetch origin && git reset --hard origin/main`. Do **not** run `git pull` first: the history was rewritten on 2026-10-13, and a pull of a clone made before that ends in merge conflicts (if it already happened, `git merge --abort`, then the two commands above);
-   - copied without git: `git init && git remote add origin https://github.com/saratechacademy/APV-MaGa-Dashboard.git && git fetch origin && git reset --hard origin/main` (keeps `.env` and `storage/`, which git does not track).
+**Accounts.** After the switch, only the accounts of the transferred database exist. Make sure the new server's team has one (an administrator creates it in Admin → Users on the old server before step 6), or they will not be able to log in to check their work.
 
-   Then list what git does not know: `git status --short`. Files marked `??` under `app/`, `config/`, `routes/` or `database/migrations/` are leftovers of an older version: move them out of the project (an old migration left there would run against the transferred database, an old config file can stop `artisan`). `.env`, `storage/`, `vendor/` and `public/build/` are expected and stay.
+#### 1. Prepare the new server (no interruption yet)
 
-   Then `composer install --no-dev --optimize-autoloader`.
-4. In `.env`:
-   - `DB_CONNECTION=sqlite`, and remove `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`;
-   - `THINGSBOARD_URL`, `THINGSBOARD_USERNAME`, `THINGSBOARD_PASSWORD`, `LICOR_API_TOKEN`: the same accounts as on the old server;
-   - `MAIL_…`: an SMTP account (alerts, password resets, account e-mails);
-   - `APP_URL`: the public `https://` address — the site must already have its certificate, since pages asked over `http://` are then redirected to `https://`; `APP_ENV=production`, `APP_DEBUG=false`, `LOG_STACK=daily`, `LOG_LEVEL=warning`. Keep the server's own `APP_KEY` (users just have to log in again).
-   - `CACHE_STORE` and `SESSION_DRIVER` can stay `database` or be `file`; the `migrate` of step 7 creates the cache and session tables if the database lacks them.
+All commands are run from the project folder. Set these two names once; the commands below use them:
 
-**Switch over** (a few minutes; data measured meanwhile is fetched afterwards)
+```bash
+cd /path/to/the/project          # the folder that contains artisan
+WEB=www                          # the web server user: www on AAPanel, www-data on Debian/Ubuntu
+```
 
-5. On the old server, stop the scheduler (comment out its line in the cron), so the two servers never sync or send alerts at the same time.
-6. On the old server, take a consistent copy: `sqlite3 database/database.sqlite ".backup /root/apvmaga-transfer.sqlite"`. It holds password hashes and API keys: send it server to server (`scp`), never by e-mail or a public link.
-7. On the new server, put it in place and let the web server write to it (SQLite also writes next to the file):
+1. **Back up what is there today**, since the database is about to be replaced, and keep the current `.env`:
    ```bash
-   cp apvmaga-transfer.sqlite database/database.sqlite
-   chown www:www database database/database.sqlite
-   sudo -u www php artisan migrate --force      # lists the migrations it ran, or "Nothing to migrate"
-   sudo -u www php artisan config:clear && sudo -u www php artisan cache:clear && sudo -u www php artisan view:clear
+   cp .env ~/apvmaga-env-before-transfer
+   # SQLite:  sqlite3 database/database.sqlite ".backup $HOME/apvmaga-db-before-transfer.sqlite"
+   # MySQL:   mysqldump -u <user> -p <database> > ~/apvmaga-db-before-transfer.sql
    ```
-8. Add the scheduler to the new server's cron (see above), as the web server user.
+2. **Check the requirements**: `php -v` shows 8.2 or later; `php -m | grep -i sqlite` lists `pdo_sqlite` and `sqlite3`; `composer --version` works. The site's web root must point to the project's `public/` folder (already the case if the site works today).
+3. **Bring the code up to date.**
+   - If the project is a git clone: `git fetch origin && git reset --hard origin/main`. Do **not** run `git pull`: the history was rewritten on 2026-10-13 and a pull of an older clone ends in merge conflicts (if it already happened: `git merge --abort`, then the two commands above).
+   - If it was copied without git:
+     ```bash
+     git init
+     git remote add origin https://github.com/saratechacademy/APV-MaGa-Dashboard.git
+     git fetch origin && git reset --hard origin/main
+     ```
+     `.env`, `storage/` and `vendor/` are not touched.
 
-**Check**
+   Then `git status --short`. Lines starting with `??` under `app/`, `config/`, `routes/` or `database/migrations/` are files of an older version: move them out of the project (`mkdir -p ~/apvmaga-old-files && mv <file> ~/apvmaga-old-files/`). An old migration left there would run against the transferred database; an old config file can stop `artisan`. Other `??` lines (`.env`, `storage/`, `public/build/`, files at the top of the project) can stay.
 
-9. `php artisan thingsboard:check` lists the devices (about 40); `php artisan licor:sync` and `php artisan thingsboard:sync` run without error and fetch what was measured since step 5 (up to `LICOR_LOOKBACK_DAYS`, 7 by default, for LI-COR).
-10. Log in, open each site, and check **Admin → Sites**: every sync badge is `ok` within ten minutes.
-11. Set `BACKUP_PATH` to a folder the web server user can write to, run `php artisan db:backup` once to check it, and copy that folder to another machine regularly.
+   Finally: `composer install --no-dev --optimize-autoloader`.
+4. **Edit `.env`**:
+   - copy in the lines of the settings file received from the old server: `THINGSBOARD_URL`, `THINGSBOARD_USERNAME`, `THINGSBOARD_PASSWORD`, `THINGSBOARD_LOOKBACK_DAYS`, `LICOR_API_TOKEN`, `LICOR_LOOKBACK_DAYS`;
+   - `DB_CONNECTION=sqlite`, and delete the `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` lines;
+   - `APP_ENV=production`, `APP_DEBUG=false`, `LOG_STACK=daily`, `LOG_LEVEL=warning`;
+   - `APP_URL=https://<the site's address>`. The HTTPS certificate must already be installed: pages asked over `http://` are redirected to `https://`;
+   - `BACKUP_PATH=` a folder outside `public/` for the nightly database copies, e.g. `/var/backups/apvmaga`, created with `mkdir -p /var/backups/apvmaga && chown $WEB:$WEB /var/backups/apvmaga`;
+   - `MAIL_MAILER=smtp` and the `MAIL_…` settings of the SMTP account that sends alerts and password resets;
+   - leave `APP_KEY` as it is. `CACHE_STORE` and `SESSION_DRIVER` can stay `database` or be `file`.
 
-The old server can then be switched off, or kept read-only as a fallback until the new one has run for a few days.
+#### 2. Switch over (under an hour; data measured meanwhile is fetched afterwards)
+
+5. **[old]** Stop the scheduler, so the two servers never sync, back up or send alerts at the same time: comment out its line in the cron (`/etc/cron.d/apvmaga-scheduler` on the current server).
+6. **[old]** Take a consistent copy of the database and send it, with the settings file, to the new server:
+   ```bash
+   sqlite3 -cmd ".timeout 300000" database/database.sqlite ".backup /root/apvmaga-transfer.sqlite"
+   scp /root/apvmaga-transfer.sqlite <user>@<new server>:~/
+   ```
+7. **Put the database in place** on the new server:
+   ```bash
+   cp ~/apvmaga-transfer.sqlite database/database.sqlite
+   chown -R $WEB:$WEB database storage bootstrap/cache
+   sudo -u $WEB php artisan migrate --force
+   sudo -u $WEB php artisan config:clear
+   sudo -u $WEB php artisan cache:clear
+   sudo -u $WEB php artisan view:clear
+   ```
+   `migrate` lists the few migrations it applies (or says "Nothing to migrate"); it must not show an error.
+8. **Start the scheduler** on the new server. It runs the syncs every ten minutes, the offline alerts and the nightly backup:
+   ```bash
+   echo "* * * * * $WEB cd $(pwd) && php artisan schedule:run >> /dev/null 2>&1" > /etc/cron.d/apvmaga-scheduler
+   ```
+   Run it from the project folder, as root. If cron does not find `php`, replace it with the full path given by `which php`.
+
+#### 3. Check
+
+| Check | Expected |
+|---|---|
+| `sudo -u $WEB php artisan thingsboard:check` | every device of the ThingsBoard account with its latest values (UTG-…, AfriFarm-…, and other projects of the same account) |
+| `sudo -u $WEB php artisan thingsboard:sync`, then `sudo -u $WEB php artisan licor:sync` | one line per site, no error; readings measured since step 5 are stored |
+| `sudo -u $WEB php artisan db:backup` | `Backup written: …/apvmaga-<date>.sqlite.gz` |
+| Log in on the site | the usual accounts work, with their usual passwords |
+| Admin → Sites, ten minutes later | every ThingsBoard / LI-COR badge shows `ok` |
+| "Forgot password?" on the login page, with the address of an account whose mailbox you can read | the reset e-mail arrives within a minute (this checks the SMTP settings) |
+
+When all checks pass, the move is done. Copy the `BACKUP_PATH` folder to another machine regularly. The old server can be switched off, or kept as it is (scheduler stopped) as a fallback for a few days.
+
+**If something goes wrong** before the checks pass: on the new server, put back `~/apvmaga-env-before-transfer` as `.env` and the database saved in step 1, run `sudo -u $WEB php artisan migrate --force` (brings that database up to the new code, keeping its content), and delete `/etc/cron.d/apvmaga-scheduler`; on the old server, uncomment the scheduler line. The dashboard is then back where it was, and no data is lost: the old server fetches what it missed at its next sync.
 
 ---
 
