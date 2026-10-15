@@ -1,331 +1,165 @@
 # APV-MaGa Dashboard
-**Agrivoltaic monitoring platform for solar, water, irrigation, weather and agricultural data collection, visualization and management across multiple field sites in West Africa.**
-**Plateforme de monitoring agrivoltaïque pour la collecte, visualisation et gestion des données solaires, hydriques, d'irrigation, météorologiques et agricoles sur plusieurs sites de terrain en Afrique de l'Ouest.**
 
----
+Monitoring platform for agrivoltaic sites: sensor data, weather, irrigation, water and field measurements, on one dashboard.
+*Plateforme de suivi des sites agrivoltaïques : capteurs, météo, irrigation, eau et mesures de terrain, sur un seul tableau de bord.*
 
-## Overview
-
-APV-MaGa is a full-stack web application built with Laravel for monitoring agrivoltaic installations. It enables real-time data collection from IoT sensors and modules, manual data entry by field agents, remote control of field equipment (valves, pumps, cooling fans), and dynamic visualization through configurable dashboards.
-
-Developed by **Saratech**, funded by **UNU (United Nations University)**.
+Developed by **Saratech**, funded by **UNU (United Nations University)**. Production: https://apvmaga.saratechniger.com
 
 ---
 
 ## Features
 
-- **Multi-site monitoring** — manage multiple agrivoltaic field sites, each with its own categories, parameters, charts and API key; sites can be duplicated (categories, parameters, groups and charts included) to speed up onboarding similar installations
-- **Real-time sensor data** — receive data from IoT sensors and modules via REST API, with per-parameter min/max validation at ingestion and rate limiting to protect against flooding
-- **Remote actuator control** — toggle switches (valves, pumps, cooling fans) remotely, with sync status tracking (Synced / Pending / No device report / Stale)
-- **Parameter groups & alert thresholds** — organize related parameters into color-coded, drag-and-drop-orderable groups; configure warning/critical thresholds per parameter with direction-aware alerting (below or above the threshold, depending on what "bad" means for that reading)
-- **Offline detection** — configurable per-category threshold; dashboards flag parameters as "No data" or "Stale" when devices stop reporting
-- **Manual data entry** — field agents can input agricultural, water, irrigation or weather readings (crop yield, plant health, tank levels, etc.), with saved records and category-specific CSV/Excel export
-- **Dynamic dashboards** — configurable charts per site and category, with 1H / 6H / 24H / 7D presets plus a custom date-range picker for any historical window
-- **Historical data & statistics API** — query raw history or aggregated stats (avg/min/max/sum/count) over hour/day/week/month periods
-- **Role-based access** — admin, agent, and observer roles, with per-site assignment; observers get read + export access scoped to their assigned sites
-- **Email notifications** — account creation, approval, site access, and password reset emails (branded)
-- **Data export** — export readings to CSV or Excel, per site, per category, or across all accessible sites, with formula-injection-safe cell encoding
-- **Bilingual interface** — French and English support, including `/help` and `/docs` pages
-- **Responsive design** — works on desktop and mobile, with off-canvas navigation
+- **Multi-site dashboards** — an overview of all sites, and per site one tab per category (Irrigation, Water, Weather, Solar, Agriculture…) with cards, charts and raw data; periods 1H / 6H / 24H / 7D or custom.
+- **Automatic data sources** — ThingsBoard (soil probes, valves, flow meters, tank sensors) and LI-COR Cloud (HOBOnet weather stations and PAR sensors), synchronised every ten minutes; IoT devices can also post through a REST API.
+- **Manual entry** — field measurements (plants, harvest) entered by agents.
+- **Offline alerts** — e-mail when part of a site, or a single sensor, stops reporting, and when it comes back.
+- **Thresholds** — warning / critical levels and valid ranges per parameter, shown on the cards.
+- **Roles** — administrator, agent and observer, assigned per site.
+- **Export** — CSV and Excel, per category, per site or across all sites.
+- **Nightly backup** of the database, with an e-mail if it fails.
+- **Help** — user manual (`/help`, FR/EN, also as PDF) and technical documentation (`/developer-docs`).
 
----
-
-## Tech Stack
-
-- **Backend**: Laravel 12 (PHP 8.2)
-- **Database**: SQLite or MariaDB/MySQL — both are supported; the `apvmaga.saratechniger.com` deployment runs on SQLite
-- **Frontend**: Blade templates, Chart.js
-- **Hardware**: IoT sensors and modules (ESP32, Arduino, Raspberry Pi, etc.)
-- **Deployment**: Hostinger VPS (AAPanel / Nginx)
-
----
-
-## Project Structure
-
-```
-app/
-├── Http/Controllers/
-│   ├── Api/                  # IoT sensor & actuator API endpoints
-│   ├── Concerns/              # Shared traits (AuthorizesSiteAccess, ResolvesDateRange)
-│   ├── ActuatorController.php
-│   ├── AdminController.php
-│   └── DashboardController.php
-├── Mail/                      # Transactional email classes (welcome, approval, site access, reset password)
-├── Models/                     # Eloquent models (Site, SiteCategory, SiteParameter, SiteParameterGroup,
-│                                # SensorReading, ManualReading, ActuatorCommand, User, ...)
-├── Support/                    # Small framework-agnostic helpers (e.g. SafeExport for CSV/Excel output)
-└── Exports/                    # CSV/Excel export classes
-
-resources/views/
-├── admin/                       # Admin panel views
-├── auth/                        # Login, register, forgot/reset password
-├── dashboard/                   # Dashboard & site detail views
-├── emails/                      # Email layout & templates
-├── layouts/                     # Layout templates (dashboard shell, sidebar)
-├── help.blade.php               # User manual (FR/EN)
-└── docs.blade.php               # Technical/API documentation (FR/EN)
-
-routes/
-├── web.php                       # Web routes
-└── api.php                       # API routes for IoT sensors & actuators
-
-tests/
-├── Feature/                      # HTTP-level tests (auth, admin CRUD, exports, API endpoints...)
-└── Unit/                         # Pure logic tests (threshold alerting)
-```
+Built with Laravel 12 (PHP 8.2+), Blade and Chart.js, on SQLite (MySQL also supported).
 
 ---
 
 ## Installation
 
-### Requirements
-- PHP >= 8.2
-- Composer
-- SQLite (default, no server needed) or MariaDB 10.x
-- Node.js & NPM
-
-### Steps
 ```bash
-# Clone the repository
 git clone https://github.com/saratechacademy/APV-MaGa-Dashboard.git
 cd APV-MaGa-Dashboard
-
-# Install dependencies
 composer install
-npm install
-
-# Configure environment
 cp .env.example .env
 php artisan key:generate
-
-# Set up database
+touch database/database.sqlite
 php artisan migrate
-php artisan db:seed --class=DatabaseSeeder
-
-# Build assets
-npm run build
-
-# Start server
+php artisan db:seed            # creates the first administrator, admin@apvmaga.com
 php artisan serve
 ```
 
----
+The administrator's initial password is in `database/seeders/AdminSeeder.php`: change it at first login.
 
-## Testing
-
-```bash
-php artisan test
-```
-
-The suite covers authentication and authorization boundaries (admin/agent/observer, per-site assignment), IoT API ingestion and querying, threshold-based alerting, manual reading validation, actuator control, and export content — see `tests/Feature` and `tests/Unit`.
+To connect the data sources, follow [Connecting another installation to the same data sources](#connecting-another-installation-to-the-same-data-sources). Tests: `php artisan test`.
 
 ---
 
-## API Usage (IoT Sensors & Actuators)
+## Data sources
 
-### Authentication
-All API requests require the `X-API-Key` header with the site's API key (available from the dashboard's "API Key" tab for each site). The key is only accepted in that header, never in the URL. Requests are rate-limited per site to protect against flooding.
+### ThingsBoard
 
-### Date ranges
-`history` and `stats` accept `from`/`to` as plain dates (`YYYY-MM-DD`); each covers the full calendar day (`from` at 00:00:00, `to` at 23:59:59), so `?from=2026-05-01&to=2026-05-01` returns that entire day rather than an empty, zero-width window.
+Devices are named `<prefix>-<zone>-<sensor>-<n>`, e.g. `UTG-APV-Humidity-1-Shadow`:
 
-### Send sensor data
-```http
-POST /api/sensors/{site}/{category}
-X-API-Key: your-site-api-key
-Content-Type: application/json
+- the **prefix** selects the site (`UTG`, `AfriFarm`…);
+- the **zone** (`APV`, `Reference`, `General`, `Normal`) becomes the parameter group;
+- the **sensor type** selects the category and parameters (`config/thingsboard.php`).
 
-{
-  "solar_output": 4.2,
-  "solar_irradiance": 850.5,
-  "panel_temperature": 42.3
-}
-```
+`Business`, `Spare` and test devices are ignored. The tank volume is computed from the water height and the site's tank radius and number of tanks (Admin → Sites → Edit); without them, no volume is shown. The daily water use is computed from the flow meter.
 
-### Get latest readings
-```http
-GET /api/sensors/{site}/{category}/latest
-X-API-Key: your-site-api-key
-```
+### LI-COR (HOBOnet)
 
-### Check site status (all categories)
-```http
-GET /api/sensors/{site}/status
-X-API-Key: your-site-api-key
-```
+Weather stations (temperature, humidity, dew point, wind, gusts, wind direction, rain, pressure) and PAR sensors. The 1-minute readings are stored as 10-minute values (sum for rain, maximum for gusts, vector mean for wind direction).
 
-### Historical data (max 90 days)
-```http
-GET /api/sensors/{site}/{category}/history?from=&to=&params=&page=&per_page=
-X-API-Key: your-site-api-key
-```
+- Stations upload in batches every 6 to 10 hours: data appears that long after it is measured, and is only marked stale after 12 hours.
+- Each location (Reference, Under PV, Between PV, Module edge) has its own sensors. Weather cards are grouped by location, and charts compare the locations. Sensor locations are set per site in Admin → Sites → Edit ("LI-COR sensor locations", one `serial = location` per line).
 
-### Aggregated statistics
-```http
-GET /api/sensors/{site}/{category}/stats?period=hour|day|week|month&from=&to=&params=
-X-API-Key: your-site-api-key
-```
+### Linking sites
 
-### Actuator commands (switches)
-```http
-GET /api/commands/{site}/{category}
-X-API-Key: your-site-api-key
-```
+- `database/presets/sites.json` lists the Gambian sites with their ThingsBoard prefix, LI-COR station, coordinates, tank and sensor locations. `php artisan thingsboard:setup` and `php artisan licor:setup` create or link these sites. Both can be run again: they only add what is missing, and never overwrite what was changed in the admin.
+- **Admin → Data sources** lists what the ThingsBoard and LI-COR accounts expose, and links any source to a site in one click.
+- Parameters created by a sync can be renamed, regrouped, given thresholds or deactivated like any other.
 
-Full endpoint documentation, including request/response formats and available categories/parameters per site, is available on the `/docs` page (admin access).
+### Checking
 
----
-
-## ThingsBoard integration
-
-Sites whose sensors report to a ThingsBoard instance (soil moisture probes, valves, flow meters, tank level/turbidity sensors) are fed automatically: every ten minutes the dashboard pulls the new telemetry and stores it like any other sensor reading.
-
-### Setting it up on an installation
-
-1. Update the code and database:
-   ```bash
-   git pull origin main
-   composer install --no-dev --optimize-autoloader
-   php artisan migrate --force
-   ```
-2. Add the ThingsBoard account to `.env`, then run `php artisan config:clear`:
-   ```
-   THINGSBOARD_URL=http://<host>:<port>
-   THINGSBOARD_USERNAME=<account e-mail>
-   THINGSBOARD_PASSWORD="<password>"
-   THINGSBOARD_LOOKBACK_DAYS=60
-   ```
-   `THINGSBOARD_LOOKBACK_DAYS` is how much history the first sync loads (default 7).
-3. Preview, then run the setup:
-   ```bash
-   php artisan thingsboard:setup --dry-run
-   php artisan thingsboard:setup
-   ```
-   For each site of the presets file `database/presets/sites.json` that has a ThingsBoard prefix, this links the existing site (matched by its name) or creates it, creates the categories, groups and parameters, and loads the history. It is safe to run again. If two existing sites could match, it stops and asks you to set the **ThingsBoard device prefix** on the right one (Admin → Sites → Edit).
-4. Make the sync automatic by adding the Laravel scheduler to the server cron, run as the web server user:
-   ```
-   * * * * * cd /path/to/the/project && php artisan schedule:run >> /dev/null 2>&1
-   ```
-
-### Checking that it works
-
-- **Admin → Sites** shows a badge per linked site: `ThingsBoard ok`, `late` (no successful sync for 30 minutes — usually the cron is not running) or `failed` (hover for the error).
-- `php artisan thingsboard:check` tests the connection and lists every device with its latest values.
-- `php artisan thingsboard:sync` runs a sync by hand.
-- Optional: set `THINGSBOARD_HEARTBEAT_URL` to a monitoring URL (healthchecks.io, Uptime Kuma...) to be alerted when the sync stops.
-
-### How devices are mapped
-
-Devices are named `<prefix>-<zone>-<sensor>-<n>`, e.g. `UTG-APV-Humidity-1-Shadow`. The prefix selects the site; the zone (`APV`, `Reference`, `General`, `Normal`) becomes the parameter group; the sensor type selects the category and parameters. `Business`, `Spare` and test devices are ignored. The mapping of device types to parameters lives in `config/thingsboard.php`. Which sites exist is not code: it comes from the presets file at set-up, and afterwards from **Admin → Data sources**, which lists the prefixes the ThingsBoard account exposes and links any of them to a site (or creates the site) in one click.
-
-The tank volume is computed from the measured water height and the site's own tank (radius and number of tanks, in Admin → Sites → Edit). A site without a tank geometry gets no volume parameter rather than a wrong one.
-
-Parameters created by the sync can be renamed, regrouped, given thresholds or deactivated in the admin like any other.
-
----
-
-## LI-COR (HOBOnet) integration
-
-The weather stations (temperature, humidity, dew point, wind, gusts, wind direction, rain, pressure) and PAR sensors of each site are HOBOnet stations on LI-COR Cloud. Every ten minutes the dashboard pulls their data, averages the 1-minute readings into 10-minute values (sum for rain, maximum for gusts, vector mean for wind direction) and stores them as sensor readings.
-
-### Setting it up on an installation
-
-1. Update the code and database as for ThingsBoard (`git pull`, `composer install --no-dev --optimize-autoloader`, `php artisan migrate --force`).
-2. Add the LI-COR API token to `.env`, then run `php artisan config:clear`:
-   ```
-   LICOR_API_TOKEN=<token>
-   LICOR_LOOKBACK_DAYS=7
-   ```
-3. Preview, then run the setup:
-   ```bash
-   php artisan licor:setup --dry-run
-   php artisan licor:setup
-   ```
-   For each site of the presets file `database/presets/sites.json` that has a LI-COR station (UTG, AfriFarm, Fass), this links the site already used for ThingsBoard, or a site whose name matches, or creates it. It also adds the manual agriculture parameters (leaves per plant, stem girth, plant height, chlorophyll, stand count, bulb diameter and weight, yield, harvest index), then loads the history. Expect a few minutes for the first run. It is safe to run again.
-4. The scheduler cron described above also runs this sync.
-
-### Good to know
-
-- Stations upload in batches, every 6 to 10 hours as measured on the Gambian stations: data appears on the dashboard that long after it was measured, and a reading only counts as stale past 12 hours. How often a station connects is a setting of the station itself (HOBOlink).
-- **Admin → Sites** shows a `LI-COR ok / late / failed` badge per linked site; `php artisan licor:sync` runs a sync by hand.
-- Each location (Reference, Under PV, Between PV, Module edge) has its own weather station; the weather cards are grouped by location, while the charts compare the locations measurement by measurement. The presets file locates every sensor of the three Gambian stations; `licor:setup` adds the locations a site is missing without overriding those entered in the admin.
-- Sensors are named by location where the site knows it, otherwise by sensor serial (e.g. `Air temperature – 22034652`). Locations are entered per site in Admin → Sites → Edit (“LI-COR sensor locations”, one `serial = location` per line); saving renames that site's parameters. The presets file provides the PAR locations (Reference, Module edge, Under PV, Between PV).
-- A station that is not in the presets file is linked to a site from **Admin → Data sources**.
+- **Admin → Sites** shows one badge per source and site: `ok`, `late` (no successful sync for a while — usually the cron is not running) or `failed` (hover for the error).
+- `php artisan thingsboard:check` lists every ThingsBoard device with its latest values.
+- `php artisan thingsboard:sync` and `php artisan licor:sync` run a sync by hand.
+- Optional: `THINGSBOARD_HEARTBEAT_URL` (healthchecks.io, Uptime Kuma…) is called after each successful ThingsBoard sync, to be warned when syncs stop.
 
 ---
 
 ## Offline alerts
 
-When part of a site stops sending data, the people concerned get an e-mail, and another one when the data comes back.
+- **Category**: an e-mail goes out when a category of a site (Irrigation, Water, Weather…) sends nothing for longer than its offline threshold (Admin → Sites → Categories), and another when data comes back.
+- **Single sensor**: a sensor that stops while the rest of its category still reports is announced after three times the category threshold (3 h for ThingsBoard, 36 h for LI-COR; `ALERTS_SENSOR_THRESHOLD_MULTIPLIER`).
+- **Recipients**: active administrators, the site's owner and the users assigned to it — among those whose **Receive offline alerts** box is ticked (Admin → Users). The box is ticked by default for administrators and agents.
+- **Frequency**: one message when it stops, one when it resumes, nothing in between.
+- **Not announced**: what never reported, deactivated categories or sites, manual parameters, and silences caused by the platform's own link to ThingsBoard or LI-COR failing (shown by the badges instead).
 
-- **What is watched**: each category of each active site (Irrigation, Water, Weather…), not the site as a whole — a site whose soil probes died while its weather station still reports is not "offline", yet someone has to look at the probes. A category is offline when none of its sensors has sent a reading within the category's **offline threshold** (Admin → Sites → Categories), the same rule that marks its cards "Stale".
-- **Who is told**: active administrators, plus the active users assigned to that site and its owner — among those whose **Receive offline alerts** box is ticked (Admin → Users; ticked by default for administrators and agents, unticked for observers such as students).
-- **Single sensors** are watched too: a sensor that stops while the rest of its category still reports (one dead flow meter among working soil probes) is announced once it has been silent three times the category threshold — 3 h for ThingsBoard, 36 h for LI-COR (`ALERTS_SENSOR_THRESHOLD_MULTIPLIER`); shorter radio gaps are routine. The message names the device and its measurements.
-- **How often**: once when it stops, once when it resumes. Categories of one site that change together share one message. Nothing is repeated while an outage lasts.
-- **Not announced**: a category that never reported, a deactivated category or site, manual-entry parameters, and silences that occur while the dashboard itself cannot reach ThingsBoard or LI-COR (the sync badge in Admin → Sites covers that case).
-
-The check runs every ten minutes from the scheduler (`php artisan sites:check-offline` runs it by hand) and needs working mail settings in `.env` (`MAIL_MAILER=smtp` and the SMTP account). The first run after installation records what is already silent without e-mailing about it.
+Needs the scheduler and `MAIL_MAILER=smtp` with an SMTP account in `.env`.
 
 ---
 
-## Site presets
+## Backups
 
-`database/presets/sites.json` describes the sites the two `…:setup` commands create or link on a fresh installation: name, country, coordinates, ThingsBoard prefix, LI-COR station, tank geometry, sensor locations. It is deployment data, not code — edit it, or pass your own with `--presets=/path/to/file.json`. It is only read by the setup commands; once a site exists, everything in it is edited in the admin, and what an admin entered is never overwritten by the file.
+With SQLite, the whole platform is the file `database/database.sqlite`.
 
----
-
-## Sites
-
-The platform supports an unlimited number of sites. Each site can be configured with its own:
-
-- **Categories** (Solar, Water, Irrigation, Weather, Agriculture, or custom)
-- **Parameters** — sensor or manual input, with optional actuator control (readonly/controllable switches), min/max range and warning/critical alert thresholds
-- **Parameter groups** — visually group related parameters on the dashboard, reorderable by drag-and-drop or keyboard
-- **Charts** — configurable per category (full/half/third width, dual-axis support)
-- **Offline threshold** — per-category, used to flag stale/offline parameters
-- **API key** — for IoT device authentication
-- **Users** — with role-based access (admin, agent, observer) and per-site assignment
-
-Sites can be created, edited, or duplicated (with their full category/parameter/group/chart configuration) directly from the Admin Panel without any code changes.
+- **Nightly copy**: at 02:35 the scheduler runs `php artisan db:backup`. It writes a checked, compressed copy to `BACKUP_PATH` (default `storage/app/backups`) and keeps it `BACKUP_KEEP_DAYS` days (default 14). If it fails, the administrators who receive alerts get an e-mail.
+- **Requirements**: `BACKUP_PATH` must be writable by the web server user; copy that folder to another machine as well.
+- **MySQL**: use the database server's own backups.
 
 ---
 
-## Deployment
+## API for IoT devices
 
-Production: `https://apvmaga.saratechniger.com` (Hostinger VPS, AAPanel + Nginx).
+Each site has its own API key (site page → "API Key" tab), sent in the `X-API-Key` header. Requests are rate-limited.
 
-After pulling updates on the server:
+| Request | Purpose |
+|---|---|
+| `POST /api/sensors/{site}/{category}` | send readings, e.g. `{"solar_output": 4.2, "panel_temperature": 42.3}` |
+| `GET /api/sensors/{site}/{category}/latest` | latest readings |
+| `GET /api/sensors/{site}/status` | status of every category |
+| `GET /api/sensors/{site}/{category}/history?from=&to=&params=` | raw history, 90 days at most |
+| `GET /api/sensors/{site}/{category}/stats?period=hour\|day\|week\|month&from=&to=` | averages, minimum, maximum, sum |
+| `GET /api/commands/{site}/{category}` | desired state of controllable switches (valves, pumps…) |
+
+`from` and `to` are dates (`YYYY-MM-DD`) and include the whole day. Details and examples are on `/developer-docs`.
+
+---
+
+## Updating a server
+
+Run as the web server user (`sudo -u www …` on AAPanel, `sudo -u www-data …` on Debian/Ubuntu), from the project folder:
+
 ```bash
 git pull origin main
 composer install --no-dev --optimize-autoloader
 php artisan migrate --force
-php artisan view:clear
-php artisan config:clear
-php artisan cache:clear
+php artisan config:clear && php artisan cache:clear && php artisan view:clear
 ```
 
-Run these as the web server user (e.g. `sudo -u www php artisan ...`), otherwise log and cache files end up owned by `root` and the site can no longer write to them. `.env` must have `APP_ENV=production`, `APP_DEBUG=false` and `APP_URL` set to the public address, and should have `LOG_STACK=daily`, `LOG_LEVEL=warning` (one log file per day, 14 kept, instead of a single file growing forever). When `APP_URL` starts with `https://`, pages requested over `http://` are redirected to HTTPS (API `POST`s are not, so a device still configured with an `http://` address keeps delivering its readings).
+**Production `.env`**:
 
-The server cron must run the Laravel scheduler every minute (it drives the ThingsBoard sync):
 ```
-* * * * * cd /path/to/the/project && php artisan schedule:run >> /dev/null 2>&1
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://<public address>
+LOG_STACK=daily
+LOG_LEVEL=warning
 ```
 
-With SQLite, the whole database is the single file `database/database.sqlite`. The scheduler copies it every night at 02:35 (`php artisan db:backup`): a consistent, checked, compressed copy in `BACKUP_PATH` (default `storage/app/backups`, kept `BACKUP_KEEP_DAYS` = 14 days). If the copy fails, the active administrators who take alerts get an e-mail. `BACKUP_PATH` must be writable by the web server user; copy that folder off the server as well.
+When `APP_URL` is `https://`, pages requested over `http://` are redirected; device `POST`s are not.
 
-### Connecting another installation to the same data sources
+**Scheduler**: the cron must run it every minute, as the web server user. It drives the syncs, the alerts and the backup:
 
-**What this does.** Your server connects to the same ThingsBoard and LI-COR accounts as the Saratech server and builds the same three Gambian sites by itself — same sensors, same parameters, same charts — then keeps them up to date every ten minutes. No database is copied between the servers. Both can run at the same time: the dashboard only *reads* from ThingsBoard and LI-COR.
+```
+* * * * * www cd /path/to/the/project && php artisan schedule:run >> /dev/null 2>&1
+```
 
-**What you need**
+---
 
-- the settings file sent by Saratech, with the ThingsBoard and LI-COR accounts (it contains passwords: keep it private, delete it once used);
-- PHP 8.2 or later with `pdo_sqlite` (or MySQL), Composer, and `git`;
-- at least one **active administrator account** in your installation: the set-up commands make it the owner of the sites they create. An existing installation normally has one; on a brand-new one, run `php artisan db:seed --class=AdminSeeder` (creates `admin@apvmaga.com`, password in `database/seeders/AdminSeeder.php` — change it at first login).
+## Connecting another installation to the same data sources
 
-All commands below are run from the project folder (the one containing `artisan`), as the web server user (`sudo -u www …` on AAPanel, `sudo -u www-data …` on Debian/Ubuntu).
+Use this to set up a new installation, or to give another server the same sites as the Saratech server without copying its database. Several installations can read the same ThingsBoard and LI-COR accounts at the same time.
 
-#### Step 1 — Update the code
+**You need**
+
+- the ThingsBoard and LI-COR accounts (a settings file from Saratech; it contains passwords: keep it private, delete it once used);
+- PHP 8.2+, Composer and git;
+- an active administrator account, which becomes the owner of the sites created (on a new installation: `php artisan db:seed`).
+
+Commands are run from the project folder, as the web server user.
+
+**1. Update the code**
 
 ```bash
 git fetch origin
@@ -334,13 +168,10 @@ composer install --no-dev --optimize-autoloader
 php artisan migrate --force
 ```
 
-- Do **not** use `git pull` on a clone made before 13 October 2026: the history was rewritten that day and a pull ends in merge conflicts.
-- If the project was copied without git, first run `git init && git remote add origin https://github.com/saratechacademy/APV-MaGa-Dashboard.git`, then the commands above.
-- Expected: `migrate` lists the migrations it applies, or says "Nothing to migrate". No error.
+- **Older clone**: do not use `git pull` on a clone made before 13 October 2026; the history was rewritten and a pull ends in merge conflicts.
+- **Copied without git**: first run `git init && git remote add origin https://github.com/saratechacademy/APV-MaGa-Dashboard.git`.
 
-#### Step 2 — Add the data source accounts to `.env`
-
-Copy the six lines of the settings file into `.env` (replace any existing line with the same name):
+**2. Add the accounts to `.env`**, then `php artisan config:clear`:
 
 ```
 THINGSBOARD_URL=…
@@ -351,159 +182,122 @@ THINGSBOARD_LOOKBACK_DAYS=90
 LICOR_LOOKBACK_DAYS=30
 ```
 
-The last two lines say how many days of past data the first sync loads. 90 and 30 cover at least what the Saratech server holds (ThingsBoard since 9 August 2026, LI-COR since 5 October 2026); raise them to load older data. A month of LI-COR history takes a few minutes.
+The last two lines set how many days of history the first sync loads. 90 and 30 cover at least what the Saratech server holds (ThingsBoard since 9 August 2026, LI-COR since 5 October 2026).
 
-Then: `php artisan config:clear`.
-
-#### Step 3 — Create the sites and load the history
+**3. Create the sites and load the history**
 
 ```bash
-php artisan thingsboard:setup --dry-run     # preview: nothing is changed
+php artisan thingsboard:setup --dry-run     # preview, nothing changed
 php artisan thingsboard:setup
 php artisan licor:setup --dry-run
 php artisan licor:setup
 ```
 
-Expected output:
+Expected:
 
 ```
 UTG: creating site "University of The Gambia" — 16 device(s).
 AfriFarm: creating site "AfriFarm" — 13 device(s).
-…
 22490037: creating site "Fass Community Garden" — 30 sensor(s).
 University of The Gambia (22490036): 30 sensor(s), … reading(s) stored, 0 rejected, 30 parameter(s) created.
 ```
 
-If a site of the same name already exists, it is linked instead of created ("linking existing site"). Both commands can be run again safely: they only add what is missing.
+A site that already exists under the same name is linked instead ("linking existing site").
 
-They create, for each site: the categories, the parameters, the weather sensors grouped by location (Reference, Under PV, Between PV, Module edge), the tank dimensions, the offline thresholds, the charts and the manual agriculture parameters — all from `database/presets/sites.json`.
+**4. Keep the data flowing**
 
-#### Step 4 — Keep the data flowing
+- Scheduler, as root, from the project folder:
+  ```bash
+  WEB=www        # www-data on Debian/Ubuntu
+  echo "* * * * * $WEB cd $(pwd) && php artisan schedule:run >> /dev/null 2>&1" > /etc/cron.d/apvmaga-scheduler
+  ```
+  If cron does not find `php`, use the full path given by `which php`.
+- `MAIL_MAILER=smtp` and the `MAIL_…` settings of your SMTP account.
+- `BACKUP_PATH=` a folder outside `public/`, writable by the web server user (`mkdir -p /var/backups/apvmaga && chown $WEB:$WEB /var/backups/apvmaga`).
+- `php artisan config:clear`.
 
-1. **Scheduler** (runs the syncs every ten minutes, the offline alerts and the nightly backup). As root, from the project folder, with `WEB` set to the web server user:
-   ```bash
-   WEB=www        # or www-data
-   echo "* * * * * $WEB cd $(pwd) && php artisan schedule:run >> /dev/null 2>&1" > /etc/cron.d/apvmaga-scheduler
-   ```
-   If cron does not find `php`, replace it with the full path given by `which php`.
-2. **E-mail** (offline alerts, password resets): `MAIL_MAILER=smtp` and the `MAIL_…` settings of your SMTP account in `.env`.
-3. **Backup** (SQLite installations; with MySQL, use the database server's own backups): `BACKUP_PATH=` a folder outside `public/` that the web server user can write to, e.g. `mkdir -p /var/backups/apvmaga && chown $WEB:$WEB /var/backups/apvmaga`.
-
-Then `php artisan config:clear` again.
-
-#### Step 5 — Check
+**5. Check**
 
 | Check | Expected |
 |---|---|
-| Log in, open **All Sites** | University of The Gambia, AfriFarm and Fass Community Garden, with their tiles and charts |
-| **Admin → Sites**, ten minutes later | a ThingsBoard badge (UTG, AfriFarm) and a LI-COR badge (all three) showing `ok` |
-| `php artisan db:backup` (SQLite) | `Backup written: …/apvmaga-<date>.sqlite.gz` |
-| "Forgot password?" on the login page, with the address of an account whose mailbox you can read | the reset e-mail arrives |
+| Log in, open **All Sites** | University of The Gambia, AfriFarm and Fass Community Garden, with tiles and charts |
+| **Admin → Sites**, ten minutes later | ThingsBoard (UTG, AfriFarm) and LI-COR (all three) badges `ok` |
+| `php artisan db:backup` | `Backup written: …/apvmaga-<date>.sqlite.gz` |
+| "Forgot password?" with the address of an account whose mailbox you can read | the e-mail arrives |
 
-#### Good to know
+**Not shared between installations**: user accounts, manual entries and changes made in the admin. Each installation sends its own alerts, so someone with an account on both receives them twice.
 
-- **Not shared between the two servers**: user accounts, manual field entries, and anything changed by hand in the admin (renamed parameters, thresholds, alert choices). Each installation has its own; create your team's accounts in Admin → Users.
-- **Alerts**: each installation e-mails its own users. Someone with an account on both receives each alert twice.
-- Checked on 15 October 2026: a fresh installation set up this way has exactly the same sites, categories, groups, parameters, thresholds and charts as the Saratech server.
+---
 
-### Moving the installation to another server
+## Moving the installation to another server
 
-Everything the dashboard knows — sites, categories and parameters, links to ThingsBoard and LI-COR, sensor locations, the whole reading history, users and their alert choices — is in one file, `database/database.sqlite`. Moving to a new server means bringing the code up to date there and bringing that file over. Nothing is set up again by hand, and no sensor needs reconfiguring: the dashboard fetches its data from ThingsBoard and LI-COR, no device sends to it.
+This moves everything, including accounts, manual entries and admin settings. Everything is in `database/database.sqlite`, so it means updating the code on the new server and copying that file there. No sensor needs reconfiguring.
 
-**Who does what.** The *old* server is the one running the dashboard today (Saratech); the *new* one takes over (its own team). Steps marked **[old]** are done by whoever manages the old server; everything else is done on the new server.
+- **Who does what**: steps marked **[old]** are done on the current server; all others on the new server.
+- **Secrets**: the database copy and the settings file contain secrets; send them server to server (`scp`), never by plain e-mail.
+- **Accounts**: create the new team's accounts on the current server before step 6, so they can log in afterwards.
 
-**What the new server's team receives** before the switch: the database copy (step 6) and a settings file with the ThingsBoard and LI-COR accounts (step 4). Both contain secrets: they travel server to server (`scp`) or through a password-sharing tool, never by plain e-mail.
-
-**Accounts.** After the switch, only the accounts of the transferred database exist. Make sure the new server's team has one (an administrator creates it in Admin → Users on the old server before step 6), or they will not be able to log in to check their work.
-
-#### 1. Prepare the new server (no interruption yet)
-
-All commands are run from the project folder. Set these two names once; the commands below use them:
+Commands are run from the project folder, with `WEB` set to the web server user:
 
 ```bash
-cd /path/to/the/project          # the folder that contains artisan
-WEB=www                          # the web server user: www on AAPanel, www-data on Debian/Ubuntu
+cd /path/to/the/project
+WEB=www        # www-data on Debian/Ubuntu
 ```
 
-1. **Back up what is there today**, since the database is about to be replaced, and keep the current `.env`:
+**Prepare the new server** (no interruption)
+
+1. Save the current state:
    ```bash
    cp .env ~/apvmaga-env-before-transfer
-   # SQLite:  sqlite3 database/database.sqlite ".backup $HOME/apvmaga-db-before-transfer.sqlite"
-   # MySQL:   mysqldump -u <user> -p <database> > ~/apvmaga-db-before-transfer.sql
+   sqlite3 database/database.sqlite ".backup $HOME/apvmaga-db-before-transfer.sqlite"   # or mysqldump for MySQL
    ```
-2. **Check the requirements**: `php -v` shows 8.2 or later; `php -m | grep -i sqlite` lists `pdo_sqlite` and `sqlite3`; `composer --version` works. The site's web root must point to the project's `public/` folder (already the case if the site works today).
-3. **Bring the code up to date.**
-   - If the project is a git clone: `git fetch origin && git reset --hard origin/main`. Do **not** run `git pull`: the history was rewritten on 2026-10-13 and a pull of an older clone ends in merge conflicts (if it already happened: `git merge --abort`, then the two commands above).
-   - If it was copied without git:
-     ```bash
-     git init
-     git remote add origin https://github.com/saratechacademy/APV-MaGa-Dashboard.git
-     git fetch origin && git reset --hard origin/main
-     ```
-     `.env`, `storage/` and `vendor/` are not touched.
+2. Check: `php -v` is 8.2 or later; `php -m | grep -i sqlite` lists `pdo_sqlite`; `composer --version` works; the web root points to `public/`.
+3. Update the code as in step 1 of the previous section. Then run `git status --short`. Any `??` file under `app/`, `config/`, `routes/` or `database/migrations/` belongs to an older version: move it out of the project. An old migration left there would run against the transferred database.
+4. In `.env`, set:
+   - the ThingsBoard and LI-COR lines of the settings file;
+   - `DB_CONNECTION=sqlite`, and delete the other `DB_…` lines;
+   - the production settings of [Updating a server](#updating-a-server), with `APP_URL` set only once the HTTPS certificate is installed;
+   - `BACKUP_PATH` and `MAIL_…`.
 
-   Then `git status --short`. Lines starting with `??` under `app/`, `config/`, `routes/` or `database/migrations/` are files of an older version: move them out of the project (`mkdir -p ~/apvmaga-old-files && mv <file> ~/apvmaga-old-files/`). An old migration left there would run against the transferred database; an old config file can stop `artisan`. Other `??` lines (`.env`, `storage/`, `public/build/`, files at the top of the project) can stay.
+   Keep the existing `APP_KEY`.
 
-   Finally: `composer install --no-dev --optimize-autoloader`.
-4. **Edit `.env`**:
-   - copy in the lines of the settings file received from the old server: `THINGSBOARD_URL`, `THINGSBOARD_USERNAME`, `THINGSBOARD_PASSWORD`, `THINGSBOARD_LOOKBACK_DAYS`, `LICOR_API_TOKEN`, `LICOR_LOOKBACK_DAYS`;
-   - `DB_CONNECTION=sqlite`, and delete the `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` lines;
-   - `APP_ENV=production`, `APP_DEBUG=false`, `LOG_STACK=daily`, `LOG_LEVEL=warning`;
-   - `APP_URL=https://<the site's address>`. The HTTPS certificate must already be installed: pages asked over `http://` are redirected to `https://`;
-   - `BACKUP_PATH=` a folder outside `public/` for the nightly database copies, e.g. `/var/backups/apvmaga`, created with `mkdir -p /var/backups/apvmaga && chown $WEB:$WEB /var/backups/apvmaga`;
-   - `MAIL_MAILER=smtp` and the `MAIL_…` settings of the SMTP account that sends alerts and password resets;
-   - leave `APP_KEY` as it is. `CACHE_STORE` and `SESSION_DRIVER` can stay `database` or be `file`.
+**Switch over** (under an hour; data measured meanwhile is fetched afterwards)
 
-#### 2. Switch over (under an hour; data measured meanwhile is fetched afterwards)
-
-5. **[old]** Stop the scheduler, so the two servers never sync, back up or send alerts at the same time: comment out its line in the cron (`/etc/cron.d/apvmaga-scheduler` on the current server).
-6. **[old]** Take a consistent copy of the database and send it, with the settings file, to the new server:
+5. **[old]** Comment out the scheduler line in the cron, so the two servers never run at the same time.
+6. **[old]** Copy the database and send it:
    ```bash
    sqlite3 -cmd ".timeout 300000" database/database.sqlite ".backup /root/apvmaga-transfer.sqlite"
    scp /root/apvmaga-transfer.sqlite <user>@<new server>:~/
    ```
-7. **Put the database in place** on the new server:
+7. Put it in place:
    ```bash
    cp ~/apvmaga-transfer.sqlite database/database.sqlite
    chown -R $WEB:$WEB database storage bootstrap/cache
    sudo -u $WEB php artisan migrate --force
-   sudo -u $WEB php artisan config:clear
-   sudo -u $WEB php artisan cache:clear
-   sudo -u $WEB php artisan view:clear
+   sudo -u $WEB php artisan config:clear && sudo -u $WEB php artisan cache:clear && sudo -u $WEB php artisan view:clear
    ```
-   `migrate` lists the few migrations it applies (or says "Nothing to migrate"); it must not show an error.
-8. **Start the scheduler** on the new server. It runs the syncs every ten minutes, the offline alerts and the nightly backup:
+8. Start the scheduler, as root:
    ```bash
    echo "* * * * * $WEB cd $(pwd) && php artisan schedule:run >> /dev/null 2>&1" > /etc/cron.d/apvmaga-scheduler
    ```
-   Run it from the project folder, as root. If cron does not find `php`, replace it with the full path given by `which php`.
 
-#### 3. Check
+**Check**
 
 | Check | Expected |
 |---|---|
-| `sudo -u $WEB php artisan thingsboard:check` | every device of the ThingsBoard account with its latest values (UTG-…, AfriFarm-…, and other projects of the same account) |
-| `sudo -u $WEB php artisan thingsboard:sync`, then `sudo -u $WEB php artisan licor:sync` | one line per site, no error; readings measured since step 5 are stored |
-| `sudo -u $WEB php artisan db:backup` | `Backup written: …/apvmaga-<date>.sqlite.gz` |
-| Log in on the site | the usual accounts work, with their usual passwords |
-| Admin → Sites, ten minutes later | every ThingsBoard / LI-COR badge shows `ok` |
-| "Forgot password?" on the login page, with the address of an account whose mailbox you can read | the reset e-mail arrives within a minute (this checks the SMTP settings) |
+| `sudo -u $WEB php artisan thingsboard:sync`, then `licor:sync` | one line per site, no error |
+| `sudo -u $WEB php artisan db:backup` | `Backup written: …` |
+| Log in | the usual accounts and passwords work |
+| **Admin → Sites**, ten minutes later | every badge `ok` |
+| "Forgot password?" | the e-mail arrives |
 
-When all checks pass, the move is done. Copy the `BACKUP_PATH` folder to another machine regularly. The old server can be switched off, or kept as it is (scheduler stopped) as a fallback for a few days.
+**If something goes wrong**, roll back:
 
-**If something goes wrong** before the checks pass: on the new server, put back `~/apvmaga-env-before-transfer` as `.env` and the database saved in step 1, run `sudo -u $WEB php artisan migrate --force` (brings that database up to the new code, keeping its content), and delete `/etc/cron.d/apvmaga-scheduler`; on the old server, uncomment the scheduler line. The dashboard is then back where it was, and no data is lost: the old server fetches what it missed at its next sync.
-
----
-
-## License
-
-MIT License — see [LICENSE](LICENSE) for details.
+- **New server**: restore `~/apvmaga-env-before-transfer` as `.env` and the saved database, run `sudo -u $WEB php artisan migrate --force`, then delete `/etc/cron.d/apvmaga-scheduler`.
+- **Current server**: uncomment the scheduler line. It catches up on the data it missed at its next sync.
 
 ---
 
 ## Contact
 
-**Saratech Academy**
-saratechacademy@gmail.com
-
-Funded by **UNU (United Nations University)**.
+**Saratech Academy** — saratechacademy@gmail.com
