@@ -312,6 +312,48 @@ The server cron must run the Laravel scheduler every minute (it drives the Thing
 
 With SQLite, the whole database is the single file `database/database.sqlite`: back it up regularly (`sqlite3 database/database.sqlite ".backup /path/to/copy.sqlite"`).
 
+### Moving the installation to another server
+
+Everything the dashboard knows — sites, categories and parameters, links to ThingsBoard and LI-COR, sensor locations, the whole reading history, users and their alert choices — is in `database/database.sqlite`. Moving to a new server means installing the code and bringing that one file over; nothing is set up again by hand, and no sensor needs reconfiguring (the dashboard fetches from ThingsBoard and LI-COR; devices do not send to it).
+
+Below, *old* is the server running the dashboard today and *new* the one taking over. Run `php artisan` commands as the web server user (`sudo -u www …` on AAPanel).
+
+**On the new server — prepare**
+
+1. Back up whatever database it has today (`mysqldump …` for MySQL, `sqlite3 … ".backup …"` for SQLite): it is about to be replaced.
+2. Check that PHP has SQLite: `php -m | grep -i sqlite` must list `pdo_sqlite` and `sqlite3`.
+3. Bring the code to the current version:
+   - already a clone of this repository: `git fetch origin && git reset --hard origin/main` (the history was rewritten on 2026-10-13; a plain `git pull` fails);
+   - copied without git: `git init && git remote add origin https://github.com/saratechacademy/APV-MaGa-Dashboard.git && git fetch origin && git reset --hard origin/main` (keeps `.env` and `storage/`, which git does not track).
+
+   Then `composer install --no-dev --optimize-autoloader`.
+4. In `.env`:
+   - `DB_CONNECTION=sqlite`, and remove `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`;
+   - `THINGSBOARD_URL`, `THINGSBOARD_USERNAME`, `THINGSBOARD_PASSWORD`, `LICOR_API_TOKEN`: the same accounts as on the old server;
+   - `MAIL_…`: an SMTP account (alerts, password resets, account e-mails);
+   - `APP_URL`: the public `https://` address; `APP_ENV=production`, `APP_DEBUG=false`. Keep the server's own `APP_KEY` (users just have to log in again).
+
+**Switch over** (a few minutes; data measured meanwhile is fetched afterwards)
+
+5. On the old server, stop the scheduler (comment out its line in the cron), so the two servers never sync or send alerts at the same time.
+6. On the old server, take a consistent copy: `sqlite3 database/database.sqlite ".backup /root/apvmaga-transfer.sqlite"`. It holds password hashes and API keys: send it server to server (`scp`), never by e-mail or a public link.
+7. On the new server, put it in place and let the web server write to it (SQLite also writes next to the file):
+   ```bash
+   cp apvmaga-transfer.sqlite database/database.sqlite
+   chown www:www database database/database.sqlite
+   sudo -u www php artisan migrate --force
+   sudo -u www php artisan config:clear && sudo -u www php artisan cache:clear && sudo -u www php artisan view:clear
+   ```
+8. Add the scheduler to the new server's cron (see above), as the web server user.
+
+**Check**
+
+9. `php artisan thingsboard:check` lists the devices; `php artisan licor:sync` and `php artisan thingsboard:sync` run without error and fetch what was measured since step 5 (up to `LICOR_LOOKBACK_DAYS`, 7 by default, for LI-COR).
+10. Log in, open each site, and check **Admin → Sites**: every sync badge is `ok` within ten minutes.
+11. Set up a daily copy of `database/database.sqlite`, ideally to another machine.
+
+The old server can then be switched off, or kept read-only as a fallback until the new one has run for a few days.
+
 ---
 
 ## License
