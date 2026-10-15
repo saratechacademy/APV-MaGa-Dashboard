@@ -313,6 +313,28 @@ The server cron must run the Laravel scheduler every minute (it drives the Thing
 
 With SQLite, the whole database is the single file `database/database.sqlite`. The scheduler copies it every night at 02:35 (`php artisan db:backup`): a consistent, checked, compressed copy in `BACKUP_PATH` (default `storage/app/backups`, kept `BACKUP_KEEP_DAYS` = 14 days). If the copy fails, the active administrators who take alerts get an e-mail. `BACKUP_PATH` must be writable by the web server user; copy that folder off the server as well.
 
+### Connecting another installation to the same data sources
+
+To give another server the same sites and sensor connections as the Saratech server — without taking over its database — let it connect to the same ThingsBoard and LI-COR accounts. The dashboard only reads from them, so several installations can do so at the same time without disturbing each other.
+
+1. Bring the code up to date (`git fetch origin && git reset --hard origin/main` for an older clone, see step 3 of the next section), then `composer install --no-dev --optimize-autoloader` and `php artisan migrate --force`.
+2. In `.env`, the same accounts as the Saratech server, and how much history to load at the first sync:
+   ```
+   THINGSBOARD_URL=…
+   THINGSBOARD_USERNAME=…
+   THINGSBOARD_PASSWORD=…
+   LICOR_API_TOKEN=…
+   THINGSBOARD_LOOKBACK_DAYS=90
+   LICOR_LOOKBACK_DAYS=30
+   ```
+   The Saratech server holds ThingsBoard data from 9 August 2026 and LI-COR data from 5 October 2026: count the days from those dates to cover at least the same period, or more to load older history. A long LI-COR history takes a few minutes per month.
+3. `php artisan thingsboard:setup`, then `php artisan licor:setup` (add `--dry-run` first to preview). They create the three Gambian sites from `database/presets/sites.json` — categories, parameters, groups by location, tank dimensions, offline thresholds, charts, manual agriculture parameters — and load the history.
+4. The scheduler line in the cron (see Deployment) keeps the data flowing every ten minutes; `MAIL_…` settings for the alerts; `BACKUP_PATH` for the nightly copy.
+
+Checked on 2026-10-15: a fresh installation set up this way has exactly the same sites, categories, groups, parameters, thresholds and charts as the Saratech server.
+
+What does not come over, since it lives in each installation's own database: user accounts, manual field entries, and changes made by hand in the admin (renamed parameters, thresholds, alert choices). Each installation sends its own offline alerts to its own users: someone with an account on both receives each alert twice.
+
 ### Moving the installation to another server
 
 Everything the dashboard knows — sites, categories and parameters, links to ThingsBoard and LI-COR, sensor locations, the whole reading history, users and their alert choices — is in one file, `database/database.sqlite`. Moving to a new server means bringing the code up to date there and bringing that file over. Nothing is set up again by hand, and no sensor needs reconfiguring: the dashboard fetches its data from ThingsBoard and LI-COR, no device sends to it.
