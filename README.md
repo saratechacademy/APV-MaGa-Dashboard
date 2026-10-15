@@ -149,15 +149,13 @@ When `APP_URL` is `https://`, pages requested over `http://` are redirected; dev
 
 ## Connecting another installation to the same data sources
 
-Use this to set up a new installation, or to give another server the same sites as the Saratech server without copying its database. Several installations can read the same ThingsBoard and LI-COR accounts at the same time.
+**Requirements**
 
-**You need**
+- PHP 8.2+, Composer, git
+- the ThingsBoard and LI-COR credentials
+- an active administrator account (`php artisan db:seed` on a new installation)
 
-- the ThingsBoard and LI-COR accounts (a settings file from Saratech; it contains passwords: keep it private, delete it once used);
-- PHP 8.2+, Composer and git;
-- an active administrator account, which becomes the owner of the sites created (on a new installation: `php artisan db:seed`).
-
-Commands are run from the project folder, as the web server user.
+Run the commands from the project folder, as the web server user.
 
 **1. Update the code**
 
