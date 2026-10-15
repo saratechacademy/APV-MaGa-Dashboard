@@ -260,6 +260,7 @@ When part of a site stops sending data, the people concerned get an e-mail, and 
 
 - **What is watched**: each category of each active site (Irrigation, Water, Weather…), not the site as a whole — a site whose soil probes died while its weather station still reports is not "offline", yet someone has to look at the probes. A category is offline when none of its sensors has sent a reading within the category's **offline threshold** (Admin → Sites → Categories), the same rule that marks its cards "Stale".
 - **Who is told**: active administrators, plus the active users assigned to that site and its owner — among those whose **Receive offline alerts** box is ticked (Admin → Users; ticked by default for administrators and agents, unticked for observers such as students).
+- **Single sensors** are watched too: a sensor that stops while the rest of its category still reports (one dead flow meter among working soil probes) is announced once it has been silent three times the category threshold — 3 h for ThingsBoard, 36 h for LI-COR (`ALERTS_SENSOR_THRESHOLD_MULTIPLIER`); shorter radio gaps are routine. The message names the device and its measurements.
 - **How often**: once when it stops, once when it resumes. Categories of one site that change together share one message. Nothing is repeated while an outage lasts.
 - **Not announced**: a category that never reported, a deactivated category or site, manual-entry parameters, and silences that occur while the dashboard itself cannot reach ThingsBoard or LI-COR (the sync badge in Admin → Sites covers that case).
 
@@ -310,7 +311,7 @@ The server cron must run the Laravel scheduler every minute (it drives the Thing
 * * * * * cd /path/to/the/project && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-With SQLite, the whole database is the single file `database/database.sqlite`: back it up regularly (`sqlite3 database/database.sqlite ".backup /path/to/copy.sqlite"`).
+With SQLite, the whole database is the single file `database/database.sqlite`. The scheduler copies it every night at 02:35 (`php artisan db:backup`): a consistent, checked, compressed copy in `BACKUP_PATH` (default `storage/app/backups`, kept `BACKUP_KEEP_DAYS` = 14 days). If the copy fails, the active administrators who take alerts get an e-mail. `BACKUP_PATH` must be writable by the web server user; copy that folder off the server as well.
 
 ### Moving the installation to another server
 
@@ -350,7 +351,7 @@ Below, *old* is the server running the dashboard today and *new* the one taking 
 
 9. `php artisan thingsboard:check` lists the devices; `php artisan licor:sync` and `php artisan thingsboard:sync` run without error and fetch what was measured since step 5 (up to `LICOR_LOOKBACK_DAYS`, 7 by default, for LI-COR).
 10. Log in, open each site, and check **Admin → Sites**: every sync badge is `ok` within ten minutes.
-11. Set up a daily copy of `database/database.sqlite`, ideally to another machine.
+11. Set `BACKUP_PATH` to a folder the web server user can write to, run `php artisan db:backup` once to check it, and copy that folder to another machine regularly.
 
 The old server can then be switched off, or kept read-only as a fallback until the new one has run for a few days.
 

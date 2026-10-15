@@ -176,6 +176,64 @@ class SiteOfflineAlertTest extends TestCase
         $this->assertFalse(User::where('email', 'visitor@example.test')->firstOrFail()->refresh()->receives_alerts);
     }
 
+    public function test_a_single_sensor_that_stops_while_its_category_reports_is_announced_once_then_its_return(): void
+    {
+        $irrigation = $this->category('irrigation');   // 60 min: single sensors after 3 h
+        $working    = $this->reading($irrigation, '2026-10-13 11:50:00', ['name' => 'APV 1 Sun – Moisture']);
+        $flow       = $this->reading($irrigation, '2026-10-13 11:50:00', ['name' => 'APV 0 – Total flow']);
+        $daily      = $this->reading($irrigation, '2026-10-13 11:50:00', ['name' => 'APV 0 – Daily water use']);
+
+        // Two hours of silence from the flow meter: routine radio gap, nothing said.
+        Carbon::setTestNow('2026-10-13 14:00:00');
+        $this->newReading($working, '2026-10-13 13:55:00');
+        $this->artisan('sites:check-offline')->expectsOutputToContain('No change')->assertSuccessful();
+
+        // Past three hours it is announced, as one device.
+        Carbon::setTestNow('2026-10-13 15:00:00');
+        $this->newReading($working, '2026-10-13 14:55:00');
+        $this->artisan('sites:check-offline')
+            ->expectsOutputToContain('sensors stopped — APV 0 – Total flow, APV 0 – Daily water use.')
+            ->assertSuccessful();
+
+        Mail::assertSent(SiteStatusMail::class, 1);
+        Mail::assertSent(SiteStatusMail::class, function (SiteStatusMail $mail) {
+            $mail->build();
+            $html = $mail->render();
+
+            return $mail->subject === 'UTG: APV 0 stopped reporting'
+                && str_contains($html, 'Total flow, Daily water use')
+                && !str_contains($html, 'APV 1 Sun');
+        });
+        $this->assertSame('2026-10-13 11:50:00', $flow->refresh()->offline_since->toDateTimeString());
+        $this->assertNull($irrigation->refresh()->offline_since);
+
+        // Once only.
+        Carbon::setTestNow('2026-10-13 16:00:00');
+        $this->newReading($working, '2026-10-13 15:55:00');
+        $this->artisan('sites:check-offline')->assertSuccessful();
+        Mail::assertSent(SiteStatusMail::class, 1);
+
+        // It comes back.
+        $this->newReading($flow, '2026-10-13 15:58:00');
+        $this->newReading($daily, '2026-10-13 15:58:00');
+        $this->artisan('sites:check-offline')->expectsOutputToContain('sensors back — ')->assertSuccessful();
+        Mail::assertSent(SiteStatusMail::class, fn (SiteStatusMail $mail) => $mail->build() && $mail->subject === 'UTG: APV 0 reporting again');
+        $this->assertNull($flow->refresh()->offline_since);
+    }
+
+    public function test_a_whole_category_going_quiet_is_not_also_announced_sensor_by_sensor(): void
+    {
+        $irrigation = $this->category('irrigation');
+        $this->reading($irrigation, '2026-10-13 11:50:00', ['name' => 'APV 1 Sun – Moisture']);
+        $this->reading($irrigation, '2026-10-13 11:50:00', ['name' => 'APV 0 – Total flow']);
+
+        Carbon::setTestNow('2026-10-13 18:00:00');
+        $this->artisan('sites:check-offline')->expectsOutputToContain('UTG: stopped — Irrigation. 1 recipient(s).')->assertSuccessful();
+
+        Mail::assertSent(SiteStatusMail::class, fn (SiteStatusMail $mail) => $mail->sensorsDown === []);
+        $this->assertSame(0, SiteParameter::whereNotNull('offline_since')->count());
+    }
+
     public function test_several_categories_of_a_site_share_one_message(): void
     {
         $this->reading($this->category('irrigation'), '2026-10-13 09:00:00');

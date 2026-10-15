@@ -21,11 +21,17 @@ use Illuminate\Support\Facades\Mail;
  * marks its cards "Stale" on the dashboard. One e-mail per site and per
  * check lists what just stopped and what just came back; nothing is sent
  * while the situation stays the same.
+ *
+ * Single sensors are watched too, inside categories that are still
+ * reporting: one dead soil probe or flow meter among working ones would
+ * otherwise go unnoticed. They get a longer delay (config
+ * alerts.sensor_threshold_multiplier), since isolated gaps of an hour or two
+ * are routine on radio links.
  */
 class SiteOfflineMonitor
 {
     /**
-     * @return array<int, array{site: string, down: string[], up: string[], recipients: int}>  what was announced
+     * @return array<int, array{site: string, down: string[], up: string[], sensorsDown: string[], sensorsUp: string[], recipients: int}>  what was announced
      */
     public function check(): array
     {
@@ -41,7 +47,7 @@ class SiteOfflineMonitor
             $linkDown = in_array($site->thingsboardSyncState(), ['failed', 'late'], true)
                 || in_array($site->licorSyncState(), ['failed', 'late'], true);
 
-            $down = $up = [];
+            $down = $up = $sensorsDown = $sensorsUp = [];
 
             foreach ($site->activeCategories as $category) {
                 $last = $this->lastSensorReading($category);
@@ -56,9 +62,15 @@ class SiteOfflineMonitor
                 } elseif (!$offline && $category->offline_since) {
                     $up[] = ['category' => $category, 'since' => $category->offline_since, 'back' => $last];
                 }
+
+                // A whole category gone quiet is announced as such, not
+                // sensor by sensor.
+                if (!$offline) {
+                    $this->checkSensors($category, $linkDown, $sensorsDown, $sensorsUp);
+                }
             }
 
-            if (!$down && !$up) {
+            if (!$down && !$up && !$sensorsDown && !$sensorsUp) {
                 continue;
             }
 
@@ -66,7 +78,7 @@ class SiteOfflineMonitor
 
             try {
                 if ($recipients->isNotEmpty()) {
-                    Mail::to($recipients)->send(new SiteStatusMail($site, $down, $up));
+                    Mail::to($recipients)->send(new SiteStatusMail($site, $down, $up, $sensorsDown, $sensorsUp));
                 }
             } catch (\Throwable $e) {
                 // State is left untouched, so the next check tries again.
@@ -80,16 +92,48 @@ class SiteOfflineMonitor
             foreach ($up as $event) {
                 $event['category']->forceFill(['offline_since' => null])->save();
             }
+            foreach ($sensorsDown as $event) {
+                $event['parameter']->forceFill(['offline_since' => $event['since']])->save();
+            }
+            foreach ($sensorsUp as $event) {
+                $event['parameter']->forceFill(['offline_since' => null])->save();
+            }
 
             $announced[] = [
                 'site'       => $site->name,
                 'down'       => array_map(fn ($e) => $e['category']->name, $down),
                 'up'         => array_map(fn ($e) => $e['category']->name, $up),
+                'sensorsDown' => array_map(fn ($e) => $e['parameter']->name, $sensorsDown),
+                'sensorsUp'   => array_map(fn ($e) => $e['parameter']->name, $sensorsUp),
                 'recipients' => $recipients->count(),
             ];
         }
 
         return $announced;
+    }
+
+    /**
+     * The sensors of a reporting category that stopped, or came back, past
+     * their own (longer) delay.
+     */
+    private function checkSensors(SiteCategory $category, bool $linkDown, array &$down, array &$up): void
+    {
+        $threshold = now()->subMinutes($category->offlineThresholdMinutes() * config('alerts.sensor_threshold_multiplier'));
+
+        foreach ($category->activeParameters->filter(fn ($parameter) => $parameter->isSensor()) as $parameter) {
+            $last = $parameter->latestReading?->read_at;
+            if (!$last) {
+                continue;   // never reported: nothing stopped
+            }
+
+            $silent = $last->lt($threshold);
+
+            if ($silent && !$parameter->offline_since && !$linkDown) {
+                $down[] = ['parameter' => $parameter, 'since' => $last];
+            } elseif (!$silent && $parameter->offline_since) {
+                $up[] = ['parameter' => $parameter, 'since' => $parameter->offline_since, 'back' => $last];
+            }
+        }
     }
 
     private function lastSensorReading(SiteCategory $category): ?Carbon

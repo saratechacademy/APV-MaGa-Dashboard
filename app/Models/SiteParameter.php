@@ -24,6 +24,7 @@ class SiteParameter extends Model
         'max_value'          => 'float',
         'warning_threshold'  => 'float',
         'critical_threshold' => 'float',
+        'offline_since'      => 'datetime',
     ];
 
     public function category() { return $this->belongsTo(SiteCategory::class, 'site_category_id'); }

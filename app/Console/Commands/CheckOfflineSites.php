@@ -23,6 +23,8 @@ class CheckOfflineSites extends Command
             $this->line("{$event['site']}: "
                 . ($event['down'] ? 'stopped — ' . implode(', ', $event['down']) . '. ' : '')
                 . ($event['up'] ? 'back — ' . implode(', ', $event['up']) . '. ' : '')
+                . ($event['sensorsDown'] ? 'sensors stopped — ' . implode(', ', $event['sensorsDown']) . '. ' : '')
+                . ($event['sensorsUp'] ? 'sensors back — ' . implode(', ', $event['sensorsUp']) . '. ' : '')
                 . "{$event['recipients']} recipient(s).");
         }
 

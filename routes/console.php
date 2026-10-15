@@ -24,6 +24,9 @@ Schedule::command('licor:sync')
 // Offline alerts, a few minutes after each sync so they judge fresh data.
 Schedule::command('sites:check-offline')->cron('5-59/10 * * * *');
 
+// Daily copy of the database; the administrators are e-mailed if it fails.
+Schedule::command('db:backup')->dailyAt('02:35');
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
