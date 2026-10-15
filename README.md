@@ -322,17 +322,20 @@ Below, *old* is the server running the dashboard today and *new* the one taking 
 **On the new server — prepare**
 
 1. Back up whatever database it has today (`mysqldump …` for MySQL, `sqlite3 … ".backup …"` for SQLite): it is about to be replaced.
-2. Check that PHP has SQLite: `php -m | grep -i sqlite` must list `pdo_sqlite` and `sqlite3`.
+2. Check PHP: `php -v` must be 8.2 or later, and `php -m | grep -i sqlite` must list `pdo_sqlite` and `sqlite3`. Composer must be installed.
 3. Bring the code to the current version:
-   - already a clone of this repository: `git fetch origin && git reset --hard origin/main` (the history was rewritten on 2026-10-13; a plain `git pull` fails);
+   - already a clone of this repository: `git fetch origin && git reset --hard origin/main`. Do **not** run `git pull` first: the history was rewritten on 2026-10-13, and a pull of a clone made before that ends in merge conflicts (if it already happened, `git merge --abort`, then the two commands above);
    - copied without git: `git init && git remote add origin https://github.com/saratechacademy/APV-MaGa-Dashboard.git && git fetch origin && git reset --hard origin/main` (keeps `.env` and `storage/`, which git does not track).
+
+   Then list what git does not know: `git status --short`. Files marked `??` under `app/`, `config/`, `routes/` or `database/migrations/` are leftovers of an older version: move them out of the project (an old migration left there would run against the transferred database, an old config file can stop `artisan`). `.env`, `storage/`, `vendor/` and `public/build/` are expected and stay.
 
    Then `composer install --no-dev --optimize-autoloader`.
 4. In `.env`:
    - `DB_CONNECTION=sqlite`, and remove `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`;
    - `THINGSBOARD_URL`, `THINGSBOARD_USERNAME`, `THINGSBOARD_PASSWORD`, `LICOR_API_TOKEN`: the same accounts as on the old server;
    - `MAIL_…`: an SMTP account (alerts, password resets, account e-mails);
-   - `APP_URL`: the public `https://` address; `APP_ENV=production`, `APP_DEBUG=false`. Keep the server's own `APP_KEY` (users just have to log in again).
+   - `APP_URL`: the public `https://` address — the site must already have its certificate, since pages asked over `http://` are then redirected to `https://`; `APP_ENV=production`, `APP_DEBUG=false`, `LOG_STACK=daily`, `LOG_LEVEL=warning`. Keep the server's own `APP_KEY` (users just have to log in again).
+   - `CACHE_STORE` and `SESSION_DRIVER` can stay `database` or be `file`; the `migrate` of step 7 creates the cache and session tables if the database lacks them.
 
 **Switch over** (a few minutes; data measured meanwhile is fetched afterwards)
 
@@ -342,14 +345,14 @@ Below, *old* is the server running the dashboard today and *new* the one taking 
    ```bash
    cp apvmaga-transfer.sqlite database/database.sqlite
    chown www:www database database/database.sqlite
-   sudo -u www php artisan migrate --force
+   sudo -u www php artisan migrate --force      # lists the migrations it ran, or "Nothing to migrate"
    sudo -u www php artisan config:clear && sudo -u www php artisan cache:clear && sudo -u www php artisan view:clear
    ```
 8. Add the scheduler to the new server's cron (see above), as the web server user.
 
 **Check**
 
-9. `php artisan thingsboard:check` lists the devices; `php artisan licor:sync` and `php artisan thingsboard:sync` run without error and fetch what was measured since step 5 (up to `LICOR_LOOKBACK_DAYS`, 7 by default, for LI-COR).
+9. `php artisan thingsboard:check` lists the devices (about 40); `php artisan licor:sync` and `php artisan thingsboard:sync` run without error and fetch what was measured since step 5 (up to `LICOR_LOOKBACK_DAYS`, 7 by default, for LI-COR).
 10. Log in, open each site, and check **Admin → Sites**: every sync badge is `ok` within ten minutes.
 11. Set `BACKUP_PATH` to a folder the web server user can write to, run `php artisan db:backup` once to check it, and copy that folder to another machine regularly.
 
