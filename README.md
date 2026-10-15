@@ -315,25 +315,96 @@ With SQLite, the whole database is the single file `database/database.sqlite`. T
 
 ### Connecting another installation to the same data sources
 
-To give another server the same sites and sensor connections as the Saratech server — without taking over its database — let it connect to the same ThingsBoard and LI-COR accounts. The dashboard only reads from them, so several installations can do so at the same time without disturbing each other.
+**What this does.** Your server connects to the same ThingsBoard and LI-COR accounts as the Saratech server and builds the same three Gambian sites by itself — same sensors, same parameters, same charts — then keeps them up to date every ten minutes. No database is copied between the servers. Both can run at the same time: the dashboard only *reads* from ThingsBoard and LI-COR.
 
-1. Bring the code up to date (`git fetch origin && git reset --hard origin/main` for an older clone, see step 3 of the next section), then `composer install --no-dev --optimize-autoloader` and `php artisan migrate --force`.
-2. In `.env`, the same accounts as the Saratech server, and how much history to load at the first sync:
+**What you need**
+
+- the settings file sent by Saratech, with the ThingsBoard and LI-COR accounts (it contains passwords: keep it private, delete it once used);
+- PHP 8.2 or later with `pdo_sqlite` (or MySQL), Composer, and `git`;
+- at least one **active administrator account** in your installation: the set-up commands make it the owner of the sites they create. An existing installation normally has one; on a brand-new one, run `php artisan db:seed --class=AdminSeeder` (creates `admin@apvmaga.com`, password in `database/seeders/AdminSeeder.php` — change it at first login).
+
+All commands below are run from the project folder (the one containing `artisan`), as the web server user (`sudo -u www …` on AAPanel, `sudo -u www-data …` on Debian/Ubuntu).
+
+#### Step 1 — Update the code
+
+```bash
+git fetch origin
+git reset --hard origin/main
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+```
+
+- Do **not** use `git pull` on a clone made before 13 October 2026: the history was rewritten that day and a pull ends in merge conflicts.
+- If the project was copied without git, first run `git init && git remote add origin https://github.com/saratechacademy/APV-MaGa-Dashboard.git`, then the commands above.
+- Expected: `migrate` lists the migrations it applies, or says "Nothing to migrate". No error.
+
+#### Step 2 — Add the data source accounts to `.env`
+
+Copy the six lines of the settings file into `.env` (replace any existing line with the same name):
+
+```
+THINGSBOARD_URL=…
+THINGSBOARD_USERNAME=…
+THINGSBOARD_PASSWORD=…
+LICOR_API_TOKEN=…
+THINGSBOARD_LOOKBACK_DAYS=90
+LICOR_LOOKBACK_DAYS=30
+```
+
+The last two lines say how many days of past data the first sync loads. 90 and 30 cover at least what the Saratech server holds (ThingsBoard since 9 August 2026, LI-COR since 5 October 2026); raise them to load older data. A month of LI-COR history takes a few minutes.
+
+Then: `php artisan config:clear`.
+
+#### Step 3 — Create the sites and load the history
+
+```bash
+php artisan thingsboard:setup --dry-run     # preview: nothing is changed
+php artisan thingsboard:setup
+php artisan licor:setup --dry-run
+php artisan licor:setup
+```
+
+Expected output:
+
+```
+UTG: creating site "University of The Gambia" — 16 device(s).
+AfriFarm: creating site "AfriFarm" — 13 device(s).
+…
+22490037: creating site "Fass Community Garden" — 30 sensor(s).
+University of The Gambia (22490036): 30 sensor(s), … reading(s) stored, 0 rejected, 30 parameter(s) created.
+```
+
+If a site of the same name already exists, it is linked instead of created ("linking existing site"). Both commands can be run again safely: they only add what is missing.
+
+They create, for each site: the categories, the parameters, the weather sensors grouped by location (Reference, Under PV, Between PV, Module edge), the tank dimensions, the offline thresholds, the charts and the manual agriculture parameters — all from `database/presets/sites.json`.
+
+#### Step 4 — Keep the data flowing
+
+1. **Scheduler** (runs the syncs every ten minutes, the offline alerts and the nightly backup). As root, from the project folder, with `WEB` set to the web server user:
+   ```bash
+   WEB=www        # or www-data
+   echo "* * * * * $WEB cd $(pwd) && php artisan schedule:run >> /dev/null 2>&1" > /etc/cron.d/apvmaga-scheduler
    ```
-   THINGSBOARD_URL=…
-   THINGSBOARD_USERNAME=…
-   THINGSBOARD_PASSWORD=…
-   LICOR_API_TOKEN=…
-   THINGSBOARD_LOOKBACK_DAYS=90
-   LICOR_LOOKBACK_DAYS=30
-   ```
-   The Saratech server holds ThingsBoard data from 9 August 2026 and LI-COR data from 5 October 2026: count the days from those dates to cover at least the same period, or more to load older history. A long LI-COR history takes a few minutes per month.
-3. `php artisan thingsboard:setup`, then `php artisan licor:setup` (add `--dry-run` first to preview). They create the three Gambian sites from `database/presets/sites.json` — categories, parameters, groups by location, tank dimensions, offline thresholds, charts, manual agriculture parameters — and load the history.
-4. The scheduler line in the cron (see Deployment) keeps the data flowing every ten minutes; `MAIL_…` settings for the alerts; `BACKUP_PATH` for the nightly copy.
+   If cron does not find `php`, replace it with the full path given by `which php`.
+2. **E-mail** (offline alerts, password resets): `MAIL_MAILER=smtp` and the `MAIL_…` settings of your SMTP account in `.env`.
+3. **Backup** (SQLite installations; with MySQL, use the database server's own backups): `BACKUP_PATH=` a folder outside `public/` that the web server user can write to, e.g. `mkdir -p /var/backups/apvmaga && chown $WEB:$WEB /var/backups/apvmaga`.
 
-Checked on 2026-10-15: a fresh installation set up this way has exactly the same sites, categories, groups, parameters, thresholds and charts as the Saratech server.
+Then `php artisan config:clear` again.
 
-What does not come over, since it lives in each installation's own database: user accounts, manual field entries, and changes made by hand in the admin (renamed parameters, thresholds, alert choices). Each installation sends its own offline alerts to its own users: someone with an account on both receives each alert twice.
+#### Step 5 — Check
+
+| Check | Expected |
+|---|---|
+| Log in, open **All Sites** | University of The Gambia, AfriFarm and Fass Community Garden, with their tiles and charts |
+| **Admin → Sites**, ten minutes later | a ThingsBoard badge (UTG, AfriFarm) and a LI-COR badge (all three) showing `ok` |
+| `php artisan db:backup` (SQLite) | `Backup written: …/apvmaga-<date>.sqlite.gz` |
+| "Forgot password?" on the login page, with the address of an account whose mailbox you can read | the reset e-mail arrives |
+
+#### Good to know
+
+- **Not shared between the two servers**: user accounts, manual field entries, and anything changed by hand in the admin (renamed parameters, thresholds, alert choices). Each installation has its own; create your team's accounts in Admin → Users.
+- **Alerts**: each installation e-mails its own users. Someone with an account on both receives each alert twice.
+- Checked on 15 October 2026: a fresh installation set up this way has exactly the same sites, categories, groups, parameters, thresholds and charts as the Saratech server.
 
 ### Moving the installation to another server
 

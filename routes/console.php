@@ -25,7 +25,10 @@ Schedule::command('licor:sync')
 Schedule::command('sites:check-offline')->cron('5-59/10 * * * *');
 
 // Daily copy of the database; the administrators are e-mailed if it fails.
-Schedule::command('db:backup')->dailyAt('02:35');
+// SQLite only: a MySQL installation is backed up with the server's own tools,
+// and would otherwise get a failure e-mail every night.
+Schedule::command('db:backup')->dailyAt('02:35')
+    ->when(fn () => config('database.default') === 'sqlite');
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
