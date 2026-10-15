@@ -580,6 +580,7 @@ public function updateUser(Request $request, User $user)
         'organisation' => 'nullable|string|max:255',
         'country'      => 'nullable|string|max:100',
         'status'       => 'required|in:active,pending,suspended',
+        'receives_alerts' => 'boolean',
     ]);
 
     // The platform must keep one account able to administer it.
@@ -600,6 +601,7 @@ public function updateUser(Request $request, User $user)
     ]);
     $user->role   = $request->role;
     $user->status = $request->status;
+    $user->receives_alerts = $request->boolean('receives_alerts');
     $user->save();
 
     // Approving through this form is the same event as the "Approve" button.
@@ -625,6 +627,7 @@ public function storeUser(Request $request)
         'organisation' => 'nullable|string|max:255',
         'country'      => 'nullable|string|max:100',
         'status'       => 'required|in:active,pending,suspended',
+        'receives_alerts' => 'boolean',
     ]);
 
     $user = new User([
@@ -636,6 +639,7 @@ public function storeUser(Request $request)
     ]);
     $user->role   = $request->role;
     $user->status = $request->status;
+    $user->receives_alerts = $request->boolean('receives_alerts');
     $user->save();
 
     try {

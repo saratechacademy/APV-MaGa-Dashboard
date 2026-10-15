@@ -6,6 +6,9 @@ use App\Models\SensorReading;
 use App\Models\Site;
 use App\Models\SiteParameter;
 use App\Models\User;
+use App\Services\LicorClient;
+use App\Services\LicorSync;
+use App\Support\SitePresets;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
@@ -126,6 +129,78 @@ class LicorSyncTest extends TestCase
             $temp->category->charts()->pluck('title')->all());
 
         $this->assertSame('ok', $site->refresh()->licorSyncState());
+    }
+
+    public function test_weather_sensors_are_grouped_by_location_in_the_order_the_site_lists_them(): void
+    {
+        $site = $this->makeSite();
+        $site->forceFill(['licor_locations' => [
+            '22034652' => 'Reference', '22226384' => 'Under PV', '22226378' => 'Between PV', '22261664' => 'Under PV',
+        ]])->save();
+
+        $this->fakeLicor([
+            '22226378-1' => ['Temperature', $this->minutes('11:30', '11:55', fn () => 30)],
+            '22226384-1' => ['Temperature', $this->minutes('11:30', '11:55', fn () => 31)],
+            '22034652-1' => ['Temperature', $this->minutes('11:30', '11:55', fn () => 32)],
+            '22034652-2' => ['RH', $this->minutes('11:30', '11:55', fn () => 60)],
+            '22261664-1' => ['PAR', $this->minutes('11:30', '11:55', fn () => 1500)],
+            '22999999-1' => ['Temperature', $this->minutes('11:30', '11:55', fn () => 33)],
+        ]);
+
+        $this->artisan('licor:sync')->assertSuccessful();
+
+        $weather = $site->categories()->where('slug', 'weather')->first();
+        $this->assertSame(['Reference', 'Under PV', 'Between PV', 'Weather stations'], $weather->parameterGroups()->pluck('name')->all());
+        $this->assertSame(['Reference – Air temperature', 'Reference – Relative humidity'],
+            $weather->parameterGroups()->where('name', 'Reference')->first()->parameters()->pluck('name')->all());
+        // A sensor the site does not locate keeps the measurement group.
+        $this->assertSame('Weather stations', SiteParameter::where('slug', 'licor_22999999_1')->first()->group->name);
+        // PAR sensors are compared side by side, not split per location.
+        $this->assertSame('PAR', SiteParameter::where('slug', 'licor_22261664_1')->first()->group->name);
+    }
+
+    public function test_locating_existing_sensors_renames_and_regroups_them_but_respects_the_admin(): void
+    {
+        $site = $this->makeSite();
+        $this->fakeLicor([
+            '22034652-1' => ['Temperature', $this->minutes('11:30', '11:55', fn () => 32)],
+            '22226384-1' => ['Temperature', $this->minutes('11:30', '11:55', fn () => 31)],
+            '22226378-1' => ['Temperature', $this->minutes('11:30', '11:55', fn () => 30)],
+        ]);
+        $this->artisan('licor:sync')->assertSuccessful();
+
+        // The admin moved one card to a group of their own and renamed another.
+        $weather = $site->categories()->where('slug', 'weather')->first();
+        $own = $weather->parameterGroups()->create(['name' => 'Watch list', 'color' => '#000000', 'sort_order' => 9]);
+        SiteParameter::where('slug', 'licor_22226378_1')->first()->update(['group_name' => 'Watch list', 'site_parameter_group_id' => $own->id]);
+        SiteParameter::where('slug', 'licor_22226384_1')->first()->update(['name' => 'Shade thermometer']);
+
+        $previous = $site->licor_locations;
+        $site->forceFill(['licor_locations' => ['22034652' => 'Reference', '22226384' => 'Under PV', '22226378' => 'Between PV'] + $previous])->save();
+        (new LicorSync(LicorClient::fromConfig()))->applyLocations($site, $previous);
+
+        $reference = SiteParameter::where('slug', 'licor_22034652_1')->first();
+        $this->assertSame('Reference – Air temperature', $reference->name);
+        $this->assertSame('Reference', $reference->group->name);
+
+        $renamed = SiteParameter::where('slug', 'licor_22226384_1')->first();
+        $this->assertSame('Shade thermometer', $renamed->name);
+        $this->assertSame('Under PV', $renamed->group->name);
+
+        $this->assertSame('Watch list', SiteParameter::where('slug', 'licor_22226378_1')->first()->group->name);
+
+        // "Weather stations", emptied by the move, is gone; locations come first.
+        $this->assertSame(['Reference', 'Under PV', 'Watch list'], $weather->parameterGroups()->pluck('name')->all());
+    }
+
+    public function test_presets_add_the_sensors_a_site_does_not_locate_yet_without_overriding_the_admin(): void
+    {
+        $site = $this->makeSite();
+        $site->forceFill(['licor_locations' => ['22261664' => 'Shaded corner']])->save();
+
+        SitePresets::fill($site, ['licor_locations' => ['22034652' => 'Reference', '22261664' => 'Under PV']]);
+
+        $this->assertSame([22034652 => 'Reference', 22261664 => 'Shaded corner'], $site->licor_locations);
     }
 
     public function test_next_run_completes_the_open_bucket_without_duplicating(): void

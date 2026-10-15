@@ -27,7 +27,8 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'password' => 'hashed',
+            'password'        => 'hashed',
+            'receives_alerts' => 'boolean',
         ];
     }
     // Un utilisateur peut avoir plusieurs sites (propriétaire)

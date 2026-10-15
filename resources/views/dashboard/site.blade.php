@@ -185,6 +185,17 @@ select.ag-input{cursor:pointer}
 
 <div class="tab-panel {{ $catIndex === 0 ? 'active' : '' }}" id="tab-{{ $category->slug }}">
 
+  @php $awaiting = config("overview.awaiting.{$category->slug}"); @endphp
+  @if($awaiting && !$params->contains('metric', $awaiting['metric']))
+  <div class="awaiting-source" style="display:flex;gap:12px;align-items:flex-start;padding:14px 16px;margin-bottom:16px;border:1px dashed var(--border);border-radius:var(--r);background:var(--surface)">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <div>
+      <div style="font-size:13px;font-weight:600">{{ $awaiting['title'] }}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">{{ $awaiting['text'] }}</div>
+    </div>
+  </div>
+  @endif
+
   @php
     $sensorDashParams = $dashParams->filter(fn($p) => ($p->input_type ?? 'sensor') === 'sensor');
     $manualDashParams = $dashParams->filter(fn($p) => ($p->input_type ?? 'sensor') === 'manual');

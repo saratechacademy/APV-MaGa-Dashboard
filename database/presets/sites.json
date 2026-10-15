@@ -12,10 +12,20 @@
       "tank_count": 1,
       "licor_device_serial": "22490036",
       "licor_locations": {
+        "21930662": "Reference",
+        "22034652": "Reference",
+        "22250333": "Reference",
+        "22461638": "Reference",
+        "22226364": "Under PV",
+        "22226384": "Under PV",
+        "22226363": "Between PV",
+        "22226378": "Between PV",
+        "22226367": "Module edge",
+        "22226379": "Module edge",
         "22261662": "Reference",
-        "22261663": "Module edge",
         "22261664": "Under PV",
-        "22261665": "Between PV"
+        "22261665": "Between PV",
+        "22261663": "Module edge"
       }
     },
     {
@@ -27,10 +37,20 @@
       "tank_count": 1,
       "licor_device_serial": "22490035",
       "licor_locations": {
+        "22034653": "Reference",
+        "22256068": "Reference",
+        "22256147": "Reference",
+        "22461636": "Reference",
+        "22226368": "Under PV",
+        "22226386": "Under PV",
+        "22226374": "Between PV",
+        "22226377": "Between PV",
+        "22226365": "Module edge",
+        "22226385": "Module edge",
         "22261671": "Reference",
-        "22261668": "Module edge",
         "22261669": "Under PV",
-        "22261670": "Between PV"
+        "22261670": "Between PV",
+        "22261668": "Module edge"
       }
     },
     {
@@ -39,10 +59,20 @@
       "country": "Gambia",
       "licor_device_serial": "22490037",
       "licor_locations": {
+        "22047831": "Reference",
+        "22256069": "Reference",
+        "22256148": "Reference",
+        "22461637": "Reference",
+        "22226366": "Under PV",
+        "22226388": "Under PV",
+        "22226376": "Between PV",
+        "22226387": "Between PV",
+        "22226372": "Module edge",
+        "22226391": "Module edge",
         "22261666": "Reference",
-        "22261667": "Module edge",
         "22261672": "Under PV",
-        "22261673": "Between PV"
+        "22261673": "Between PV",
+        "22261667": "Module edge"
       }
     }
   ]

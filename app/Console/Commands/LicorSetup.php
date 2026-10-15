@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Site;
 use App\Models\SiteParameterGroup;
 use App\Services\LicorClient;
+use App\Services\LicorSync;
 use App\Support\SitePresets;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
@@ -77,9 +78,16 @@ class LicorSetup extends Command
                 continue;
             }
 
+            $previousLocations = $site->licor_locations ?? [];
             SitePresets::fill($site, $preset);
             $site->save();
             $linked++;
+
+            // Sensors the file locates that the site did not know yet: their
+            // existing parameters are renamed and regrouped now.
+            if (($site->licor_locations ?? []) != $previousLocations) {
+                (new LicorSync(LicorClient::fromConfig()))->applyLocations($site, $previousLocations);
+            }
 
             $this->addAgricultureParameters($site);
 

@@ -30,7 +30,7 @@
   <table class="raw-table" style="font-size:13px">
     <thead>
       <tr>
-        <th>Name</th><th>Email</th><th>Role</th><th>Organisation</th><th>Country</th><th>Status</th><th>Sites</th><th>Registered</th><th>Actions</th>
+        <th>Name</th><th>Email</th><th>Role</th><th>Organisation</th><th>Country</th><th>Status</th><th>Alerts</th><th>Sites</th><th>Registered</th><th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -43,7 +43,7 @@
             background:{{ $user->isAdmin() ? 'var(--blue-bg)' : ($user->isAgent() ? 'var(--green-bg)' : 'var(--bg)') }};
             color:{{ $user->isAdmin() ? 'var(--blue)' : ($user->isAgent() ? 'var(--green)' : 'var(--muted)') }};
             border:1px solid {{ $user->isAdmin() ? 'var(--blue-bd)' : ($user->isAgent() ? 'var(--green-bd)' : 'var(--border)') }}">
-            {{ ucfirst($user->role) }}
+            {{ \App\Models\User::ROLES[$user->role] ?? ucfirst($user->role) }}
           </span>
         </td>
         <td>{{ $user->organisation ?? '—' }}</td>
@@ -53,6 +53,7 @@
             {{ ucfirst($user->status) }}
           </span>
         </td>
+        <td style="color:{{ $user->receives_alerts ? 'var(--text)' : 'var(--muted)' }}" title="Offline alerts by e-mail">{{ $user->receives_alerts ? 'Yes' : '—' }}</td>
         {{-- Sites the user can actually open: an admin sees every site; anyone
              else, the ones they own or are assigned to (each counted once). --}}
         <td style="font-family:'DM Mono',monospace" title="{{ $user->isAdmin() ? 'Administrators have access to every site' : 'Sites this user owns or is assigned to' }}">
@@ -91,7 +92,7 @@
         </td>
       </tr>
       @empty
-      <tr><td colspan="9" style="text-align:center;padding:30px;color:var(--muted)">No users found</td></tr>
+      <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--muted)">No users found</td></tr>
       @endforelse
     </tbody>
   </table>

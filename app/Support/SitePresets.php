@@ -90,10 +90,16 @@ class SitePresets
     {
         $hadTank = filled($site->tank_radius_cm);
 
-        foreach (['latitude', 'longitude', 'thingsboard_prefix', 'licor_device_serial', 'tank_radius_cm', 'licor_locations'] as $field) {
+        foreach (['latitude', 'longitude', 'thingsboard_prefix', 'licor_device_serial', 'tank_radius_cm'] as $field) {
             if (blank($site->{$field}) && filled($preset[$field] ?? null)) {
                 $site->{$field} = $preset[$field];
             }
+        }
+
+        // Locations sensor by sensor: the file adds the sensors the site does
+        // not locate yet, in the file's order; a location the admin set wins.
+        if (filled($preset['licor_locations'] ?? null)) {
+            $site->licor_locations = array_replace($preset['licor_locations'], $site->licor_locations ?? []);
         }
 
         // The number of tanks only means something together with their radius.

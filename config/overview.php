@@ -63,4 +63,16 @@ return [
 
     // Cross-site charts: the first 4 of these that at least one site has.
     'charts' => ['solar_output', 'par_reference', 'air_temperature', 'soil_moisture', 'relative_humidity', 'tank_volume', 'borehole_level', 'wind_speed'],
+
+    // Data expected but not connected yet: a category tab shows this notice
+    // as long as the site has no active parameter with the metric, instead
+    // of silently lacking it. Remove an entry once the source is connected
+    // everywhere.
+    'awaiting' => [
+        'solar' => [
+            'metric' => 'solar_output',
+            'title'  => 'Photovoltaic production — coming soon',
+            'text'   => 'Production, battery and consumption data from the solar installation (Victron VRM) will appear here once access to the installation is granted.',
+        ],
+    ],
 ];

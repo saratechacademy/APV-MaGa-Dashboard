@@ -39,15 +39,18 @@ return [
     // 'aggregate' says how the 1-minute
     // readings of a bucket are combined: mean, max (gusts), sum (rain) or
     // circular (wind direction, where 350° and 10° average to 0°, not 180°).
+    // 'group_by_location' puts the sensor's card in its location's group
+    // (Reference, Under PV...) when the site knows it, instead of 'group':
+    // each location has a full weather station, read side by side.
     'measurements' => [
-        'Temperature'    => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Air temperature',   'metric' => 'air_temperature',   'unit' => '°C',  'chart' => 'Air temperature (°C)'],
-        'RH'             => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Relative humidity', 'metric' => 'relative_humidity', 'unit' => '%',   'chart' => 'Relative humidity (%)'],
-        'Dew Point'      => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Dew point',         'metric' => 'dew_point',         'unit' => '°C',  'chart' => 'Dew point (°C)'],
-        'Wind Speed'     => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Wind speed',        'metric' => 'wind_speed',        'unit' => 'm/s', 'chart' => 'Wind (m/s)'],
-        'Gust Speed'     => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Gust speed',        'metric' => 'gust_speed',        'unit' => 'm/s', 'chart' => 'Wind (m/s)', 'aggregate' => 'max'],
-        'Wind Direction' => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Wind direction',    'metric' => 'wind_direction',    'unit' => '°',   'chart' => 'Wind direction (°)', 'aggregate' => 'circular'],
-        'Rain'           => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Rain',              'metric' => 'rain',              'unit' => 'mm',  'chart' => 'Rain (mm)', 'aggregate' => 'sum'],
-        'Pressure'       => ['category' => 'weather', 'group' => 'Weather stations', 'name' => 'Air pressure',      'metric' => 'air_pressure',      'unit' => 'hPa', 'chart' => 'Air pressure (hPa)'],
+        'Temperature'    => ['category' => 'weather', 'group' => 'Weather stations', 'group_by_location' => true, 'name' => 'Air temperature',   'metric' => 'air_temperature',   'unit' => '°C',  'chart' => 'Air temperature (°C)'],
+        'RH'             => ['category' => 'weather', 'group' => 'Weather stations', 'group_by_location' => true, 'name' => 'Relative humidity', 'metric' => 'relative_humidity', 'unit' => '%',   'chart' => 'Relative humidity (%)'],
+        'Dew Point'      => ['category' => 'weather', 'group' => 'Weather stations', 'group_by_location' => true, 'name' => 'Dew point',         'metric' => 'dew_point',         'unit' => '°C',  'chart' => 'Dew point (°C)'],
+        'Wind Speed'     => ['category' => 'weather', 'group' => 'Weather stations', 'group_by_location' => true, 'name' => 'Wind speed',        'metric' => 'wind_speed',        'unit' => 'm/s', 'chart' => 'Wind (m/s)'],
+        'Gust Speed'     => ['category' => 'weather', 'group' => 'Weather stations', 'group_by_location' => true, 'name' => 'Gust speed',        'metric' => 'gust_speed',        'unit' => 'm/s', 'chart' => 'Wind (m/s)', 'aggregate' => 'max'],
+        'Wind Direction' => ['category' => 'weather', 'group' => 'Weather stations', 'group_by_location' => true, 'name' => 'Wind direction',    'metric' => 'wind_direction',    'unit' => '°',   'chart' => 'Wind direction (°)', 'aggregate' => 'circular'],
+        'Rain'           => ['category' => 'weather', 'group' => 'Weather stations', 'group_by_location' => true, 'name' => 'Rain',              'metric' => 'rain',              'unit' => 'mm',  'chart' => 'Rain (mm)', 'aggregate' => 'sum'],
+        'Pressure'       => ['category' => 'weather', 'group' => 'Weather stations', 'group_by_location' => true, 'name' => 'Air pressure',      'metric' => 'air_pressure',      'unit' => 'hPa', 'chart' => 'Air pressure (hPa)'],
         'PAR'            => ['category' => 'solar',   'group' => 'PAR',              'name' => 'PAR',               'metric' => 'par',               'unit' => 'µmol/m²/s', 'chart' => 'PAR (µmol/m²/s)'],
     ],
 

@@ -1111,11 +1111,11 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
           <tbody>
             @php
             $alerts = $lang==='fr' ? [
-              ['Qui est prévenu', 'Les administrateurs actifs, les utilisateurs actifs affectés au site et son propriétaire.'],
+              ['Qui est prévenu', 'Les administrateurs actifs, les utilisateurs actifs affectés au site et son propriétaire, s\'ils ont la case « Receive offline alerts » cochée (Admin Panel → Users). Cochée par défaut pour les administrateurs et les agents, décochée pour les observateurs.'],
               ['Fréquence', 'Un message à l\'arrêt, un au retour. Rien n\'est répété pendant la panne. Les catégories d\'un même site qui changent ensemble partagent un seul message.'],
               ['Non signalé', 'Une catégorie qui n\'a jamais envoyé de données, une catégorie ou un site désactivé, les paramètres saisis à la main, et les silences dus à une panne de liaison entre la plateforme et ThingsBoard ou LI-COR.'],
             ] : [
-              ['Who is told', 'Active administrators, the active users assigned to the site, and its owner.'],
+              ['Who is told', 'Active administrators, the active users assigned to the site, and its owner, when their "Receive offline alerts" box is ticked (Admin Panel → Users). Ticked by default for administrators and agents, unticked for observers.'],
               ['How often', 'One message when it stops, one when it resumes. Nothing is repeated during the outage. Categories of one site that change together share one message.'],
               ['Not announced', 'A category that never sent data, a deactivated category or site, manually entered parameters, and silences caused by the platform itself not reaching ThingsBoard or LI-COR.'],
             ];
@@ -1168,7 +1168,7 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
           ['Une courbe est interrompue sur un graphique ?',
            'Aucune donnée n\'a été reçue pendant cet intervalle (capteur, alimentation ou réseau du site). La plateforme ne relie pas les points de part et d\'autre de la coupure.'],
           ['Je ne reçois pas les alertes e-mail ?',
-           'Les alertes sont envoyées aux administrateurs et aux utilisateurs affectés au site concerné. Vérifiez votre adresse dans My Profile, votre affectation au site auprès d\'un administrateur, et le dossier des indésirables.'],
+           'Les alertes sont envoyées aux administrateurs et aux utilisateurs affectés au site concerné dont la case « Receive offline alerts » est cochée. Vérifiez votre adresse dans My Profile, votre affectation au site auprès d\'un administrateur, et le dossier des indésirables.'],
         ] : [
           ['My sensor sends data but it doesn\'t appear?',
            'Check that category and parameter slugs match exactly those in the Admin Panel. The API key must be for the correct site. Check the site\'s API Key tab.'],
@@ -1199,7 +1199,7 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
           ['A line is broken on a chart?',
            'No data was received during that interval (sensor, power or network at the site). The platform does not join the points on either side of the gap.'],
           ['I do not receive the e-mail alerts?',
-           'Alerts go to the administrators and to the users assigned to the site concerned. Check your address in My Profile, your assignment to the site with an administrator, and your spam folder.'],
+           'Alerts go to the administrators and to the users assigned to the site concerned whose "Receive offline alerts" box is ticked. Check your address in My Profile, your assignment to the site with an administrator, and your spam folder.'],
         ];
         @endphp
 

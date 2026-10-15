@@ -103,13 +103,15 @@ class SiteOfflineMonitor
 
     /**
      * Active administrators, plus the active users attached to the site: the
-     * people assigned to it and its owner. Each address once.
+     * people assigned to it and its owner — among those who chose to receive
+     * alerts (Admin → Users). Each address once.
      *
      * @return Collection<int, string>
      */
     private function recipients(Site $site): Collection
     {
         return User::where('status', 'active')
+            ->where('receives_alerts', true)
             ->where(function ($query) use ($site) {
                 $query->where('role', User::ROLE_ADMIN)
                     ->orWhere('id', $site->user_id)

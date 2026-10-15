@@ -248,6 +248,7 @@ The weather stations (temperature, humidity, dew point, wind, gusts, wind direct
 
 - Stations upload in batches, every 6 to 10 hours as measured on the Gambian stations: data appears on the dashboard that long after it was measured, and a reading only counts as stale past 12 hours. How often a station connects is a setting of the station itself (HOBOlink).
 - **Admin → Sites** shows a `LI-COR ok / late / failed` badge per linked site; `php artisan licor:sync` runs a sync by hand.
+- Each location (Reference, Under PV, Between PV, Module edge) has its own weather station; the weather cards are grouped by location, while the charts compare the locations measurement by measurement. The presets file locates every sensor of the three Gambian stations; `licor:setup` adds the locations a site is missing without overriding those entered in the admin.
 - Sensors are named by location where the site knows it, otherwise by sensor serial (e.g. `Air temperature – 22034652`). Locations are entered per site in Admin → Sites → Edit (“LI-COR sensor locations”, one `serial = location` per line); saving renames that site's parameters. The presets file provides the PAR locations (Reference, Module edge, Under PV, Between PV).
 - A station that is not in the presets file is linked to a site from **Admin → Data sources**.
 
@@ -258,7 +259,7 @@ The weather stations (temperature, humidity, dew point, wind, gusts, wind direct
 When part of a site stops sending data, the people concerned get an e-mail, and another one when the data comes back.
 
 - **What is watched**: each category of each active site (Irrigation, Water, Weather…), not the site as a whole — a site whose soil probes died while its weather station still reports is not "offline", yet someone has to look at the probes. A category is offline when none of its sensors has sent a reading within the category's **offline threshold** (Admin → Sites → Categories), the same rule that marks its cards "Stale".
-- **Who is told**: active administrators, plus the active users assigned to that site and its owner.
+- **Who is told**: active administrators, plus the active users assigned to that site and its owner — among those whose **Receive offline alerts** box is ticked (Admin → Users; ticked by default for administrators and agents, unticked for observers such as students).
 - **How often**: once when it stops, once when it resumes. Categories of one site that change together share one message. Nothing is repeated while an outage lasts.
 - **Not announced**: a category that never reported, a deactivated category or site, manual-entry parameters, and silences that occur while the dashboard itself cannot reach ThingsBoard or LI-COR (the sync badge in Admin → Sites covers that case).
 

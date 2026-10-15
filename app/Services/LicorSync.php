@@ -219,6 +219,7 @@ class LicorSync
     {
         $specs   = collect(config('licor.measurements'));
         $updated = 0;
+        $touched = $vacated = [];
 
         $parameters = SiteParameter::where('slug', 'like', 'licor%')
             ->whereHas('category', fn ($q) => $q->where('site_id', $site->id))
@@ -245,11 +246,30 @@ class LicorSync
                 $changes['name'] = $this->parameterName($spec, $base, $location);
             }
 
+            // Same for the group: one the admin moved the card to is kept.
+            $generatedGroups = [$spec['group'], $this->groupName($spec, $previous[$base] ?? null)];
+            if (in_array($parameter->group_name, $generatedGroups, true)) {
+                $group = $this->ensureGroup($parameter->category, $this->groupName($spec, $location));
+                $changes += ['group_name' => $group->name, 'site_parameter_group_id' => $group->id];
+                $touched[$parameter->site_category_id] = $parameter->category;
+                $vacated[$parameter->site_category_id][] = $parameter->site_parameter_group_id;
+            }
+
             $parameter->fill($changes);
             if ($parameter->isDirty()) {
                 $parameter->save();
                 $updated++;
             }
+        }
+
+        foreach ($touched as $categoryId => $category) {
+            // A group this sync created and that the move left empty
+            // ("Weather stations" once every sensor has its location).
+            $category->parameterGroups()
+                ->whereIn('id', array_filter($vacated[$categoryId]))
+                ->whereDoesntHave('parameters')
+                ->delete();
+            $this->orderLocationGroups($site, $category);
         }
 
         return $updated;
@@ -262,6 +282,26 @@ class LicorSync
     private function parameterName(array $spec, string $base, ?string $location): string
     {
         return $location ? "{$location} – {$spec['name']}" : "{$spec['name']} – {$base}";
+    }
+
+    private function groupName(array $spec, ?string $location): string
+    {
+        return ($spec['group_by_location'] ?? false) && $location ? $location : $spec['group'];
+    }
+
+    /**
+     * Location groups follow the order in which the site lists its locations
+     * (Reference, Under PV...), not the order sensors happen to be met, and
+     * come before any other group of the category.
+     */
+    private function orderLocationGroups(Site $site, SiteCategory $category): void
+    {
+        $order = collect($site->licor_locations ?? [])->unique()->values()->flip();
+
+        $category->parameterGroups()->orderBy('sort_order')->get()
+            ->sortBy(fn ($group) => [$order[$group->name] ?? PHP_INT_MAX, $group->sort_order])
+            ->values()
+            ->each(fn ($group, $position) => $group->sort_order === $position ?: $group->update(['sort_order' => $position]));
     }
 
     private function parameterMetric(array $spec, ?string $location): string
@@ -279,7 +319,8 @@ class LicorSync
 
         $base     = explode('-', $sensorSerial)[0];
         $location = $site->licor_locations[$base] ?? null;
-        $group    = $this->ensureGroup($category, $spec['group']);
+        $group    = $this->ensureGroup($category, $this->groupName($spec, $location));
+        $this->orderLocationGroups($site, $category);
 
         $stats['created']++;
 

@@ -66,6 +66,17 @@
         </div>
 
         <div class="form-field">
+          <span class="form-label">E-mail alerts</span>
+          <input type="hidden" name="receives_alerts" value="0">
+          <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="user-receives-alerts" name="receives_alerts" value="1" @checked(old('receives_alerts', old('role') !== \App\Models\User::ROLE_OBSERVER))
+                   style="accent-color:var(--blue);width:15px;height:15px;margin-top:2px;flex-shrink:0">
+            <span>Receive offline alerts for the sites this user can access<br>
+              <span style="font-size:11px;color:var(--muted)">For maintenance staff. Leave unticked for students and other readers.</span></span>
+          </label>
+        </div>
+
+        <div class="form-field">
           <label class="form-label" for="user-organisation">Organisation</label>
           <input type="text" id="user-organisation" name="organisation" class="form-input"
                  value="{{ old('organisation') }}" placeholder="e.g. APV-MaGa Project">
@@ -127,3 +138,18 @@
 </div>
 </form>
 @endsection
+@push('scripts')
+<script>
+// Ticked for administrators and agents, unticked for observers, until the
+// admin sets it by hand.
+(() => {
+  const role = document.getElementById('user-role');
+  const alerts = document.getElementById('user-receives-alerts');
+  let touched = false;
+  alerts.addEventListener('change', () => { touched = true; });
+  role.addEventListener('change', () => {
+    if (!touched) alerts.checked = role.value !== @json(\App\Models\User::ROLE_OBSERVER);
+  });
+})();
+</script>
+@endpush

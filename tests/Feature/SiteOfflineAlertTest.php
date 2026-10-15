@@ -132,6 +132,50 @@ class SiteOfflineAlertTest extends TestCase
             && !$mail->hasTo('suspended@example.test') && !$mail->hasTo('pending-admin@example.test') && !$mail->hasTo('elsewhere@example.test'));
     }
 
+    public function test_users_who_do_not_take_alerts_are_left_out_whatever_their_role(): void
+    {
+        $student = User::factory()->create(['role' => User::ROLE_OBSERVER, 'status' => 'active', 'email' => 'student@example.test', 'receives_alerts' => false]);
+        $this->site->users()->attach($student->id, ['role' => User::ROLE_OBSERVER]);
+        $assistant = User::factory()->create(['role' => User::ROLE_AGENT, 'status' => 'active', 'email' => 'assistant@example.test', 'receives_alerts' => true]);
+        $this->site->users()->attach($assistant->id, ['role' => User::ROLE_AGENT]);
+        User::factory()->create(['role' => User::ROLE_ADMIN, 'status' => 'active', 'email' => 'quiet-admin@example.test', 'receives_alerts' => false]);
+
+        $this->reading($this->category('irrigation'), '2026-10-13 09:00:00');
+
+        $this->artisan('sites:check-offline')->expectsOutputToContain('2 recipient(s)')->assertSuccessful();
+
+        Mail::assertSent(SiteStatusMail::class, fn (SiteStatusMail $mail) =>
+            $mail->hasTo('admin@example.test') && $mail->hasTo('assistant@example.test')
+            && !$mail->hasTo('student@example.test') && !$mail->hasTo('quiet-admin@example.test'));
+    }
+
+    public function test_the_alert_choice_is_set_in_the_user_forms_and_defaults_off_for_self_registration(): void
+    {
+        $this->actingAs($this->admin)->post(route('admin.users.store'), [
+            'name' => 'Field assistant', 'email' => 'field@example.test', 'password' => 'long-enough-1', 'password_confirmation' => 'long-enough-1',
+            'role' => User::ROLE_AGENT, 'status' => 'active', 'receives_alerts' => '1',
+        ])->assertRedirect(route('admin.users'));
+        $this->assertTrue(User::where('email', 'field@example.test')->first()->receives_alerts);
+
+        $this->actingAs($this->admin)->post(route('admin.users.store'), [
+            'name' => 'Student', 'email' => 'student@example.test', 'password' => 'long-enough-1', 'password_confirmation' => 'long-enough-1',
+            'role' => User::ROLE_OBSERVER, 'status' => 'active', 'receives_alerts' => '0',
+        ])->assertRedirect(route('admin.users'));
+        $student = User::where('email', 'student@example.test')->first();
+        $this->assertFalse($student->receives_alerts);
+
+        $this->actingAs($this->admin)->put(route('admin.users.update', $student), [
+            'name' => 'Student', 'email' => 'student@example.test', 'role' => User::ROLE_OBSERVER, 'status' => 'active', 'receives_alerts' => '1',
+        ])->assertRedirect(route('admin.users'));
+        $this->assertTrue($student->refresh()->receives_alerts);
+
+        auth()->logout();
+        $this->post('/register', [
+            'name' => 'Visitor', 'email' => 'visitor@example.test', 'password' => 'long-enough-1', 'password_confirmation' => 'long-enough-1',
+        ]);
+        $this->assertFalse(User::where('email', 'visitor@example.test')->firstOrFail()->refresh()->receives_alerts);
+    }
+
     public function test_several_categories_of_a_site_share_one_message(): void
     {
         $this->reading($this->category('irrigation'), '2026-10-13 09:00:00');

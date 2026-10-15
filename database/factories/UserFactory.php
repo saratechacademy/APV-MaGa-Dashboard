@@ -31,6 +31,7 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
             'role' => 'agent',
             'status' => 'active',
+            'receives_alerts' => true,
         ];
     }
 }
