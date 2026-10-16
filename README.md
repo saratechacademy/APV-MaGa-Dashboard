@@ -221,7 +221,7 @@ sudo -u $WEB php artisan migrate --force
 sudo -u $WEB php artisan db:seed --force
 ```
 
-Expected: every migration `DONE`, then `DatabaseSeedersAdminSeeder … DONE`. The administrator account is `admin@apvmaga.com`; its password is in `database/seeders/AdminSeeder.php` (change it at first login).
+Expected: every migration `DONE`, then `AdminSeeder … DONE`. The administrator account is `admin@apvmaga.com`; its password is in `database/seeders/AdminSeeder.php` (change it at first login).
 
 ### Step 6 — Add the ThingsBoard and LI-COR credentials
 
