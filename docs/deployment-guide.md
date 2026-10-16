@@ -5,7 +5,7 @@ This guide covers two procedures:
 - **A. Deploying an installation connected to the APV-MaGa data sources.** The server builds its sites, sensors and history from ThingsBoard and LI-COR Cloud. The database starts empty.
 - **B. Moving an existing installation to another server.** The database, including accounts and manual entries, is transferred.
 
-All commands run from the project root, as the web server user unless stated otherwise. In the examples below, `$WEB` stands for that user (`www` on AAPanel, `www-data` on Debian/Ubuntu):
+Commands are run as root from the project root. Commands that must run as the web server user are prefixed with `sudo -u $WEB`, where `$WEB` is that user (`www` on AAPanel, `www-data` on Debian/Ubuntu):
 
 ```bash
 cd /path/to/apvmaga
@@ -30,25 +30,33 @@ WEB=www
 On a server with an existing copy of the project:
 
 ```bash
-git init                     # only if the directory is not a git repository
-git remote add origin https://github.com/saratechacademy/APV-MaGa-Dashboard.git   # idem
-git fetch origin
-git reset --hard origin/main
+sudo -u $WEB git init                     # only if the directory is not a git repository
+sudo -u $WEB git remote add origin https://github.com/saratechacademy/APV-MaGa-Dashboard.git   # idem
+sudo -u $WEB git fetch origin
+sudo -u $WEB git reset --hard origin/main
 ```
+
+Git refuses to run as root in a directory owned by another user, hence `sudo -u $WEB`.
 
 Do not use `git pull` on a clone made before 13 October 2026: the history was rewritten on that date.
 
-On a new server, clone the repository instead (`git clone https://github.com/saratechacademy/APV-MaGa-Dashboard.git`) and create the environment file: `cp .env.example .env`.
+On a new server, clone the repository instead and hand it over to the web server user:
+
+```bash
+git clone https://github.com/saratechacademy/APV-MaGa-Dashboard.git apvmaga
+cd apvmaga && cp .env.example .env
+chown -R $WEB:$WEB .
+```
 
 ### A2. Files from previous versions
 
 Files left by earlier versions under `app/`, `config/`, `routes/` or `database/migrations/` are not removed by git. A stale migration would run against the new database. List them, then move them out of the project:
 
 ```bash
-git status --short | grep -E '^\?\? (app|config|routes|database/migrations)/'
+sudo -u $WEB git status --short | grep -E '^\?\? (app|config|routes|database/migrations)/'
 
 mkdir -p ~/apvmaga-old-files
-git status --short | grep -E '^\?\? (app|config|routes|database/migrations)/' | cut -c4- \
+sudo -u $WEB git status --short | grep -E '^\?\? (app|config|routes|database/migrations)/' | cut -c4- \
   | while read f; do mkdir -p ~/apvmaga-old-files/$(dirname "$f"); mv "$f" ~/apvmaga-old-files/"$f"; done
 ```
 
@@ -58,10 +66,10 @@ This step replaces any existing database.
 
 ```bash
 composer install --no-dev --optimize-autoloader
-grep -q '^APP_KEY=base64' .env || php artisan key:generate --force
 sed -i '/^DB_/d' .env && echo "DB_CONNECTION=sqlite" >> .env
 rm -f database/database.sqlite && touch database/database.sqlite
-chown -R $WEB:$WEB storage bootstrap/cache database          # as root
+chown -R $WEB:$WEB .
+grep -q '^APP_KEY=base64' .env || sudo -u $WEB php artisan key:generate --force
 sudo -u $WEB php artisan config:clear
 sudo -u $WEB php artisan migrate --force
 sudo -u $WEB php artisan db:seed --force
@@ -101,7 +109,7 @@ Loading the LI-COR history takes a few minutes.
 
 ### A6. Scheduler
 
-The scheduler runs the synchronisations (every 10 minutes), the offline alerts and the nightly backup. As root:
+The scheduler runs the synchronisations (every 10 minutes), the offline alerts and the nightly backup.
 
 ```bash
 echo "* * * * * $WEB cd $(pwd) && $(which php) artisan schedule:run >> /dev/null 2>&1" > /etc/cron.d/apvmaga-scheduler
@@ -131,8 +139,6 @@ sudo -u $WEB php artisan tinker --execute="Mail::raw('APV-MaGa test', fn (\$m) =
 ```
 
 ### A8. Backups
-
-As root:
 
 ```bash
 mkdir -p /var/backups/apvmaga && chown $WEB:$WEB /var/backups/apvmaga
@@ -183,7 +189,7 @@ Create the accounts the target team needs on the source server before step B3, s
 4. **Import on the target**:
    ```bash
    cp ~/apvmaga-transfer.sqlite database/database.sqlite
-   chown -R $WEB:$WEB database storage bootstrap/cache          # as root
+   chown -R $WEB:$WEB .
    sudo -u $WEB php artisan migrate --force
    sudo -u $WEB php artisan config:clear && sudo -u $WEB php artisan cache:clear && sudo -u $WEB php artisan view:clear
    ```
@@ -203,6 +209,7 @@ The database file contains password hashes and API keys. Transfer it only over S
 | `Cannot set up ThingsBoard` or `LI-COR` | Invalid credentials in `.env`; correct them, then `php artisan config:clear` |
 | `no owner was found` | No active administrator; run `php artisan db:seed --force` |
 | `several sites could match` | Set the ThingsBoard prefix or LI-COR station on the intended site (Admin → Sites → Edit), then rerun A5 |
-| `Permission denied`, `readonly database` | `chown -R $WEB:$WEB storage bootstrap/cache database` |
+| `Permission denied`, `readonly database` | `chown -R $WEB:$WEB .` |
+| `detected dubious ownership in repository` | Run git as the web server user: `sudo -u $WEB git …` |
 | Badge `late` in Admin → Sites | The scheduler is not running; check `/etc/cron.d/apvmaga-scheduler` and `which php` |
-| Merge conflicts after `git pull` | Run `git merge --abort`, then `git fetch origin && git reset --hard origin/main` |
+| Merge conflicts after `git pull` | `sudo -u $WEB git merge --abort`, then `sudo -u $WEB git fetch origin` and `sudo -u $WEB git reset --hard origin/main` |
