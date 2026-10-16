@@ -148,77 +148,227 @@ Cron, every minute:
 
 ## Connecting another installation to the same data sources
 
-**Requirements**
+Every command is run on the server, in a terminal, from the project folder (the one containing `artisan`). Copy each block as it is.
 
-- PHP 8.2+, Composer, git
-- the ThingsBoard and LI-COR credentials
-- an active administrator account (`php artisan db:seed` on a new installation)
+### Step 1 — Open the project folder and name the web server user
 
-Run the commands from the project folder, as the web server user.
+```bash
+cd /path/to/the/project
+WEB=www          # AAPanel: www — Debian/Ubuntu: www-data
+```
 
-**1. Update the code**
+Keep this terminal open until the end: the next steps use `$WEB`.
+
+### Step 2 — Back up the current installation
+
+```bash
+cp .env ~/apvmaga-env-backup
+cp database/database.sqlite ~/apvmaga-db-backup.sqlite                 # SQLite
+# mysqldump -u <user> -p <database> > ~/apvmaga-db-backup.sql          # MySQL instead
+```
+
+Expected: no message. `ls ~/apvmaga-*` lists the backup files.
+
+### Step 3 — Check the requirements
+
+```bash
+php -v
+php -m | grep -iE "pdo_sqlite|pdo_mysql"
+composer --version
+git --version
+```
+
+Expected: PHP 8.2 or later; `pdo_sqlite` (or `pdo_mysql` for MySQL); a Composer and a git version.
+
+### Step 4 — Download the new version
+
+If the project is already a git clone:
 
 ```bash
 git fetch origin
 git reset --hard origin/main
-composer install --no-dev --optimize-autoloader
-php artisan migrate --force
 ```
 
-- Do not use `git pull` on a clone made before 13 October 2026.
-- Copied without git: first `git init && git remote add origin https://github.com/saratechacademy/APV-MaGa-Dashboard.git`.
-
-**2. Add to `.env`**, then `php artisan config:clear`:
-
-```
-THINGSBOARD_URL=…
-THINGSBOARD_USERNAME=…
-THINGSBOARD_PASSWORD=…
-LICOR_API_TOKEN=…
-THINGSBOARD_LOOKBACK_DAYS=90
-LICOR_LOOKBACK_DAYS=30
-```
-
-`…_LOOKBACK_DAYS`: days of history loaded by the first sync.
-
-**3. Create the sites**
+If the project was copied without git:
 
 ```bash
-php artisan thingsboard:setup --dry-run
-php artisan thingsboard:setup
-php artisan licor:setup --dry-run
-php artisan licor:setup
+git init
+git remote add origin https://github.com/saratechacademy/APV-MaGa-Dashboard.git
+git fetch origin
+git reset --hard origin/main
 ```
 
-Expected:
+Do not use `git pull`. Expected: `HEAD is now at …`. `.env`, `storage/` and `vendor/` are kept.
+
+### Step 5 — Move out the files of the old version
+
+```bash
+git status --short | grep -E '^\?\? (app|config|routes|database/migrations)/'
+```
+
+If this lists files, move them out of the project:
+
+```bash
+mkdir -p ~/apvmaga-old-files
+git status --short | grep -E '^\?\? (app|config|routes|database/migrations)/' | cut -c4- | while read f; do mkdir -p ~/apvmaga-old-files/$(dirname "$f"); mv "$f" ~/apvmaga-old-files/"$f"; done
+```
+
+Expected: running the first command again lists nothing.
+
+### Step 6 — Install the dependencies and update the database
+
+```bash
+composer install --no-dev --optimize-autoloader
+chown -R $WEB:$WEB storage bootstrap/cache database
+sudo -u $WEB php artisan migrate --force
+```
+
+Expected: `migrate` lists the migrations it applies, each `DONE`, or `Nothing to migrate`.
+
+### Step 7 — Add the ThingsBoard and LI-COR credentials
+
+Copy the settings file received from Saratech to your home folder as `~/apvmaga-sources.env`, then:
+
+```bash
+sed -i '/^THINGSBOARD_/d; /^LICOR_/d' .env
+grep -E '^(THINGSBOARD|LICOR)_' ~/apvmaga-sources.env >> .env
+sudo -u $WEB php artisan config:clear
+sudo -u $WEB php artisan thingsboard:check | grep -c " — type: "
+```
+
+Expected: the last command prints a number of devices (around 90). An error here means a wrong ThingsBoard URL or password in `.env`.
+
+### Step 8 — Check that an administrator exists
+
+```bash
+sudo -u $WEB php artisan tinker --execute="echo App\Models\User::where('role','admin')->where('status','active')->count();"
+```
+
+Expected: `1` or more. If it prints `0`:
+
+```bash
+sudo -u $WEB php artisan db:seed --force     # creates admin@apvmaga.com, password in database/seeders/AdminSeeder.php
+```
+
+### Step 9 — Preview the sites
+
+```bash
+sudo -u $WEB php artisan thingsboard:setup --dry-run
+sudo -u $WEB php artisan licor:setup --dry-run
+```
+
+Nothing is changed. Expected:
 
 ```
 UTG: creating site "University of The Gambia" — 16 device(s).
 AfriFarm: creating site "AfriFarm" — 13 device(s).
+Dry run: nothing was changed.
+22490036: creating site "University of The Gambia" — 30 sensor(s).
+22490035: creating site "AfriFarm" — 30 sensor(s).
 22490037: creating site "Fass Community Garden" — 30 sensor(s).
+Dry run: nothing was changed.
+```
+
+`linking existing site` or `already linked to` instead of `creating site`: the site already exists and will be used.
+
+### Step 10 — Create the sites and load the history
+
+```bash
+sudo -u $WEB php artisan thingsboard:setup
+sudo -u $WEB php artisan licor:setup
+```
+
+Expected, one line per site and no error, e.g.:
+
+```
 University of The Gambia (22490036): 30 sensor(s), … reading(s) stored, 0 rejected, 30 parameter(s) created.
 ```
 
-**4. Scheduler, e-mail, backup**
+The LI-COR history takes a few minutes.
+
+### Step 11 — Start the scheduler
 
 ```bash
-WEB=www        # www-data on Debian/Ubuntu
-echo "* * * * * $WEB cd $(pwd) && php artisan schedule:run >> /dev/null 2>&1" > /etc/cron.d/apvmaga-scheduler   # as root
-mkdir -p /var/backups/apvmaga && chown $WEB:$WEB /var/backups/apvmaga
+sudo bash -c "echo '* * * * * $WEB cd $(pwd) && $(which php) artisan schedule:run >> /dev/null 2>&1' > /etc/cron.d/apvmaga-scheduler"
+sudo -u $WEB php artisan schedule:list
 ```
 
-In `.env`: `MAIL_MAILER=smtp` and the `MAIL_…` settings, `BACKUP_PATH=/var/backups/apvmaga`. Then `php artisan config:clear`.
+Expected: `thingsboard:sync`, `licor:sync`, `sites:check-offline` and `db:backup` are listed.
 
-**5. Check**
+### Step 12 — E-mail settings
 
-| Check | Expected |
+```bash
+nano .env
+```
+
+Set these lines with your SMTP account, then save (Ctrl+O, Enter, Ctrl+X):
+
+```
+MAIL_MAILER=smtp
+MAIL_HOST=…
+MAIL_PORT=587
+MAIL_USERNAME=…
+MAIL_PASSWORD=…
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=…
+MAIL_FROM_NAME="APV-MaGa"
+```
+
+Then send a test, with your own address:
+
+```bash
+sudo -u $WEB php artisan config:clear
+sudo -u $WEB php artisan tinker --execute="Mail::raw('APV-MaGa test', fn (\$m) => \$m->to('you@example.org')->subject('APV-MaGa test'));"
+```
+
+Expected: the e-mail arrives within a minute.
+
+### Step 13 — Backup folder (SQLite)
+
+```bash
+mkdir -p /var/backups/apvmaga
+chown $WEB:$WEB /var/backups/apvmaga
+echo "BACKUP_PATH=/var/backups/apvmaga" >> .env
+sudo -u $WEB php artisan config:clear
+sudo -u $WEB php artisan db:backup
+```
+
+Expected: `Backup written: /var/backups/apvmaga/apvmaga-<date>.sqlite.gz`. With MySQL, skip this step and use the database server's backups.
+
+### Step 14 — Check
+
+```bash
+sudo -u $WEB php artisan thingsboard:sync
+sudo -u $WEB php artisan licor:sync
+```
+
+Expected: one line per site, no error.
+
+Then, in a browser:
+
+| Page | Expected |
 |---|---|
-| **All Sites** | University of The Gambia, AfriFarm, Fass Community Garden |
-| **Admin → Sites**, after ten minutes | badges `ok` |
-| `php artisan db:backup` | `Backup written: …` |
-| "Forgot password?" on the login page | the e-mail arrives |
+| Log in, **All Sites** | University of The Gambia, AfriFarm, Fass Community Garden |
+| **Admin → Sites**, after ten minutes | ThingsBoard and LI-COR badges `ok` |
 
-User accounts, manual entries and admin changes are not shared between installations.
+### Step 15 — Delete the settings file
+
+```bash
+rm ~/apvmaga-sources.env
+```
+
+### If a command fails
+
+| Message | Fix |
+|---|---|
+| `several sites could match` | Admin → Sites → Edit: set the ThingsBoard prefix or LI-COR station on the right site, then repeat step 10 |
+| `no owner was found` | step 8 |
+| `Cannot set up ThingsBoard` / `LI-COR` | check the credentials in `.env` (step 7), then `sudo -u $WEB php artisan config:clear` |
+| `Permission denied` / `readonly database` | `chown -R $WEB:$WEB storage bootstrap/cache database` |
+
+To undo everything: `cp ~/apvmaga-env-backup .env`, restore the database backed up in step 2, delete `/etc/cron.d/apvmaga-scheduler`.
+
+User accounts, manual entries and admin changes are not shared with the Saratech server.
 
 ---
 
@@ -240,10 +390,10 @@ WEB=www        # www-data on Debian/Ubuntu
 1. Save the current state:
    ```bash
    cp .env ~/apvmaga-env-before-transfer
-   sqlite3 database/database.sqlite ".backup $HOME/apvmaga-db-before-transfer.sqlite"   # or mysqldump
+   cp database/database.sqlite ~/apvmaga-db-before-transfer.sqlite   # or mysqldump for MySQL
    ```
 2. Check `php -v` (8.2+), `php -m | grep -i sqlite` (`pdo_sqlite`), `composer --version`.
-3. Update the code (step 1 above). Move out of the project any `??` file that `git status --short` shows under `app/`, `config/`, `routes/` or `database/migrations/`.
+3. Update the code and move out the old files: steps 4 to 6 of the previous section.
 4. In `.env`: the ThingsBoard and LI-COR lines, `DB_CONNECTION=sqlite` (delete the other `DB_…` lines), the production settings, `BACKUP_PATH`, `MAIL_…`. Keep `APP_KEY`.
 
 **Switch over**
