@@ -50,7 +50,7 @@ body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);color:v
 .site-avatar .status-dot{position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;border:2px solid var(--sidebar-bg)}
 .site-name-col{display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.25}
 .site-name-col .site-name{overflow:hidden;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
-.site-country-badge{margin-left:auto;font-size:9px;font-weight:700;letter-spacing:.3px;color:#7c8ba1;background:rgba(255,255,255,.06);padding:2px 6px;border-radius:8px;flex-shrink:0}
+.site-country-badge{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.3px;color:#7c8ba1;background:rgba(255,255,255,.06);padding:2px 6px;border-radius:8px;flex-shrink:0}
 .sb-item.active .site-country-badge{color:#4ade80;background:rgba(34,197,94,.12)}
 .sb-divider{border:none;border-top:1px solid #1e2d45;margin:4px 10px}
 .sb-user{padding:12px 14px;border-top:1px solid #1e2d45;margin-top:auto;display:flex;align-items:center;gap:8px}
@@ -160,7 +160,9 @@ textarea.form-input{resize:vertical;min-height:70px}
 .kpi-val{font-family:'DM Mono',monospace;font-size:17px;font-weight:500;line-height:1.1}
 .kpi-val.warn{color:var(--amber)}
 .kpi-lbl{font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap}
-.sparkline-wrap{height:52px;margin-bottom:10px}
+.sparkline-wrap{margin-bottom:10px}
+.spark-lbl{font-size:10px;color:var(--muted);margin-bottom:2px}
+.spark-canvas{height:52px;position:relative}
 .statuses{display:flex;gap:6px;flex-wrap:wrap}
 
 /* CHARTS */
@@ -199,8 +201,8 @@ textarea.form-input{resize:vertical;min-height:70px}
 /* ═══════════════════════════════════════
    RESPONSIVE — MOBILE (≤640px)
 ═══════════════════════════════════════ */
-@media (max-width: 640px) {
-  /* Sidebar off-canvas */
+@media (max-width: 900px) {
+  /* Sidebar off-canvas on tablets and phones */
   body{overflow:hidden}
   .sidebar{
     position:fixed;
@@ -212,17 +214,35 @@ textarea.form-input{resize:vertical;min-height:70px}
   }
   .sidebar.open{transform:translateX(0)}
   .sidebar-overlay.open{display:block}
-
-  /* Hamburger visible */
   .btn-hamburger{display:flex}
 
-  /* Topbar compact */
-  .topbar{padding:0 12px;gap:6px;height:52px}
+  /* Topbar wraps: the period selector gets its own full-width row */
+  .topbar{flex-wrap:wrap;height:auto;min-height:52px;padding:8px 12px;gap:6px;row-gap:8px}
+  .tb-title{min-width:0;flex-shrink:1;overflow:hidden;text-overflow:ellipsis}
+  .tr-group{order:10;width:100%}
+  .tr-btn{flex:1;padding:8px 0;font-size:13px}
+  .range-chip.visible{order:11}
+
+  /* List + side form layouts, and help/docs navigation, stack */
+  .content [style*="grid-template-columns:1fr 3"],
+  .content [style*="grid-template-columns:2fr 1fr"],
+  .content [style*="grid-template-columns:220px 1fr"]{grid-template-columns:1fr !important}
+  .content [style*="position:sticky"]{position:static !important}
+
+  /* Secondary table columns */
+  .col-opt{display:none}
+}
+
+@media (max-width: 640px) {
   .tb-title{font-size:14px}
   .live-badge{padding:3px 8px;font-size:11px}
-  .tr-group{display:none}
-  .range-chip{display:none !important}
   .tb-right .btn:first-child{display:none} /* hide CSV on mobile */
+  .form-grid{grid-template-columns:1fr}
+  .kpi-lbl{font-size:11px}
+  .content [style*="grid-template-columns:1fr 80px 80px"]{grid-template-columns:1fr 1fr !important}
+  .content [style*="grid-template-columns:1fr 80px 80px"] > :first-child{grid-column:1 / -1}
+  .content [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr !important}
+  .api-key-val{word-break:break-all}
   .tb-right .btn-blue{font-size:12px;padding:5px 10px}
 
   /* Content */
@@ -240,7 +260,7 @@ textarea.form-input{resize:vertical;min-height:70px}
   /* Site card compact */
   .site-card{padding:12px}
   .card-name{font-size:14px}
-  .sparkline-wrap{height:40px}
+  .spark-canvas{height:40px}
 
   /* Chart height reduced */
   .chart-card canvas{max-height:180px}
@@ -255,6 +275,25 @@ textarea.form-input{resize:vertical;min-height:70px}
   .detail-tabs-bar, [style*="overflow-x:auto"]{
     -webkit-overflow-scrolling:touch;
   }
+}
+
+.content [style*="grid-template-columns"] > *, .form-grid > *{min-width:0}
+
+/* Secondary table columns: .col-low hidden on small laptops, .col-opt on tablets */
+@media (max-width: 1200px) { .col-low{display:none} }
+@media (max-width: 640px) {
+  .col-sm{display:none}
+  /* Admin lists fit the screen: columns share the width, content wraps */
+  .admin-table{table-layout:fixed;width:100%}
+  .admin-table td{word-break:break-word}
+  .admin-table td:last-child > div{flex-direction:column;align-items:stretch}
+  .admin-table td:last-child form{display:block}
+  .admin-table .btn{white-space:nowrap;word-break:normal;justify-content:center;width:100%}
+}
+
+@media (pointer: coarse) {
+  .btn{min-height:36px}
+  .form-input{min-height:40px;font-size:16px} /* 16px: no automatic zoom on iOS */
 }
 
 /* ═══════════════════════════════════════
@@ -324,7 +363,7 @@ textarea.form-input{resize:vertical;min-height:70px}
   .content > div[style*="overflow:hidden"] {
     overflow-x: auto !important;
   }
-  .content table {
+  .content table:not(.admin-table) {
     min-width: 550px;
   }
 
@@ -455,7 +494,7 @@ textarea.form-input{resize:vertical;min-height:70px}
         <span class="sb-text">Log out</span>
       </button>
     </form>
-    <div class="sb-copy" style="padding:6px 14px 8px;font-size:9px;color:#475569;text-align:center;border-top:1px solid #1e2d45">
+    <div class="sb-copy" style="padding:6px 14px 8px;font-size:10px;color:#475569;text-align:center;border-top:1px solid #1e2d45">
       © 2026 APV-MaGa · <span style="color:#64748b">Saratech</span>
     </div>
   </div>

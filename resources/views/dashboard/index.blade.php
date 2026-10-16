@@ -50,7 +50,7 @@
             <div class="kpi-val" style="{{ $tile['stale'] ? 'color:var(--muted)' : '' }}">{{ number_format($tile['value'], abs($tile['value']) >= 100 ? 0 : 1) }}<span style="font-size:10px;color:var(--muted);margin-left:2px">{{ $tile['unit'] }}</span></div>
             <div class="kpi-lbl">{{ $tile['label'] }}</div>
             @if($tile['stale'])
-              <div style="font-size:9px;color:var(--amber);margin-top:1px;white-space:nowrap">{{ $tile['at']->diffForHumans(null, true, true) }} ago</div>
+              <div style="font-size:10px;color:var(--amber);margin-top:1px;white-space:nowrap">{{ $tile['at']->diffForHumans(null, true, true) }} ago</div>
             @endif
           </div>
         @endforeach
@@ -60,11 +60,11 @@
         <div class="kpi"><div class="kpi-lbl" style="padding:8px 0">No sensor data yet</div></div>
       </div>
     @endif
-    <div class="sparkline-wrap" style="position:relative">
-      <canvas id="spark-{{ $site->id }}"></canvas>
+    <div class="sparkline-wrap">
       @if($card['sparkline'])
-        <span style="position:absolute;top:0;left:0;font-size:9px;color:var(--muted)">{{ $metricInfo[$card['sparkline']]['title'] }} · <span class="lbl-range">last 24H</span></span>
+        <div class="spark-lbl">{{ $metricInfo[$card['sparkline']]['title'] }} · <span class="lbl-range">last 24H</span></div>
       @endif
+      <div class="spark-canvas"><canvas id="spark-{{ $site->id }}"></canvas></div>
     </div>
     <div class="statuses">
       @foreach($site->activeCategories as $cat)

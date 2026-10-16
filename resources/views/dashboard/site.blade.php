@@ -69,8 +69,9 @@ select.ag-input{cursor:pointer}
 .pg-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
 .pg-cards{display:flex;flex-wrap:wrap;gap:10px}
 @media (max-width: 560px){
-  .param-groups-grid{grid-template-columns:1fr}
+  .param-groups-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .param-group-box{grid-column:1 / -1 !important}
+  .param-groups-grid > [style*="max-width:150px"]{max-width:none !important}
 }
 
 
@@ -555,6 +556,7 @@ select.ag-input{cursor:pointer}
   </div>
   <div class="chart-card">
     <div class="cc-title" style="margin-bottom:10px">Dynamic Endpoints</div>
+    <div style="overflow-x:auto">
     <table class="raw-table">
       <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
       <tbody>
@@ -564,6 +566,7 @@ select.ag-input{cursor:pointer}
         <tr><td>GET</td><td>/api/commands/{{ $site->slug }}/{category}</td><td>Get actuator commands (switches)</td></tr>
       </tbody>
     </table>
+    </div>
     <div style="margin-top:14px">
       <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">Available categories & parameters:</div>
       @foreach($categories as $cat)
@@ -614,6 +617,8 @@ function switchTab(tab, btn) {
   if (activeBtn) {
     activeBtn.style.borderBottom = '3px solid #1d6ed8';
     activeBtn.style.color = '#1d6ed8';
+    // On narrow screens the tab bar scrolls: bring the chosen tab into view.
+    activeBtn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
   }
   const cat = (typeof catCharts !== 'undefined') ? catCharts.find(c => c.slug === tab) : null;
   if (cat) setTimeout(() => { buildMainChart(cat); buildLegend(cat); }, 60);

@@ -33,7 +33,7 @@
 @endif
 
 {{-- Breadcrumb --}}
-<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:12px;color:var(--muted)">
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;font-size:12px;color:var(--muted)">
   <a href="{{ route('admin.sites') }}" style="color:var(--blue);text-decoration:none">Sites</a> ›
   <a href="{{ route('admin.categories', $site) }}" style="color:var(--blue);text-decoration:none">{{ $site->name }}</a> ›
   <a href="{{ route('admin.parameters', [$site, $category]) }}" style="color:var(--blue);text-decoration:none">{{ $category->icon }} {{ $category->name }}</a> ›
@@ -134,8 +134,8 @@
           <span class="param-dot" style="background:{{ $p->pivot->color }}"></span>
           {{ $p->name }}
           @if($p->unit)({{ $p->unit }})@endif
-          @if($p->pivot->axis === 'right')<span style="font-size:9px;color:var(--muted)">R</span>@endif
-          @if($p->pivot->dashed)<span style="font-size:9px;color:var(--muted)">- -</span>@endif
+          @if($p->pivot->axis === 'right')<span style="font-size:10px;color:var(--muted)">R</span>@endif
+          @if($p->pivot->dashed)<span style="font-size:10px;color:var(--muted)">- -</span>@endif
         </span>
         @endforeach
       </div>

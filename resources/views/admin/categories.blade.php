@@ -27,7 +27,7 @@
 @endif
 
 {{-- Breadcrumb --}}
-<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:12px;color:var(--muted)">
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;font-size:12px;color:var(--muted)">
   <a href="{{ route('admin.sites') }}" style="color:var(--blue);text-decoration:none">Sites</a>
   <span>›</span>
   <span style="color:var(--text);font-weight:500">{{ $site->name }}</span>

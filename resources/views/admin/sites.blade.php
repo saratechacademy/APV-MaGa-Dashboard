@@ -16,10 +16,10 @@
   </span>
 </div>
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)">
-  <table class="raw-table" style="font-size:13px">
+  <table class="raw-table admin-table" style="font-size:13px">
     <thead>
       <tr>
-        <th>Site</th><th>Country</th><th>Agent</th><th>Capacity</th><th>Area</th><th>Status</th><th>Categories</th><th>Users</th><th>Actions</th>
+        <th>Site</th><th class="col-low">Country</th><th class="col-low">Agent</th><th class="col-low">Capacity</th><th class="col-low">Area</th><th>Status</th><th class="col-opt">Categories</th><th class="col-opt">Users</th><th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -29,8 +29,8 @@
           <div style="font-weight:600">{{ $site->name }}</div>
           <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">{{ $site->api_key ? substr($site->api_key,0,16).'…' : '—' }}</div>
         </td>
-        <td>{{ $site->country }}</td>
-        <td>
+        <td class="col-low">{{ $site->country }}</td>
+        <td class="col-low">
           @if($site->user)
             <div style="font-weight:500">{{ $site->user->name }}</div>
             <div style="font-size:11px;color:var(--muted)">{{ $site->user->email }}</div>
@@ -38,8 +38,8 @@
             <span style="color:var(--muted)">—</span>
           @endif
         </td>
-        <td>{{ $site->capacity_kw ? $site->capacity_kw.' kWp' : '—' }}</td>
-        <td>{{ $site->area_m2 ? number_format($site->area_m2).' m²' : '—' }}</td>
+        <td class="col-low">{{ $site->capacity_kw ? $site->capacity_kw.' kWp' : '—' }}</td>
+        <td class="col-low">{{ $site->area_m2 ? number_format($site->area_m2).' m²' : '—' }}</td>
         <td>
           <span class="badge {{ $site->status === 'active' ? 'badge-ok' : 'badge-warn' }}">
             {{ ucfirst($site->status) }}
@@ -57,10 +57,10 @@
             </span>
           @endif
         </td>
-        <td>
+        <td class="col-opt">
           <a href="{{ route('admin.categories', $site) }}" class="btn" style="font-size:11px;padding:4px 10px">Categories</a>
         </td>
-        <td>
+        <td class="col-opt">
           <a href="{{ route('admin.sites.users', $site) }}" class="btn" style="font-size:11px;padding:4px 10px">Users</a>
         </td>
         <td>

@@ -27,18 +27,18 @@
 </div>
 
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)">
-  <table class="raw-table" style="font-size:13px">
+  <table class="raw-table admin-table" style="font-size:13px">
     <thead>
       <tr>
-        <th>Name</th><th>Email</th><th>Role</th><th>Organisation</th><th>Country</th><th>Status</th><th>Alerts</th><th>Sites</th><th>Registered</th><th>Actions</th>
+        <th>Name</th><th class="col-opt">Email</th><th class="col-sm">Role</th><th class="col-low">Organisation</th><th class="col-low">Country</th><th>Status</th><th class="col-opt">Alerts</th><th class="col-opt">Sites</th><th class="col-low">Registered</th><th>Actions</th>
       </tr>
     </thead>
     <tbody>
       @forelse($users as $user)
       <tr>
         <td style="font-weight:600">{{ $user->name }}</td>
-        <td style="color:var(--muted)">{{ $user->email }}</td>
-        <td>
+        <td class="col-opt" style="color:var(--muted)">{{ $user->email }}</td>
+        <td class="col-sm">
           <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;
             background:{{ $user->isAdmin() ? 'var(--blue-bg)' : ($user->isAgent() ? 'var(--green-bg)' : 'var(--bg)') }};
             color:{{ $user->isAdmin() ? 'var(--blue)' : ($user->isAgent() ? 'var(--green)' : 'var(--muted)') }};
@@ -46,20 +46,20 @@
             {{ \App\Models\User::ROLES[$user->role] ?? ucfirst($user->role) }}
           </span>
         </td>
-        <td>{{ $user->organisation ?? '—' }}</td>
-        <td>{{ $user->country ?? '—' }}</td>
+        <td class="col-low">{{ $user->organisation ?? '—' }}</td>
+        <td class="col-low">{{ $user->country ?? '—' }}</td>
         <td>
           <span class="badge {{ $user->status==='active' ? 'badge-ok' : ($user->status==='pending' ? 'badge-warn' : 'badge-err') }}">
             {{ ucfirst($user->status) }}
           </span>
         </td>
-        <td style="color:{{ $user->receives_alerts ? 'var(--text)' : 'var(--muted)' }}" title="Offline alerts by e-mail">{{ $user->receives_alerts ? 'Yes' : '—' }}</td>
+        <td class="col-opt" style="color:{{ $user->receives_alerts ? 'var(--text)' : 'var(--muted)' }}" title="Offline alerts by e-mail">{{ $user->receives_alerts ? 'Yes' : '—' }}</td>
         {{-- Sites the user can actually open: an admin sees every site; anyone
              else, the ones they own or are assigned to (each counted once). --}}
-        <td style="font-family:'DM Mono',monospace" title="{{ $user->isAdmin() ? 'Administrators have access to every site' : 'Sites this user owns or is assigned to' }}">
+        <td class="col-opt" style="font-family:'DM Mono',monospace" title="{{ $user->isAdmin() ? 'Administrators have access to every site' : 'Sites this user owns or is assigned to' }}">
           {{ $user->isAdmin() ? 'All' : $user->sites->pluck('id')->merge($user->assignedSites->pluck('id'))->unique()->count() }}
         </td>
-        <td style="color:var(--muted)">{{ $user->created_at->format('d/m/Y') }}</td>
+        <td class="col-low" style="color:var(--muted)">{{ $user->created_at->format('d/m/Y') }}</td>
         <td>
           <div style="display:flex;gap:5px;flex-wrap:wrap">
             <a href="{{ route('admin.users.edit', $user) }}" class="btn" style="font-size:11px;padding:3px 8px;background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)">Edit</a>
