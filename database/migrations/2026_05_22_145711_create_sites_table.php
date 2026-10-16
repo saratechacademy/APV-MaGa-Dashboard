@@ -8,7 +8,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::dropIfExists('sites');
+        // 0001_01_01_000001 already creates this exact table. Never drop it:
+        // on an existing database that would delete every site.
+        if (Schema::hasTable('sites')) {
+            return;
+        }
+
         Schema::create('sites', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');

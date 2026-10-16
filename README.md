@@ -159,28 +159,18 @@ WEB=www          # AAPanel: www — Debian/Ubuntu: www-data
 
 Keep this terminal open until the end: the next steps use `$WEB`.
 
-### Step 2 — Back up the current installation
-
-```bash
-cp .env ~/apvmaga-env-backup
-cp database/database.sqlite ~/apvmaga-db-backup.sqlite                 # SQLite
-# mysqldump -u <user> -p <database> > ~/apvmaga-db-backup.sql          # MySQL instead
-```
-
-Expected: no message. `ls ~/apvmaga-*` lists the backup files.
-
-### Step 3 — Check the requirements
+### Step 2 — Check the requirements
 
 ```bash
 php -v
-php -m | grep -iE "pdo_sqlite|pdo_mysql"
+php -m | grep -i pdo_sqlite
 composer --version
 git --version
 ```
 
-Expected: PHP 8.2 or later; `pdo_sqlite` (or `pdo_mysql` for MySQL); a Composer and a git version.
+Expected: PHP 8.2 or later; `pdo_sqlite`; a Composer and a git version.
 
-### Step 4 — Download the new version
+### Step 3 — Download the new version
 
 If the project is already a git clone:
 
@@ -200,7 +190,7 @@ git reset --hard origin/main
 
 Do not use `git pull`. Expected: `HEAD is now at …`. `.env`, `storage/` and `vendor/` are kept.
 
-### Step 5 — Move out the files of the old version
+### Step 4 — Move out the files of the old version
 
 ```bash
 git status --short | grep -E '^\?\? (app|config|routes|database/migrations)/'
@@ -215,17 +205,25 @@ git status --short | grep -E '^\?\? (app|config|routes|database/migrations)/' | 
 
 Expected: running the first command again lists nothing.
 
-### Step 6 — Install the dependencies and update the database
+### Step 5 — Install the dependencies and create a new, empty database
+
+The previous database is replaced.
 
 ```bash
 composer install --no-dev --optimize-autoloader
+sed -i '/^DB_/d' .env
+echo "DB_CONNECTION=sqlite" >> .env
+rm -f database/database.sqlite
+touch database/database.sqlite
 chown -R $WEB:$WEB storage bootstrap/cache database
+sudo -u $WEB php artisan config:clear
 sudo -u $WEB php artisan migrate --force
+sudo -u $WEB php artisan db:seed --force
 ```
 
-Expected: `migrate` lists the migrations it applies, each `DONE`, or `Nothing to migrate`.
+Expected: every migration `DONE`, then `DatabaseSeedersAdminSeeder … DONE`. The administrator account is `admin@apvmaga.com`; its password is in `database/seeders/AdminSeeder.php` (change it at first login).
 
-### Step 7 — Add the ThingsBoard and LI-COR credentials
+### Step 6 — Add the ThingsBoard and LI-COR credentials
 
 Copy the settings file received from Saratech to your home folder as `~/apvmaga-sources.env`, then:
 
@@ -238,19 +236,7 @@ sudo -u $WEB php artisan thingsboard:check | grep -c " — type: "
 
 Expected: the last command prints a number of devices (around 90). An error here means a wrong ThingsBoard URL or password in `.env`.
 
-### Step 8 — Check that an administrator exists
-
-```bash
-sudo -u $WEB php artisan tinker --execute="echo App\Models\User::where('role','admin')->where('status','active')->count();"
-```
-
-Expected: `1` or more. If it prints `0`:
-
-```bash
-sudo -u $WEB php artisan db:seed --force     # creates admin@apvmaga.com, password in database/seeders/AdminSeeder.php
-```
-
-### Step 9 — Preview the sites
+### Step 7 — Preview the sites
 
 ```bash
 sudo -u $WEB php artisan thingsboard:setup --dry-run
@@ -271,7 +257,7 @@ Dry run: nothing was changed.
 
 `linking existing site` or `already linked to` instead of `creating site`: the site already exists and will be used.
 
-### Step 10 — Create the sites and load the history
+### Step 8 — Create the sites and load the history
 
 ```bash
 sudo -u $WEB php artisan thingsboard:setup
@@ -286,7 +272,7 @@ University of The Gambia (22490036): 30 sensor(s), … reading(s) stored, 0 reje
 
 The LI-COR history takes a few minutes.
 
-### Step 11 — Start the scheduler
+### Step 9 — Start the scheduler
 
 ```bash
 sudo bash -c "echo '* * * * * $WEB cd $(pwd) && $(which php) artisan schedule:run >> /dev/null 2>&1' > /etc/cron.d/apvmaga-scheduler"
@@ -295,7 +281,7 @@ sudo -u $WEB php artisan schedule:list
 
 Expected: `thingsboard:sync`, `licor:sync`, `sites:check-offline` and `db:backup` are listed.
 
-### Step 12 — E-mail settings
+### Step 10 — E-mail settings
 
 ```bash
 nano .env
@@ -323,7 +309,7 @@ sudo -u $WEB php artisan tinker --execute="Mail::raw('APV-MaGa test', fn (\$m) =
 
 Expected: the e-mail arrives within a minute.
 
-### Step 13 — Backup folder (SQLite)
+### Step 11 — Backup folder
 
 ```bash
 mkdir -p /var/backups/apvmaga
@@ -333,9 +319,9 @@ sudo -u $WEB php artisan config:clear
 sudo -u $WEB php artisan db:backup
 ```
 
-Expected: `Backup written: /var/backups/apvmaga/apvmaga-<date>.sqlite.gz`. With MySQL, skip this step and use the database server's backups.
+Expected: `Backup written: /var/backups/apvmaga/apvmaga-<date>.sqlite.gz`.
 
-### Step 14 — Check
+### Step 12 — Check
 
 ```bash
 sudo -u $WEB php artisan thingsboard:sync
@@ -351,7 +337,7 @@ Then, in a browser:
 | Log in, **All Sites** | University of The Gambia, AfriFarm, Fass Community Garden |
 | **Admin → Sites**, after ten minutes | ThingsBoard and LI-COR badges `ok` |
 
-### Step 15 — Delete the settings file
+### Step 13 — Delete the settings file
 
 ```bash
 rm ~/apvmaga-sources.env
@@ -361,12 +347,9 @@ rm ~/apvmaga-sources.env
 
 | Message | Fix |
 |---|---|
-| `several sites could match` | Admin → Sites → Edit: set the ThingsBoard prefix or LI-COR station on the right site, then repeat step 10 |
-| `no owner was found` | step 8 |
-| `Cannot set up ThingsBoard` / `LI-COR` | check the credentials in `.env` (step 7), then `sudo -u $WEB php artisan config:clear` |
+| `no owner was found` | `sudo -u $WEB php artisan db:seed --force` |
+| `Cannot set up ThingsBoard` / `LI-COR` | check the credentials in `.env` (step 6), then `sudo -u $WEB php artisan config:clear` |
 | `Permission denied` / `readonly database` | `chown -R $WEB:$WEB storage bootstrap/cache database` |
-
-To undo everything: `cp ~/apvmaga-env-backup .env`, restore the database backed up in step 2, delete `/etc/cron.d/apvmaga-scheduler`.
 
 User accounts, manual entries and admin changes are not shared with the Saratech server.
 
@@ -393,7 +376,7 @@ WEB=www        # www-data on Debian/Ubuntu
    cp database/database.sqlite ~/apvmaga-db-before-transfer.sqlite   # or mysqldump for MySQL
    ```
 2. Check `php -v` (8.2+), `php -m | grep -i sqlite` (`pdo_sqlite`), `composer --version`.
-3. Update the code and move out the old files: steps 4 to 6 of the previous section.
+3. Update the code and move out the old files: steps 3 and 4 of the previous section, then `composer install --no-dev --optimize-autoloader`.
 4. In `.env`: the ThingsBoard and LI-COR lines, `DB_CONNECTION=sqlite` (delete the other `DB_…` lines), the production settings, `BACKUP_PATH`, `MAIL_…`. Keep `APP_KEY`.
 
 **Switch over**
