@@ -7,6 +7,8 @@
 @push('styles')
 <style>
 .detail-tabs-bar{display:flex;background:#fff;border-bottom:2px solid #e4e8ef;margin:-20px -20px 20px;padding:0 20px;overflow-x:auto;scrollbar-width:none}
+/* The page padding is 12px on phones (layout): the bar follows it. */
+@media (max-width: 640px){ .detail-tabs-bar{margin:-12px -12px 16px;padding:0 12px} }
 .d-tab{font-family:'DM Sans',sans-serif !important;font-size:13px;font-weight:500;padding:11px 15px;border:0 !important;border-bottom:3px solid transparent !important;background:none !important;cursor:pointer;color:#64748b;margin-bottom:-2px;transition:color .15s,border-color .15s;white-space:nowrap;flex-shrink:0;outline:none !important;box-shadow:none !important}
 .d-tab.active{color:#1d6ed8 !important;border-bottom:3px solid #1d6ed8 !important}
 .d-tab:hover:not(.active){color:#0d1321}
@@ -107,7 +109,7 @@ select.ag-input{cursor:pointer}
 @endphp
 
 {{-- TABS --}}
-<div style="display:flex;background:#fff;border-bottom:2px solid #e4e8ef;margin:-20px -20px 20px;padding:0 20px;overflow-x:auto;scrollbar-width:none">
+<div class="detail-tabs-bar">
   @forelse($categories as $cat)
     <button onclick="switchTab('{{ $cat->slug }}',this)" data-tab="{{ $cat->slug }}"
       style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:11px 16px;border:none;border-bottom:{{ $loop->first ? '3px solid #1d6ed8' : '3px solid transparent' }};background:none;cursor:pointer;color:{{ $loop->first ? '#1d6ed8' : '#64748b' }};margin-bottom:-2px;white-space:nowrap;flex-shrink:0;outline:none;transition:color .15s">
@@ -982,15 +984,35 @@ function setRawPeriod(period, btn) {
   fetchRawData();
 }
 
+// Phones get one list per sensor; the timestamp table is for wider screens.
+const rawPhone = window.matchMedia('(max-width: 640px)');
+
 function fetchRawData(page) {
   if (page) rawCurrentPage = page;
   const container = document.getElementById('raw-data-container');
   if (!container) return;
   container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">Loading...</div>';
-  fetch(`/dashboard/sites/${SITE_SLUG}/raw-data?hours=${rawCurrentHours}&page=${rawCurrentPage}`)
+  const url = rawPhone.matches
+    ? `/dashboard/sites/${SITE_SLUG}/raw-sensors?hours=${rawCurrentHours}`
+    : `/dashboard/sites/${SITE_SLUG}/raw-data?hours=${rawCurrentHours}&page=${rawCurrentPage}`;
+  fetch(url)
     .then(r => r.text()).then(html => { container.innerHTML = html; })
     .catch(() => { container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Error loading data</div>'; });
 }
+
+function rawSensorMore(btn, parameterId, before) {
+  btn.disabled = true;
+  btn.textContent = 'Loading...';
+  fetch(`/dashboard/sites/${SITE_SLUG}/raw-sensors?hours=${rawCurrentHours}&parameter=${parameterId}&before=${encodeURIComponent(before)}`)
+    .then(r => r.text())
+    .then(html => { const item = btn.closest('li'); item.insertAdjacentHTML('beforebegin', html); item.remove(); })
+    .catch(() => { btn.disabled = false; btn.textContent = 'Show older readings'; });
+}
+
+// The server renders the timestamp table; on a phone, replace it at once,
+// and switch view when the screen crosses the breakpoint (rotation).
+if (rawPhone.matches) fetchRawData();
+rawPhone.addEventListener('change', () => fetchRawData(1));
 
 // Auto-refresh: the configured charts too, not only the default "Trends" ones.
 setInterval(() => {

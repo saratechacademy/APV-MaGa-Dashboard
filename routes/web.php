@@ -21,6 +21,7 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     Route::post('/dashboard/site/{site}/actuators/{parameter}/toggle', [ActuatorController::class, 'toggle'])->name('actuators.toggle');
     Route::get('/dashboard/{site}/{category}/chart-data', [DashboardController::class, 'chartData'])->name('dashboard.chart-data');
     Route::get('/dashboard/sites/{site}/raw-data', [DashboardController::class, 'rawData'])->name('dashboard.raw-data');
+    Route::get('/dashboard/sites/{site}/raw-sensors', [DashboardController::class, 'rawSensors'])->name('dashboard.raw-sensors');
 
     Route::get('/help', fn() => view('help'))->name('help');
     Route::middleware('admin')->get('/developer-docs', fn() => view('docs'))->name('docs');

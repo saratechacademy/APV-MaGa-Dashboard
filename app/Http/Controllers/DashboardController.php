@@ -289,4 +289,81 @@ class DashboardController extends Controller
 
         return $html ?: '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">No data for selected period</div>';
     }
+
+    /**
+     * Raw data for phones: one entry per parameter with its own latest
+     * readings, instead of one table row per timestamp where most cells are
+     * empty. With `parameter` and `before`, returns only the next readings of
+     * that parameter ("Show more").
+     */
+    public function rawSensors(Request $request, string $site)
+    {
+        $site = Site::where('slug', $site)->orWhere('id', $site)->firstOrFail();
+        $this->authorizeSiteAccess($site);
+
+        [$from, $to] = $this->resolveDateRange($request, 24);
+        $perSensor   = 10;
+
+        if ($request->filled('parameter')) {
+            $parameter = \App\Models\SiteParameter::whereKey($request->integer('parameter'))
+                ->whereHas('category', fn ($q) => $q->where('site_id', $site->id))
+                ->firstOrFail();
+            $before = $request->filled('before') ? \Illuminate\Support\Carbon::parse($request->before) : $to;
+            [$rows, $more] = $this->latestReadings($parameter, $site, $from, $before, 20, exclusive: true);
+
+            return view('dashboard.partials.raw-sensor-rows', compact('parameter', 'rows', 'more'));
+        }
+
+        $site->load('activeCategories.activeParameters');
+        $sections = [];
+
+        foreach ($site->activeCategories as $category) {
+            $entries = [];
+            foreach ($category->activeParameters as $parameter) {
+                [$rows, $more, $count] = $this->latestReadings($parameter, $site, $from, $to, $perSensor, withCount: true);
+                $entries[] = compact('parameter', 'rows', 'more', 'count');
+            }
+            $sections[] = ['category' => $category, 'entries' => $entries];
+        }
+
+        return view('dashboard.partials.raw-sensors', compact('sections'));
+    }
+
+    /**
+     * The newest readings of one parameter in a window, as [time, value]
+     * pairs, plus whether older ones remain (and optionally their number).
+     *
+     * @return array{0: array<int, array{at: \Illuminate\Support\Carbon, value: ?string}>, 1: bool, 2?: int}
+     */
+    private function latestReadings($parameter, Site $site, $from, $to, int $limit, bool $exclusive = false, bool $withCount = false): array
+    {
+        $manual = $parameter->input_type === 'manual';
+        $column = $manual ? 'reading_date' : 'read_at';
+        $query  = ($manual ? \App\Models\ManualReading::query() : \App\Models\SensorReading::query())
+            ->where('site_parameter_id', $parameter->id)
+            ->where($column, '>=', $from)
+            ->where($column, $exclusive ? '<' : '<=', $to);
+
+        $count = $withCount ? (clone $query)->count() : null;
+        $found = (clone $query)->orderByDesc($column)->limit($limit + 1)->get();
+
+        $rows = $found->take($limit)->map(fn ($r) => [
+            'at'    => $r->{$column},
+            'value' => $this->displayValue($parameter, $manual ? $r->value : ($r->value ?? $r->value_text)),
+        ])->all();
+
+        return $withCount ? [$rows, $found->count() > $limit, $count] : [$rows, $found->count() > $limit];
+    }
+
+    private function displayValue($parameter, $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if ($parameter->data_type === 'switch') {
+            return $value ? 'ON' : 'OFF';
+        }
+
+        return is_numeric($value) ? rtrim(rtrim(number_format((float) $value, 3, '.', ''), '0'), '.') : (string) $value;
+    }
 }
