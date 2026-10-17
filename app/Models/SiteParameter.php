@@ -12,7 +12,7 @@ class SiteParameter extends Model
 
     protected $fillable = [
         'site_category_id', 'name', 'slug', 'unit', 'data_type', 'metric', 'input_type', 'control_type',
-        'group_name', 'site_parameter_group_id',
+        'group_name', 'site_parameter_group_id', 'zone',
         'min_value', 'max_value', 'warning_threshold', 'critical_threshold', 'threshold_direction',
         'description', 'is_active', 'show_on_dashboard', 'sort_order',
     ];
@@ -31,6 +31,15 @@ class SiteParameter extends Model
     public function group() { return $this->belongsTo(SiteParameterGroup::class, 'site_parameter_group_id'); }
     public function manualReadings() { return $this->hasMany(ManualReading::class); }
     public function isSensor() { return $this->input_type === 'sensor'; }
+
+    /**
+     * What is measured, regardless of where: PAR metrics carry their
+     * location (par_under_pv), but they all measure the same quantity.
+     */
+    public function quantity(): ?string
+    {
+        return $this->metric && str_starts_with($this->metric, 'par_') ? 'par' : $this->metric;
+    }
     public function isManual() { return $this->input_type === 'manual'; }
 
     public function actuatorCommand() { return $this->hasOne(ActuatorCommand::class); }

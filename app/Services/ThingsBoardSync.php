@@ -11,6 +11,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Support\Zones;
 use Illuminate\Support\Str;
 
 /**
@@ -266,6 +267,7 @@ class ThingsBoardSync
             'unit'                    => $spec['unit'] ?? null,
             'data_type'               => $spec['data_type'] ?? 'float',
             'metric'                  => $spec['metric'] ?? null,
+            'zone'                    => Zones::fromName($mapping['group']),
             'input_type'              => 'sensor',
             'control_type'            => 'readonly',
             'group_name'              => $group->name,

@@ -434,6 +434,7 @@ textarea.form-input{resize:vertical;min-height:70px}
     $currentSite = request()->route('site');
     $streamSite  = $currentSite ?? ($sites ?? collect())->first();
     $iconSettings = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>';
+    $iconAnalysis = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 15l4-4 3 3 5-6"></path></svg>';
     $iconHelp     = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
     $iconDocs     = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 5 2 12 7 19"></polyline><line x1="14" y1="4" x2="10" y2="20"></line><polyline points="17 5 22 12 17 19"></polyline></svg>';
   @endphp
@@ -461,6 +462,9 @@ textarea.form-input{resize:vertical;min-height:70px}
   </div>
 
   <div class="sb-section">
+    <a href="{{ route('analysis') }}" onclick="closeSidebar()" class="sb-item {{ request()->routeIs('analysis*') ? 'active' : '' }}" title="Analysis">
+      <span class="sb-icon">{!! $iconAnalysis !!}</span> <span class="sb-text">Analysis</span>
+    </a>
     @if(auth()->user()->isAdmin())
     <a href="{{ route('admin.dashboard') }}" onclick="closeSidebar()" class="sb-item {{ request()->is('admin*') ? 'active' : '' }}" title="Admin Panel">
       <span class="sb-icon">{!! $iconSettings !!}</span> <span class="sb-text">Admin Panel</span>

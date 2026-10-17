@@ -12,6 +12,7 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use App\Support\Zones;
 use Illuminate\Support\Str;
 
 /**
@@ -241,7 +242,7 @@ class LicorSync
             ];
             $location = $site->licor_locations[$base] ?? null;
 
-            $changes = ['metric' => $this->parameterMetric($spec, $location)];
+            $changes = ['metric' => $this->parameterMetric($spec, $location), 'zone' => Zones::fromName($location)];
             if (in_array($parameter->name, $generated, true)) {
                 $changes['name'] = $this->parameterName($spec, $base, $location);
             }
@@ -330,6 +331,7 @@ class LicorSync
             'unit'                    => $spec['unit'] ?? null,
             'data_type'               => 'float',
             'metric'                  => $this->parameterMetric($spec, $location),
+            'zone'                    => Zones::fromName($location),
             'input_type'              => 'sensor',
             'control_type'            => 'readonly',
             'group_name'              => $group->name,

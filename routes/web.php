@@ -23,6 +23,10 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     Route::get('/dashboard/sites/{site}/raw-data', [DashboardController::class, 'rawData'])->name('dashboard.raw-data');
     Route::get('/dashboard/sites/{site}/raw-sensors', [DashboardController::class, 'rawSensors'])->name('dashboard.raw-sensors');
 
+    Route::get('/analysis',        [\App\Http\Controllers\AnalysisController::class, 'index'])->name('analysis');
+    Route::get('/analysis/data',   [\App\Http\Controllers\AnalysisController::class, 'data'])->name('analysis.data');
+    Route::get('/analysis/csv',    [\App\Http\Controllers\AnalysisController::class, 'csv'])->name('analysis.csv');
+    Route::get('/analysis/report', [\App\Http\Controllers\AnalysisController::class, 'report'])->name('analysis.report');
     Route::get('/help', fn() => view('help'))->name('help');
     Route::middleware('admin')->get('/developer-docs', fn() => view('docs'))->name('docs');
 
