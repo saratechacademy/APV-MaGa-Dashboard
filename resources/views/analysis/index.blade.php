@@ -17,6 +17,12 @@
 .an-about{font-size:12px;color:var(--muted);line-height:1.6;margin-top:12px}
 .an-error{background:var(--amber-bg);border:1px solid var(--amber-bd);color:var(--amber);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px}
 .an-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-bottom:12px}
+/* Phones: the two downloads side by side, "New analysis" on its own row below. */
+@media (max-width:640px){
+  .an-actions{display:grid;grid-template-columns:1fr 1fr}
+  .an-actions .btn{justify-content:center}
+  #an-reset{grid-column:1 / -1;order:3;margin-right:0 !important}
+}
 .an-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
 .an-hint{font-size:11px;color:var(--muted);margin-top:4px}
 .an-hide{display:none !important}
