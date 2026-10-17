@@ -114,6 +114,7 @@
 
 <div id="an-results" style="display:none">
   <div class="an-actions">
+    <button type="button" class="btn" id="an-reset" style="margin-right:auto">✕ New analysis</button>
     <a class="btn" id="an-csv" href="#">⬇ Data (CSV)</a>
     <a class="btn btn-blue" id="an-report" href="#" target="_blank" rel="noopener">⬇ Report (PDF)</a>
   </div>
@@ -263,6 +264,21 @@ document.querySelectorAll('#an-sites input').forEach(i => i.addEventListener('ch
 byId('an-quantity').addEventListener('change', () => { refreshZones(); refreshAbout(); });
 document.querySelectorAll('.an-presets button').forEach(b => b.addEventListener('click', () => setPeriod(+b.dataset.days)));
 byId('an-run').addEventListener('click', run);
+
+// Clears the results and goes back to a blank selection (nothing is deleted).
+byId('an-reset').addEventListener('click', () => {
+  anCharts.splice(0).forEach(c => c.destroy());
+  byId('an-results').style.display = 'none';
+  byId('an-error').style.display = 'none';
+  document.querySelectorAll('.an-param').forEach(s => s.value = '');
+  history.replaceState(null, '', AN_URLS.page);
+  setMode('site');
+  refreshQuantities(availableQuantities().includes('par') ? 'par' : null);
+  setPeriod(7);
+  byId('an-from2').value = byId('an-from').value;
+  byId('an-to2').value = byId('an-to').value;
+  document.querySelector('.content')?.scrollTo({ top: 0, behavior: 'smooth' });
+});
 
 // ── initial state: from the URL when it holds an analysis, otherwise defaults ──
 const init = new URLSearchParams(location.search);

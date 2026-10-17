@@ -122,6 +122,27 @@ class AnalysisV2Test extends TestCase
         ]))->assertStatus(422);
     }
 
+    public function test_an_administrator_sets_the_zone_of_a_parameter(): void
+    {
+        $temp = $this->param('weather', ['name' => 'Temp', 'metric' => 'air_temperature', 'unit' => '°C', 'zone' => null]);
+        $url  = route('admin.parameters.update', [$this->site, $temp->category, $temp]);
+
+        $this->actingAs($this->admin)->put($url, ['name' => 'Temp', 'data_type' => 'float', 'metric' => 'air_temperature', 'zone' => 'under_pv'])
+            ->assertRedirect();
+        $this->assertSame('under_pv', $temp->refresh()->zone);
+
+        // A request without the field keeps it; an unknown zone is refused.
+        $this->actingAs($this->admin)->put($url, ['name' => 'Temp', 'data_type' => 'float', 'metric' => 'air_temperature'])->assertRedirect();
+        $this->assertSame('under_pv', $temp->refresh()->zone);
+        $this->actingAs($this->admin)->put($url, ['name' => 'Temp', 'data_type' => 'float', 'zone' => 'moon'])->assertSessionHasErrors('zone');
+
+        // Created with a zone from the add form.
+        $this->actingAs($this->admin)->post(route('admin.parameters.store', [$this->site, $temp->category]), [
+            'name' => 'Edge temperature', 'data_type' => 'float', 'metric' => 'air_temperature', 'zone' => 'module_edge', 'input_type' => 'sensor',
+        ])->assertRedirect();
+        $this->assertSame('module_edge', SiteParameter::where('name', 'Edge temperature')->value('zone'));
+    }
+
     public function test_free_comparison_only_reads_parameters_of_sites_the_user_may_open(): void
     {
         $mine = $this->param('weather', ['name' => 'Temp', 'metric' => 'air_temperature', 'zone' => Zones::REFERENCE, 'unit' => '°C']);

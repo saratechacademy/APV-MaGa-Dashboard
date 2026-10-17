@@ -18,7 +18,10 @@ class HelpPagesTest extends TestCase
             ->assertOk()
             ->assertSee('Sources de données & Alertes')
             ->assertSee('LI-COR (HOBOnet)')
-            ->assertSee('id="section-9"', false);
+            ->assertSee('id="section-9"', false)
+            ->assertSee('Analyse et comparaison')
+            ->assertSee('New analysis')
+            ->assertSee('id="section-10"', false);
 
         $this->actingAs($user)->get('/help?lang=en')
             ->assertOk()

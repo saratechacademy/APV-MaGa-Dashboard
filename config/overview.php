@@ -53,6 +53,15 @@ return [
         'water_level'       => 'Water level (ultrasonic)',
         'borehole_level'    => 'Borehole water level',
         'turbidity'         => 'Turbidity',
+        'plant_height'               => 'Plant height (field measurement)',
+        'number_of_leaves_per_plant' => 'Leaves per plant (field measurement)',
+        'stem_girth'                 => 'Stem girth (field measurement)',
+        'chlorophyll_content'        => 'Chlorophyll content (field measurement)',
+        'stand_count'                => 'Stand count (field measurement)',
+        'bulb_diameter'              => 'Bulb diameter (field measurement)',
+        'bulb_weight'                => 'Bulb weight (field measurement)',
+        'yield'                      => 'Yield (field measurement)',
+        'harvest_index'              => 'Harvest index (field measurement)',
     ],
 
     // Site card: the first 4 of these the site actually has.

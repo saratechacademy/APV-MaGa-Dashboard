@@ -87,7 +87,8 @@
           ['7', 'API ESP32'],
           ['8', 'Administration'],
           ['9', 'Sources & Alertes'],
-          ['10', 'FAQ'],
+          ['10', 'Analyse'],
+          ['11', 'FAQ'],
         ] : [
           ['1', 'Introduction'],
           ['2', 'Login & Roles'],
@@ -98,7 +99,8 @@
           ['7', 'ESP32 API'],
           ['8', 'Administration'],
           ['9', 'Sources & Alerts'],
-          ['10', 'FAQ'],
+          ['10', 'Analysis'],
+          ['11', 'FAQ'],
         ];
       @endphp
       @foreach($sections as $i => $s)
@@ -464,6 +466,7 @@
           $steps = $lang==='fr' ? [
             'Cliquez sur l\'onglet <span class="help-code-inline">Manual Input</span> dans la barre d\'onglets',
             'Sélectionnez la <strong>date</strong> de la mesure terrain',
+            'Choisissez la <strong>parcelle</strong> (Plot) : parcelle de référence ou parcelle APV, pour pouvoir comparer les parcelles dans Analysis',
             'Entrez les <strong>valeurs numériques</strong> pour chaque paramètre',
             'Ajoutez des <strong>notes</strong> optionnelles pour contextualiser',
             'Cliquez sur <span class="help-code-inline">+ Save</span> pour enregistrer',
@@ -472,6 +475,7 @@
           ] : [
             'Click the <span class="help-code-inline">Manual Input</span> tab in the tab bar',
             'Select the <strong>date</strong> of the field measurement',
+            'Choose the <strong>plot</strong>: reference plot or APV plot, so plots can be compared in Analysis',
             'Enter <strong>numeric values</strong> for each parameter',
             'Add optional <strong>notes</strong> for context',
             'Click <span class="help-code-inline">+ Save</span> to save',
@@ -874,6 +878,7 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
               ['Warning / Critical threshold', 'Nombre (optionnel)', 'Deux seuils d\'alerte indépendants — badge orange (Warning) et rouge (Critical) sur la carte du paramètre.'],
               ['Alert direction', 'below / above', 'below (par défaut) = alerte quand la valeur descend au seuil ou en dessous (ex: niveau de réservoir). above = alerte quand la valeur monte au seuil ou au-dessus (ex: température).'],
               ['Group', 'Sélection dans une liste', 'Rattache le paramètre à un groupe géré dans Admin Panel → Parameters → Manage Groups (voir ci-dessous). Les paramètres d\'un même groupe s\'affichent encadrés ensemble sur le dashboard, et regroupés dans un même formulaire sur Manual Input.'],
+              ['Zone', 'Sélection dans une liste', 'Où le paramètre est mesuré : Reference, APV field, Under PV, Between PV ou Module edge. La page Analysis compare une même grandeur entre zones. Attribuée automatiquement aux capteurs ThingsBoard et LI-COR.'],
             ] : [
               ['Name', 'Free text', 'Name displayed on KPI cards and charts (e.g. Ambient Temperature)'],
               ['Slug', 'Unique snake_case', 'Identifier used in ESP32 API as JSON key (e.g. temperature_c). Must be unique within the category.'],
@@ -887,6 +892,7 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
               ['Warning / Critical threshold', 'Number (optional)', 'Two independent alert levels — orange (Warning) and red (Critical) badge on the parameter\'s card.'],
               ['Alert direction', 'below / above', 'below (default) = alert when the value drops to/under the threshold (e.g. tank level). above = alert when the value climbs to/over the threshold (e.g. temperature).'],
               ['Group', 'Selected from a list', 'Attaches the parameter to a group managed in Admin Panel → Parameters → Manage Groups (see below). Parameters in the same group are boxed together on the dashboard, and grouped into one form on Manual Input.'],
+              ['Zone', 'Selected from a list', 'Where the parameter is measured: Reference, APV field, Under PV, Between PV or Module edge. The Analysis page compares the same quantity between zones. Set automatically for ThingsBoard and LI-COR sensors.'],
             ];
             @endphp
             @foreach($params as $row)
@@ -1134,8 +1140,140 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
       </div>
     </div>
 
-    {{-- SECTION 10 — FAQ --}}
+    {{-- SECTION 10 — ANALYSIS --}}
     <div class="help-section" id="section-9">
+      <div class="help-card">
+        <div class="help-h1">{{ $lang==='fr' ? 'Analyse et comparaison' : 'Analysis and comparison' }}</div>
+        <p class="help-p">
+          @if($lang==='fr')
+          La page <strong>Analysis</strong> (barre latérale) compare des mesures et explique les résultats en langage clair. Elle sert à répondre aux questions de recherche du projet, par exemple : combien de lumière les panneaux retirent-ils aux cultures ? Le sol reste-t-il plus humide sous les panneaux ? Le rendement est-il différent ?
+          @else
+          The <strong>Analysis</strong> page (sidebar) compares measurements and explains the results in plain language. It answers the project's research questions, for example: how much light do the panels take from the crops? Does the soil stay wetter under the panels? Is the yield different?
+          @endif
+        </p>
+
+        <div class="help-h2">{{ $lang==='fr' ? 'Quatre façons de comparer' : 'Four ways to compare' }}</div>
+        <table class="help-table">
+          <thead><tr><th>{{ $lang==='fr' ? 'Mode' : 'Mode' }}</th><th>{{ $lang==='fr' ? 'Ce qui est comparé' : 'What is compared' }}</th><th>{{ $lang==='fr' ? 'Exemple' : 'Example' }}</th></tr></thead>
+          <tbody>
+            @php
+            $modes = $lang==='fr' ? [
+              ['Zones of a site', 'Une grandeur entre les zones d\'un site : référence, sous les panneaux (Under PV), entre les rangées (Between PV), bord de module, parcelle APV. Pour les mesures de terrain : entre la parcelle de référence et la parcelle APV.', 'Lumière (PAR) à UTG : la zone Under PV reçoit environ 42 % de la lumière de la référence.'],
+              ['Sites', 'Une grandeur entre plusieurs sites, dans la même zone. Le premier site coché sert de référence.', 'Température de l\'air de référence à UTG, AfriFarm et Fass.'],
+              ['Two periods', 'Une grandeur au même endroit sur deux périodes, comparées jour par jour depuis le début de chacune.', 'Humidité du sol avant et après la plantation ; saison sèche contre saison des pluies.'],
+              ['Any parameters', '2 à 4 paramètres quelconques de vos sites sur un même graphique, avec un axe par unité. Les deux premiers sont reliés par un nuage de points et un coefficient de corrélation.', 'Humidité du sol et température de l\'air.'],
+            ] : [
+              ['Zones of a site', 'One quantity between the zones of a site: reference, under the panels (Under PV), between rows (Between PV), module edge, APV field. For field measurements: between the reference plot and the APV plot.', 'Light (PAR) at UTG: Under PV receives about 42 % of the reference light.'],
+              ['Sites', 'One quantity between several sites, in the same zone. The first site ticked is the baseline.', 'Reference air temperature at UTG, AfriFarm and Fass.'],
+              ['Two periods', 'One quantity at the same place over two periods, compared day by day from the start of each.', 'Soil moisture before and after planting; dry season against rainy season.'],
+              ['Any parameters', '2 to 4 parameters from any of your sites on one chart, with one axis per unit. The first two are related by a scatter plot and a correlation coefficient.', 'Soil moisture and air temperature.'],
+            ];
+            @endphp
+            @foreach($modes as $row)
+            <tr><td><span class="help-code-inline">{{ $row[0] }}</span></td><td>{{ $row[1] }}</td><td>{{ $row[2] }}</td></tr>
+            @endforeach
+          </tbody>
+        </table>
+
+        <div class="help-h2">{{ $lang==='fr' ? 'Faire une analyse' : 'Running an analysis' }}</div>
+        <ol class="help-steps">
+          @php
+          $anSteps = $lang==='fr' ? [
+            'Choisissez le mode, puis le site (ou les sites, ou les paramètres) et la grandeur. Seules les combinaisons réellement mesurées sont proposées.',
+            'Choisissez la période (boutons 7, 30 ou 90 jours, ou dates précises ; 92 jours au plus) et le pas : valeurs horaires ou journalières.',
+            'Cliquez sur <strong>Analyse</strong>. Les résultats s\'affichent sous le formulaire.',
+            'Pour recommencer, cliquez sur <strong>New analysis</strong> : l\'écran est vidé, aucune donnée n\'est effacée.',
+          ] : [
+            'Choose the mode, then the site (or sites, or parameters) and the quantity. Only combinations that are actually measured are offered.',
+            'Choose the period (7, 30 or 90 days, or exact dates; 92 days at most) and the step: hourly or daily values.',
+            'Click <strong>Analyse</strong>. The results appear below the form.',
+            'To start again, click <strong>New analysis</strong>: the screen is cleared, no data is deleted.',
+          ];
+          @endphp
+          @foreach($anSteps as $step)
+          <li>{!! $step !!}</li>
+          @endforeach
+        </ol>
+
+        <div class="help-h2">{{ $lang==='fr' ? 'Lire les résultats' : 'Reading the results' }}</div>
+        <table class="help-table">
+          <tbody>
+            @php
+            $blocks = $lang==='fr' ? [
+              ['Findings', 'Les constats en langage clair. Chaque chiffre provient du tableau de synthèse : rien n\'est estimé ni inventé.'],
+              ['Summary', 'Pour chaque série : nombre de capteurs, moyenne, minimum, maximum, écart-type, part des données disponibles, et écart avec la première série (la référence).'],
+              ['Time series', 'Les séries superposées. Une courbe interrompue signale une période sans données.'],
+              ['Difference from the baseline', 'Chaque série moins la référence, heure par heure ou jour par jour. Au-dessus de zéro : plus élevée que la référence.'],
+              ['Average day', 'La valeur moyenne à chaque heure de la journée (UTC) : montre à quel moment de la journée les séries diffèrent.'],
+              ['Relationship', 'Mode « Any parameters » : un point par heure ou par jour, la droite de tendance et le coefficient r, de −1 à 1. Une corrélation montre que deux séries évoluent ensemble, pas que l\'une cause l\'autre.'],
+              ['Method and data quality', 'Comment les valeurs sont calculées, sur quelles périodes, et avec quelle part de données disponibles.'],
+            ] : [
+              ['Findings', 'The results in plain language. Every figure comes from the summary table: nothing is estimated or made up.'],
+              ['Summary', 'For each series: number of sensors, mean, minimum, maximum, standard deviation, share of data available, and difference from the first series (the baseline).'],
+              ['Time series', 'The series on one chart. A broken line marks a period without data.'],
+              ['Difference from the baseline', 'Each series minus the baseline, hour by hour or day by day. Above zero: higher than the baseline.'],
+              ['Average day', 'The mean value at each hour of the day (UTC): shows when in the day the series differ.'],
+              ['Relationship', '"Any parameters" mode: one point per hour or day, the trend line and the coefficient r, from −1 to 1. A correlation shows that two series move together, not that one causes the other.'],
+              ['Method and data quality', 'How values are computed, over which periods, and with what share of data available.'],
+            ];
+            @endphp
+            @foreach($blocks as $row)
+            <tr><td><strong>{{ $row[0] }}</strong></td><td>{{ $row[1] }}</td></tr>
+            @endforeach
+          </tbody>
+        </table>
+
+        <div class="help-h2">{{ $lang==='fr' ? 'Méthode de calcul' : 'How values are computed' }}</div>
+        <ul class="help-p" style="padding-left:18px">
+          @if($lang==='fr')
+          <li>Les mesures sont moyennées par heure ou par jour, en UTC. La pluie et l'eau d'irrigation sont additionnées.</li>
+          <li>Une zone équipée de plusieurs capteurs (deux sondes de sol, par exemple) est représentée par leur moyenne, chaque capteur comptant autant.</li>
+          <li>Les écarts ne sont calculés que sur les heures ou les jours où les deux séries ont des données : une panne d'un côté ne fausse pas le résultat.</li>
+          <li>En valeurs journalières, la lumière (PAR) devient l'intégrale lumineuse journalière (DLI, en mol/m²/jour) : PAR moyen de la journée × 0,0864.</li>
+          <li>Les écarts en % ne sont donnés que lorsqu'ils ont un sens (lumière, vent, pluie, rendement…), pas pour les températures.</li>
+          <li>Un avertissement s'affiche quand moins de 70 % de la période est couverte par des données.</li>
+          @else
+          <li>Readings are averaged per hour or per day, in UTC. Rain and irrigation water are summed.</li>
+          <li>A zone with several sensors (two soil probes, for example) is represented by their average, each sensor counting equally.</li>
+          <li>Differences are computed only on the hours or days where both series have data: an outage on one side does not bias the result.</li>
+          <li>With daily values, light (PAR) becomes the daily light integral (DLI, in mol/m²/day): mean PAR of the day × 0.0864.</li>
+          <li>Differences in % are given only where they make sense (light, wind, rain, yield…), not for temperatures.</li>
+          <li>A caution is shown when less than 70 % of the period is covered by data.</li>
+          @endif
+        </ul>
+
+        <div class="help-h2">{{ $lang==='fr' ? 'Télécharger et partager' : 'Downloading and sharing' }}</div>
+        <table class="help-table">
+          <tbody>
+            @php
+            $shares = $lang==='fr' ? [
+              ['Data (CSV)', 'Les valeurs alignées de toutes les séries, une ligne par heure ou par jour, pour poursuivre l\'analyse dans Excel, R ou Python.'],
+              ['Report (PDF)', 'Un rapport A4 avec les constats, le tableau, les graphiques et la méthode. La fenêtre d\'impression s\'ouvre : choisissez « Enregistrer au format PDF ».'],
+              ['Lien', 'L\'adresse de la page contient tous les choix de l\'analyse : copiez-la pour qu\'un collègue retrouve exactement la même analyse (il doit avoir accès aux mêmes sites).'],
+            ] : [
+              ['Data (CSV)', 'The aligned values of every series, one row per hour or day, to continue the analysis in Excel, R or Python.'],
+              ['Report (PDF)', 'An A4 report with the findings, table, charts and method. The print dialog opens: choose "Save as PDF".'],
+              ['Link', 'The page address holds every choice of the analysis: copy it so a colleague sees exactly the same analysis (they need access to the same sites).'],
+            ];
+            @endphp
+            @foreach($shares as $row)
+            <tr><td><strong>{{ $row[0] }}</strong></td><td>{{ $row[1] }}</td></tr>
+            @endforeach
+          </tbody>
+        </table>
+
+        <div class="help-tip">
+          <span>{{ $lang==='fr' ? 'Pour comparer les rendements et les mesures de plantes entre parcelles, indiquez la parcelle (champ « Plot ») à chaque saisie dans l\'onglet Manual Input.' : 'To compare yields and plant measurements between plots, give the plot ("Plot" field) with each entry in the Manual Input tab.' }}</span>
+        </div>
+        <div class="help-warn">
+          <span style="flex-shrink:0;display:flex;align-items:center;margin-top:1px">{!! $iconWarning !!}</span>
+          <span>{{ $lang==='fr' ? 'Une comparaison par zone n\'est possible que si chaque capteur a sa zone. Elle est attribuée automatiquement aux capteurs ThingsBoard et LI-COR ; pour les autres, un administrateur la règle dans Admin Panel → Parameters → Edit (champ « Zone »).' : 'A comparison by zone needs each sensor to have its zone. It is set automatically for ThingsBoard and LI-COR sensors; for others, an administrator sets it in Admin Panel → Parameters → Edit ("Zone" field).' }}</span>
+        </div>
+      </div>
+    </div>
+
+    {{-- SECTION 11 — FAQ --}}
+    <div class="help-section" id="section-10">
       <div class="help-card">
         <div class="help-h1">FAQ</div>
 

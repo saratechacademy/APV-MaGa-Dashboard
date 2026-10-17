@@ -416,6 +416,7 @@ class AdminController extends Controller
             'unit'                     => 'nullable|string|max:20',
             'data_type'                => 'required|in:float,integer,boolean,string,switch',
             'metric'                   => ['nullable', 'string', 'max:50', 'regex:/^[a-z0-9_]+$/'],
+            'zone'                     => ['nullable', Rule::in(array_keys(\App\Support\Zones::LABELS))],
             'control_type'             => 'nullable|in:readonly,controllable',
             'site_parameter_group_id'  => 'nullable|exists:site_parameter_groups,id',
             'min_value'                => 'nullable|numeric',
@@ -444,6 +445,7 @@ class AdminController extends Controller
             'unit'                     => $request->unit,
             'data_type'                => $request->data_type,
             'metric'                   => $request->metric ?: null,
+            'zone'                     => $request->zone ?: null,
             'input_type'               => $inputType,
             'control_type'             => $controlType,
             'group_name'               => $group?->name,
@@ -710,6 +712,7 @@ public function updateParameter(Request $request, Site $site, SiteCategory $cate
     $request->validate([
         'data_type'                => 'required|in:float,integer,boolean,string,switch',
         'metric'                   => ['nullable', 'string', 'max:50', 'regex:/^[a-z0-9_]+$/'],
+        'zone'                     => ['nullable', Rule::in(array_keys(\App\Support\Zones::LABELS))],
         'control_type'             => 'nullable|in:readonly,controllable',
         'site_parameter_group_id'  => 'nullable|exists:site_parameter_groups,id',
         'min_value'                => 'nullable|numeric',
@@ -742,6 +745,7 @@ public function updateParameter(Request $request, Site $site, SiteCategory $cate
         // Only when the form carries the field: a request without it must
         // not silently detach the parameter from the overview.
         'metric'                   => $request->has('metric') ? ($request->metric ?: null) : $parameter->metric,
+        'zone'                     => $request->has('zone') ? ($request->zone ?: null) : $parameter->zone,
         'input_type'               => $inputType,
         'control_type'             => $controlType,
         'group_name'               => $group?->name,
