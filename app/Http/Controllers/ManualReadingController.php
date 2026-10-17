@@ -45,6 +45,8 @@ class ManualReadingController extends Controller
             // users east of the server's clock, which runs on UTC).
             'reading_date'          => 'required|date|before_or_equal:tomorrow',
             'notes'                 => 'nullable|string',
+            // The plot the measurement was taken on (reference or APV), for comparisons.
+            'zone'                  => ['nullable', Rule::in(array_keys(config('analysis.plots')))],
         ]);
 
         $validator->after(function ($validator) use ($request, $siteParameters) {
@@ -88,6 +90,7 @@ class ManualReadingController extends Controller
                     'user_id'           => $user->id,
                     'value'             => $reading['value'],
                     'reading_date'      => $readingDateTime,
+                    'zone'              => $request->zone ?: null,
                     'notes'             => $request->notes,
                 ]);
             }

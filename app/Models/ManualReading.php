@@ -11,7 +11,7 @@ class ManualReading extends Model
     use HasFactory;
 
     protected $fillable = [
-        'site_id', 'site_parameter_id', 'user_id', 'value', 'reading_date', 'notes'
+        'site_id', 'site_parameter_id', 'user_id', 'value', 'reading_date', 'zone', 'notes'
     ];
 
     protected $casts = ['reading_date' => 'datetime'];

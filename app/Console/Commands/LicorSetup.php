@@ -144,6 +144,7 @@ class LicorSetup extends Command
                 'control_type'            => 'readonly',
                 'group_name'              => $group->name,
                 'site_parameter_group_id' => $group->id,
+                'metric'                  => $slug,
                 'is_active'               => true,
                 'show_on_dashboard'       => true,
                 'sort_order'              => $category->parameters()->count(),

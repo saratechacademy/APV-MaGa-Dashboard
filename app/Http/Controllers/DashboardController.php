@@ -350,6 +350,7 @@ class DashboardController extends Controller
         $rows = $found->take($limit)->map(fn ($r) => [
             'at'    => $r->{$column},
             'value' => $this->displayValue($parameter, $manual ? $r->value : ($r->value ?? $r->value_text)),
+            'plot'  => $manual && $r->zone ? (config('analysis.plots')[$r->zone] ?? $r->zone) : null,
         ])->all();
 
         return $withCount ? [$rows, $found->count() > $limit, $count] : [$rows, $found->count() > $limit];

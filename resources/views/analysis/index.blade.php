@@ -1,73 +1,93 @@
 @extends('layouts.dashboard')
 @section('page-title', 'Analysis')
-@section('page-crumb', 'Compare zones and sites')
+@section('page-crumb', 'Compare zones, sites, periods and parameters')
 
 @push('styles')
 <style>
 .an-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
 .an-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:end}
-.an-seg{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px}
-.an-seg button{flex:1;border:none;background:transparent;border-radius:6px;padding:8px 10px;font:500 13px 'DM Sans',sans-serif;color:var(--muted);cursor:pointer}
+.an-seg{display:flex;flex-wrap:wrap;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px}
+.an-seg button{flex:1;border:none;background:transparent;border-radius:6px;padding:8px 10px;font:500 13px 'DM Sans',sans-serif;color:var(--muted);cursor:pointer;white-space:nowrap}
 .an-seg button.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
 .an-sites{display:flex;flex-wrap:wrap;gap:6px}
 .an-sites label{display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:20px;padding:6px 12px;font-size:13px;cursor:pointer;background:var(--bg)}
 .an-sites input{accent-color:var(--blue)}
-.an-presets{display:flex;gap:6px;margin-top:6px}
+.an-presets{display:flex;gap:6px}
 .an-presets button{flex:1}
 .an-about{font-size:12px;color:var(--muted);line-height:1.6;margin-top:12px}
 .an-error{background:var(--amber-bg);border:1px solid var(--amber-bd);color:var(--amber);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px}
 .an-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-bottom:12px}
 .an-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+.an-hint{font-size:11px;color:var(--muted);margin-top:4px}
+.an-hide{display:none !important}
 </style>
 @endpush
 
 @section('content')
-@if(!$catalog)
+@if(!$catalog && !$parameters)
   <div class="an-card" style="text-align:center;color:var(--muted);font-size:13px;padding:30px">
-    None of your sites has sensor data that can be compared yet.
+    None of your sites has data that can be compared yet.
   </div>
 @else
 <div class="an-card">
-  <div class="an-controls">
-    <div class="form-field">
-      <span class="form-label">Compare</span>
-      <div class="an-seg" role="group" aria-label="Comparison mode">
-        <button type="button" data-mode="site" class="active">Zones of a site</button>
-        <button type="button" data-mode="sites">Sites</button>
-      </div>
+  <div class="form-field">
+    <span class="form-label">Compare</span>
+    <div class="an-seg" role="group" aria-label="Comparison mode">
+      <button type="button" data-mode="site" class="active">Zones of a site</button>
+      <button type="button" data-mode="sites">Sites</button>
+      <button type="button" data-mode="periods">Two periods</button>
+      <button type="button" data-mode="free">Any parameters</button>
     </div>
+  </div>
 
-    <div class="form-field" id="an-site-field">
+  <div class="an-controls" style="margin-top:12px">
+    <div class="form-field" data-show="site periods">
       <label class="form-label" for="an-site">Site</label>
       <select id="an-site" class="form-input"></select>
     </div>
-
-    <div class="form-field" id="an-quantity-field">
+    <div class="form-field" data-show="site sites periods">
       <label class="form-label" for="an-quantity">Quantity</label>
       <select id="an-quantity" class="form-input"></select>
     </div>
-
-    <div class="form-field" id="an-zone-field" style="display:none">
-      <label class="form-label" for="an-zone">Zone</label>
+    <div class="form-field" data-show="sites periods">
+      <label class="form-label" for="an-zone" id="an-zone-label">Zone</label>
       <select id="an-zone" class="form-input"></select>
     </div>
   </div>
 
-  <div class="form-field" id="an-sites-field" style="display:none;margin-top:12px">
+  <div class="form-field" data-show="sites" style="margin-top:12px">
     <span class="form-label">Sites (the first one ticked is the baseline)</span>
     <div class="an-sites" id="an-sites"></div>
   </div>
 
+  <div class="an-controls" data-show="free" style="margin-top:12px">
+    @for($i = 0; $i < 4; $i++)
+    <div class="form-field">
+      <label class="form-label" for="an-param-{{ $i }}">Parameter {{ $i + 1 }}{{ $i < 2 ? ' *' : '' }}</label>
+      <select id="an-param-{{ $i }}" class="form-input an-param"></select>
+    </div>
+    @endfor
+  </div>
+  <div class="an-hint" data-show="free">Parameters 1 and 2 are also related to each other (correlation). Up to two different units are shown, each on its own axis.</div>
+
   <div class="an-controls" style="margin-top:12px">
     <div class="form-field">
-      <label class="form-label" for="an-from">From</label>
+      <label class="form-label" for="an-from"><span data-show="periods">Period A — </span>From</label>
       <input type="date" id="an-from" class="form-input">
     </div>
     <div class="form-field">
-      <label class="form-label" for="an-to">To</label>
+      <label class="form-label" for="an-to"><span data-show="periods">Period A — </span>To</label>
       <input type="date" id="an-to" class="form-input">
     </div>
-    <div class="form-field">
+    <div class="form-field" data-show="periods">
+      <label class="form-label" for="an-from2">Period B — From</label>
+      <input type="date" id="an-from2" class="form-input">
+    </div>
+    <div class="form-field" data-show="periods">
+      <label class="form-label" for="an-to2">Period B — To</label>
+      <input type="date" id="an-to2" class="form-input">
+    </div>
+    <div class="form-field" data-show="site sites free">
       <span class="form-label">Period</span>
       <div class="an-presets">
         <button type="button" class="btn" data-days="7">7 days</button>
@@ -103,11 +123,13 @@
 @endsection
 
 @push('scripts')
-@if($catalog)
+@if($catalog || $parameters)
 <script>
 const AN_CATALOG = @json($catalog);
+const AN_PARAMS = @json($parameters);
 const AN_QUANTITIES = @json($quantities);
 const AN_ZONES = @json($zones);
+const AN_PLOTS = @json($plots);
 const AN_URLS = { data: @json(route('analysis.data')), csv: @json(route('analysis.csv')), report: @json(route('analysis.report')), page: @json(route('analysis')) };
 
 const byId = id => document.getElementById(id);
@@ -116,12 +138,18 @@ let mode = 'site';
 function siteById(id) { return AN_CATALOG.find(s => String(s.id) === String(id)); }
 function checkedSites() { return [...document.querySelectorAll('#an-sites input:checked')].map(i => i.value); }
 function option(value, text, selected) { return `<option value="${value}" ${selected ? 'selected' : ''}>${anEsc(text)}</option>`; }
+function isManual(q) { return !!(AN_QUANTITIES[q] && AN_QUANTITIES[q].manual); }
+function placeLabel(z, manual) { return (manual ? AN_PLOTS[z] : AN_ZONES[z]) || z; }
 
-// Quantities worth offering: measured in two zones of the site, or on two of the ticked sites.
+// Quantities worth offering in the current mode.
 function availableQuantities() {
   if (mode === 'site') {
     const s = siteById(byId('an-site').value);
     return s ? Object.keys(s.quantities).filter(q => s.quantities[q].length >= 2) : [];
+  }
+  if (mode === 'periods') {
+    const s = siteById(byId('an-site').value);
+    return s ? Object.keys(s.quantities) : [];
   }
   const counts = {};
   checkedSites().forEach(id => Object.keys(siteById(id)?.quantities || {}).forEach(q => counts[q] = (counts[q] || 0) + 1));
@@ -129,53 +157,72 @@ function availableQuantities() {
 }
 
 function refreshQuantities(keep) {
+  if (mode === 'free') { refreshAbout(); return; }
   const list = availableQuantities().filter(q => AN_QUANTITIES[q]);
   const current = keep || byId('an-quantity').value;
   byId('an-quantity').innerHTML = list.length
-    ? list.map(q => option(q, AN_QUANTITIES[q].title, q === current)).join('')
-    : option('', mode === 'site' ? 'Nothing to compare on this site' : 'Tick at least two sites', true);
+    ? list.map(q => option(q, AN_QUANTITIES[q].title + (isManual(q) ? ' (field measurement)' : ''), q === current)).join('')
+    : option('', mode === 'sites' ? 'Tick at least two sites' : 'Nothing to compare on this site', true);
   refreshZones();
   refreshAbout();
 }
 
+// Zones (sensors) or plots (field measurements) the quantity is available in.
 function refreshZones(keep) {
-  if (mode !== 'sites') return;
+  if (mode !== 'sites' && mode !== 'periods') return;
   const q = byId('an-quantity').value;
-  const zones = new Set();
-  checkedSites().forEach(id => (siteById(id)?.quantities[q] || []).forEach(z => zones.add(z)));
-  const current = keep || byId('an-zone').value || 'reference';
-  byId('an-zone').innerHTML = Object.keys(AN_ZONES).filter(z => zones.has(z)).map(z => option(z, AN_ZONES[z], z === current)).join('')
-    + option('any', 'All zones (site average)', current === 'any' || !zones.size);
+  const places = new Set();
+  const siteIds = mode === 'sites' ? checkedSites() : [byId('an-site').value];
+  siteIds.forEach(id => (siteById(id)?.quantities[q] || []).forEach(z => places.add(z)));
+  byId('an-zone-label').textContent = isManual(q) ? 'Plot' : 'Zone';
+  const order = isManual(q) ? Object.keys(AN_PLOTS) : Object.keys(AN_ZONES);
+  const fallback = mode === 'sites' && !isManual(q) ? 'reference' : 'any';
+  const current = keep || byId('an-zone').value || fallback;
+  byId('an-zone').innerHTML = order.filter(z => places.has(z)).map(z => option(z, placeLabel(z, isManual(q)), z === current)).join('')
+    + option('any', isManual(q) ? 'All plots' : 'All zones (site average)', current === 'any' || !places.size);
 }
 
 function refreshAbout() {
-  const q = AN_QUANTITIES[byId('an-quantity').value];
-  byId('an-about').textContent = q ? q.about : '';
+  const q = mode === 'free' ? null : AN_QUANTITIES[byId('an-quantity').value];
+  byId('an-about').textContent = q ? q.about : (mode === 'free' ? 'Choose two to four parameters from any of your sites. Use it to look at how quantities evolve together — for example soil moisture, irrigation and rain.' : '');
   byId('an-step').disabled = !!(q && q.only_daily);
   if (q && q.only_daily) byId('an-step').value = 'day';
 }
 
 function setMode(m) {
   mode = m;
+  // Two periods: when A and B are still the same, A becomes the period just before B.
+  if (m === 'periods' && byId('an-from').value === byId('an-from2').value && byId('an-from2').value) {
+    const from2 = new Date(byId('an-from2').value + 'T00:00:00Z'), to2 = new Date(byId('an-to2').value + 'T00:00:00Z');
+    const days = Math.round((to2 - from2) / 864e5) + 1;
+    const toA = new Date(from2); toA.setUTCDate(toA.getUTCDate() - 1);
+    const fromA = new Date(toA); fromA.setUTCDate(fromA.getUTCDate() - days + 1);
+    byId('an-from').value = iso(fromA); byId('an-to').value = iso(toA);
+  }
   document.querySelectorAll('.an-seg button').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
-  byId('an-site-field').style.display = m === 'site' ? '' : 'none';
-  byId('an-sites-field').style.display = m === 'sites' ? '' : 'none';
-  byId('an-zone-field').style.display = m === 'sites' ? '' : 'none';
+  document.querySelectorAll('[data-show]').forEach(el => el.classList.toggle('an-hide', !el.dataset.show.split(' ').includes(m)));
   refreshQuantities();
 }
+
+function iso(d) { return d.toISOString().slice(0, 10); }
 
 function setPeriod(days) {
   const to = new Date(), from = new Date();
   from.setUTCDate(to.getUTCDate() - days + 1);
-  byId('an-to').value = to.toISOString().slice(0, 10);
-  byId('an-from').value = from.toISOString().slice(0, 10);
-  if (!(AN_QUANTITIES[byId('an-quantity').value] || {}).only_daily) byId('an-step').value = days > 14 ? 'day' : 'hour';
+  byId('an-to').value = iso(to);
+  byId('an-from').value = iso(from);
+  const q = AN_QUANTITIES[byId('an-quantity').value];
+  if (!(q && q.only_daily)) byId('an-step').value = days > 14 ? 'day' : 'hour';
 }
 
 function query() {
-  const p = new URLSearchParams({ mode, quantity: byId('an-quantity').value, from: byId('an-from').value, to: byId('an-to').value, step: byId('an-step').value });
-  if (mode === 'site') p.set('site', byId('an-site').value);
-  else { checkedSites().forEach(id => p.append('sites[]', id)); p.set('zone', byId('an-zone').value); }
+  const p = new URLSearchParams({ mode, from: byId('an-from').value, to: byId('an-to').value, step: byId('an-step').value });
+  if (mode !== 'free') p.set('quantity', byId('an-quantity').value);
+  if (mode === 'site' || mode === 'periods') p.set('site', byId('an-site').value);
+  if (mode === 'sites') checkedSites().forEach(id => p.append('sites[]', id));
+  if (mode === 'sites' || mode === 'periods') p.set('zone', byId('an-zone').value);
+  if (mode === 'periods') { p.set('from2', byId('an-from2').value); p.set('to2', byId('an-to2').value); }
+  if (mode === 'free') document.querySelectorAll('.an-param').forEach(s => { if (s.value) p.append('params[]', s.value); });
   return p.toString();
 }
 
@@ -201,9 +248,14 @@ async function run() {
   }
 }
 
-// ── initial state: from the URL when it holds an analysis, otherwise defaults ──
+// ── controls ──
 byId('an-site').innerHTML = AN_CATALOG.map(s => option(s.id, s.name)).join('');
 byId('an-sites').innerHTML = AN_CATALOG.map(s => `<label><input type="checkbox" value="${s.id}"> ${anEsc(s.name)}</label>`).join('');
+const siteNames = Object.fromEntries(AN_CATALOG.map(s => [s.id, s.name]));
+const paramGroups = {};
+AN_PARAMS.forEach(p => (paramGroups[`${siteNames[p.site] || 'Site ' + p.site} — ${p.category}`] ??= []).push(p));
+const paramOptions = Object.entries(paramGroups).map(([g, ps]) => `<optgroup label="${anEsc(g)}">${ps.map(p => option(p.id, p.name)).join('')}</optgroup>`).join('');
+document.querySelectorAll('.an-param').forEach(s => s.innerHTML = option('', '—') + paramOptions);
 
 document.querySelectorAll('.an-seg button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
 byId('an-site').addEventListener('change', () => refreshQuantities());
@@ -212,22 +264,26 @@ byId('an-quantity').addEventListener('change', () => { refreshZones(); refreshAb
 document.querySelectorAll('.an-presets button').forEach(b => b.addEventListener('click', () => setPeriod(+b.dataset.days)));
 byId('an-run').addEventListener('click', run);
 
+// ── initial state: from the URL when it holds an analysis, otherwise defaults ──
 const init = new URLSearchParams(location.search);
-if (init.get('quantity')) {
+if (init.get('mode')) {
   if (init.get('site')) byId('an-site').value = init.get('site');
   init.getAll('sites[]').forEach(id => { const box = document.querySelector(`#an-sites input[value="${id}"]`); if (box) box.checked = true; });
-  setMode(init.get('mode') === 'sites' ? 'sites' : 'site');
+  init.getAll('params[]').forEach((id, i) => { const sel = byId('an-param-' + i); if (sel) sel.value = id; });
+  setMode(['site', 'sites', 'periods', 'free'].includes(init.get('mode')) ? init.get('mode') : 'site');
   refreshQuantities(init.get('quantity'));
   if (init.get('zone')) refreshZones(init.get('zone'));
-  byId('an-from').value = init.get('from') || ''; byId('an-to').value = init.get('to') || '';
+  ['from', 'to', 'from2', 'to2'].forEach(k => byId('an-' + k).value = init.get(k) || '');
   byId('an-step').value = init.get('step') || 'hour';
   run();
 } else {
   document.querySelectorAll('#an-sites input').forEach((i, n) => { if (n < 3) i.checked = true; });
   setMode('site');
-  const par = availableQuantities().includes('par') ? 'par' : null;
-  refreshQuantities(par);
+  refreshQuantities(availableQuantities().includes('par') ? 'par' : null);
   setPeriod(7);
+  // Period B defaults to the last 7 days (period A is set when the mode is chosen).
+  byId('an-from2').value = byId('an-from').value;
+  byId('an-to2').value = byId('an-to').value;
 }
 </script>
 @endif

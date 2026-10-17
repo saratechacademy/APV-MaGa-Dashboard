@@ -1,6 +1,6 @@
 @foreach($rows as $row)
   <li class="rs-row">
-    <time datetime="{{ $row['at']->toIso8601String() }}">{{ $row['at']->format('d M Y H:i') }}</time>
+    <time datetime="{{ $row['at']->toIso8601String() }}">{{ $row['at']->format('d M Y H:i') }}@if(!empty($row['plot']))<br><small>{{ $row['plot'] }}</small>@endif</time>
     <span>{{ $row['value'] ?? '—' }}@if($row['value'] !== null && $parameter->unit) {{ $parameter->unit }}@endif</span>
   </li>
 @endforeach

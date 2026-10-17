@@ -72,5 +72,53 @@ return [
             'title' => 'Solar output', 'aggregate' => 'mean', 'relative' => true, 'diurnal' => true,
             'about' => 'Electrical power produced by the photovoltaic system.',
         ],
+
+        // Field measurements entered by agents, compared between the plots
+        // they were taken on (key = metric = parameter slug).
+        'plant_height' => [
+            'title' => 'Plant height', 'source' => 'manual', 'aggregate' => 'mean', 'relative' => true, 'only_daily' => true,
+            'about' => 'Height of the plants, measured in the field. Shade can make plants taller as they reach for light.',
+        ],
+        'number_of_leaves_per_plant' => [
+            'title' => 'Leaves per plant', 'source' => 'manual', 'aggregate' => 'mean', 'relative' => true, 'only_daily' => true,
+            'about' => 'Number of leaves counted per plant: an indicator of vegetative growth.',
+        ],
+        'stem_girth' => [
+            'title' => 'Stem girth', 'source' => 'manual', 'aggregate' => 'mean', 'relative' => true, 'only_daily' => true,
+            'about' => 'Circumference of the stem: an indicator of plant vigour.',
+        ],
+        'chlorophyll_content' => [
+            'title' => 'Chlorophyll content', 'source' => 'manual', 'aggregate' => 'mean', 'relative' => true, 'only_daily' => true,
+            'about' => 'Chlorophyll in the leaves; plants in shade often produce more to capture light.',
+        ],
+        'stand_count' => [
+            'title' => 'Stand count', 'source' => 'manual', 'aggregate' => 'mean', 'relative' => true, 'only_daily' => true,
+            'about' => 'Number of established plants: shows how well the crop took.',
+        ],
+        'bulb_diameter' => [
+            'title' => 'Bulb diameter', 'source' => 'manual', 'aggregate' => 'mean', 'relative' => true, 'only_daily' => true,
+            'about' => 'Diameter of the harvested bulbs.',
+        ],
+        'bulb_weight' => [
+            'title' => 'Bulb weight', 'source' => 'manual', 'aggregate' => 'mean', 'relative' => true, 'only_daily' => true,
+            'about' => 'Weight of the harvested bulbs.',
+        ],
+        'yield' => [
+            'title' => 'Yield', 'source' => 'manual', 'aggregate' => 'mean', 'relative' => true, 'only_daily' => true,
+            'about' => 'Harvested yield per area. Comparing the APV plot with the reference plot measures the effect of the panels on production.',
+        ],
+        'harvest_index' => [
+            'title' => 'Harvest index', 'source' => 'manual', 'aggregate' => 'mean', 'relative' => true, 'only_daily' => true,
+            'about' => 'Share of the plant biomass that is harvested product.',
+        ],
     ],
+
+    // Free comparison of parameters whose quantity is not listed above.
+    'fallback' => [
+        'other'        => ['title' => 'Value', 'aggregate' => 'mean', 'relative' => false, 'diurnal' => true, 'about' => ''],
+        'other_manual' => ['title' => 'Value', 'source' => 'manual', 'aggregate' => 'mean', 'relative' => false, 'only_daily' => true, 'about' => ''],
+    ],
+
+    // Plots a field measurement can be recorded on.
+    'plots' => ['reference' => 'Reference plot', 'apv' => 'APV plot (under the panels)'],
 ];
