@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>APV-MaGa — {{ $result['title'] }} — analysis report</title>
+<title>{{ $fileName }}</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -22,11 +22,12 @@ h1{font-size:19px;margin:0 0 4px}
 .toolbar button{font:500 13px 'DM Sans',sans-serif;padding:8px 14px;border-radius:7px;border:1px solid var(--border);background:#fff;cursor:pointer}
 .toolbar .primary{background:var(--blue);color:#fff;border-color:var(--blue)}
 .foot{border-top:1px solid var(--border);margin-top:10px;padding-top:8px;font-size:10px;color:var(--muted);display:flex;justify-content:space-between}
-@page{size:A4;margin:14mm}
+@page{size:A4;margin:0}
+body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 @media print{
   body{background:#fff}
   .toolbar{display:none}
-  .page{margin:0;padding:0;box-shadow:none;max-width:none}
+  .page{margin:0;padding:14mm 15mm;box-shadow:none;max-width:none}
 }
 @media (max-width:640px){ .page{margin:0;padding:20px 16px} .head{flex-direction:column;gap:8px} .meta{text-align:left} }
 </style>

@@ -73,6 +73,7 @@ class AnalysisController extends Controller
             'result'      => $result,
             'description' => $this->describe($request, $result),
             'generatedAt' => now(),
+            'fileName'    => $this->fileName($request, $result),
         ]);
     }
 
@@ -307,6 +308,28 @@ class AnalysisController extends Controller
         ])->values()->all();
 
         return ['sites' => $siteEntries, 'parameters' => $parameters];
+    }
+
+    /**
+     * Name proposed when the report is saved as PDF (the page title):
+     * APV-MaGa_soil-moisture_afrifarm_2026-10-12_2026-10-18.
+     */
+    private function fileName(Request $request, array $result): string
+    {
+        $subject = match ($request->input('mode')) {
+            'site'    => Site::find($request->input('site'))?->name . ' zones',
+            'sites'   => 'sites',
+            'periods' => Site::find($request->input('site'))?->name . ' periods',
+            default   => 'parameters',
+        };
+
+        return implode('_', array_filter([
+            'APV-MaGa',
+            \Illuminate\Support\Str::slug($result['quantity'] ? $result['title'] : 'comparison'),
+            \Illuminate\Support\Str::slug($subject),
+            $request->input('from'),
+            $request->input('to2') ?: $request->input('to'),
+        ]));
     }
 
     /** One line describing the selection, for the report header. */

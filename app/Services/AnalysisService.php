@@ -303,6 +303,7 @@ class AnalysisService
             }
 
             $unitText = $s['unit'] ? " {$s['unit']}" : '';
+            $gapUnit  = $s['unit'] === '%' ? ' points' : $unitText;
             $sign = $c['difference'] >= 0 ? '+' : '−';
             $over = $relative ? "over {$c['common']} matching {$buckets}" : "over {$c['common']} common {$buckets}";
 
@@ -312,13 +313,13 @@ class AnalysisService
             } else {
                 $pct = $c['percent'] !== null ? " ({$sign}{$this->num(abs($c['percent']))} %)" : '';
                 $out[] = "{$s['label']} averages {$this->num($c['mean'])}{$unitText} against {$this->num($c['baseline'])}{$unitText} at {$base['label']}: "
-                    . "{$sign}{$this->num(abs($c['difference']))}{$unitText}{$pct}, {$over}.";
+                    . "{$sign}{$this->num(abs($c['difference']))}{$gapUnit}{$pct}, {$over}.";
             }
 
             if ($c['peak'] && abs($c['peak']['difference']) > 0) {
                 // The hour-of-day profile is in the sensors' own unit, also on a daily step.
                 $peakSign = $c['peak']['difference'] >= 0 ? '+' : '−';
-                $peakUnit = $s['rawUnit'] ? " {$s['rawUnit']}" : '';
+                $peakUnit = $s['rawUnit'] === '%' ? ' points' : ($s['rawUnit'] ? " {$s['rawUnit']}" : '');
                 $out[] = 'The gap is largest around ' . sprintf('%02d:00', $c['peak']['hour']) . " UTC ({$peakSign}{$this->num(abs($c['peak']['difference']))}{$peakUnit} on average at that hour).";
             }
         }

@@ -129,7 +129,8 @@ function renderAnalysis(r, opts = {}) {
   const others = r.series.slice(1).filter(s => s.gaps);
   document.getElementById('an-gaps-block').style.display = others.length ? '' : 'none';
   if (others.length) {
-    document.getElementById('an-gaps-sub').textContent = `Each series minus ${base.label}${base.unit ? ', in ' + base.unit : ''}. Above zero: higher than the baseline.`;
+    const gapUnit = base.unit === '%' ? 'percentage points' : base.unit;
+    document.getElementById('an-gaps-sub').textContent = `Each series minus ${base.label}${gapUnit ? ', in ' + gapUnit : ''}. Above zero: higher than the baseline.`;
     anCharts.push(new Chart(document.getElementById('an-gaps'), {
       type: daily ? 'bar' : 'line',
       data: { labels, datasets: others.map(s => { const i = r.series.indexOf(s); return { label: s.label + ' − ' + base.label, data: s.gaps,

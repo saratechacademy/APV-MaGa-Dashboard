@@ -122,6 +122,21 @@ class AnalysisV2Test extends TestCase
         ]))->assertStatus(422);
     }
 
+    public function test_percent_differences_are_in_points_and_the_report_is_named_after_its_content(): void
+    {
+        $ref = $this->param('irrigation', ['name' => 'Ref', 'metric' => 'soil_moisture', 'zone' => Zones::REFERENCE, 'unit' => '%']);
+        $apv = $this->param('irrigation', ['name' => 'Apv', 'metric' => 'soil_moisture', 'zone' => Zones::APV, 'unit' => '%']);
+        $this->hours($ref, '2026-10-17 00:00', 24, fn () => 18.9);
+        $this->hours($apv, '2026-10-17 00:00', 24, fn () => 20.3);
+        $q = ['mode' => 'site', 'site' => $this->site->id, 'quantity' => 'soil_moisture', 'step' => 'hour', 'from' => '2026-10-17', 'to' => '2026-10-17'];
+
+        $r = $this->actingAs($this->admin)->getJson(route('analysis.data', $q))->assertOk()->json();
+        $this->assertStringContainsString('APV field averages 20.3 % against 18.9 % at Reference: +1.4 points, over 24 common hours.', $r['findings'][0]);
+
+        $this->actingAs($this->admin)->get(route('analysis.report', $q))->assertOk()
+            ->assertSee('<title>APV-MaGa_soil-moisture_utg-zones_2026-10-17_2026-10-17</title>', false);
+    }
+
     public function test_an_administrator_sets_the_zone_of_a_parameter(): void
     {
         $temp = $this->param('weather', ['name' => 'Temp', 'metric' => 'air_temperature', 'unit' => '°C', 'zone' => null]);
