@@ -28,3 +28,5 @@ licor_raw_inspect.ps1
 licor_view_data.ps1
 debug_licor.ps1
 test_licor_api.ps1
+
+.claude/settings.local.json
