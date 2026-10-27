@@ -429,4 +429,56 @@ class ThingsBoardSyncTest extends TestCase
 
         $this->assertSame(['UTG', null], Site::orderBy('id')->pluck('thingsboard_prefix')->all());
     }
+
+    public function test_history_is_fetched_from_a_date_keeping_what_is_stored(): void
+    {
+        $site   = $this->makeSite();
+        $stored = ['ts' => $this->ms('2026-10-07 14:20:00'), 'value' => '10'];
+        $older  = ['ts' => $this->ms('2026-06-02 08:00:00'), 'value' => '4'];
+
+        $this->fakeThingsBoard(['UTG-APV-Flow-0' => Http::sequence()
+            ->push(['Flow_level' => [$stored]])
+            ->push(['Flow_level' => [$older, $stored]]),
+        ]);
+
+        $this->artisan('thingsboard:sync')->assertSuccessful();
+        $this->artisan('thingsboard:sync', ['--from' => '2026-06-01'])
+            ->expectsOutputToContain('1 reading(s) stored')
+            ->assertSuccessful();
+
+        $flow = $this->param($site, 'apv_flow_0_total_flow');
+        $this->assertSame([4.0, 10.0], SensorReading::where('site_parameter_id', $flow->id)->orderBy('read_at')->pluck('value')->all());
+
+        // The history run asked from the start of that day.
+        $starts = Http::recorded(fn (Request $r) => str_contains($r->url(), '/values/timeseries'))
+            ->map(fn ($pair) => (int) $pair[0]['startTs'])->values()->all();
+        $this->assertSame($this->ms('2026-06-01 00:00:00'), end($starts));
+
+        // Daily water use is computed again over the whole history.
+        $daily = $this->param($site, 'apv_flow_0_daily_water_use');
+        $this->assertSame(['2026-06-02', '2026-10-07'], SensorReading::where('site_parameter_id', $daily->id)->orderBy('read_at')->get()->map(fn ($r) => $r->read_at->toDateString())->all());
+    }
+
+    public function test_history_from_must_be_a_past_date(): void
+    {
+        $this->makeSite();
+        $this->fakeThingsBoard([]);
+
+        $this->artisan('thingsboard:sync', ['--from' => '01/06/2026'])->assertFailed();
+        $this->artisan('thingsboard:sync', ['--from' => now()->addDay()->toDateString()])->assertFailed();
+        Http::assertNothingSent();
+    }
+
+    public function test_a_new_installation_starts_from_the_configured_history_date(): void
+    {
+        config(['thingsboard.history_from' => '2026-06-01']);
+        $this->makeSite();
+        $this->fakeThingsBoard(['UTG-APV-Flow-0' => ['Flow_level' => []]]);
+
+        $this->artisan('thingsboard:sync')->assertSuccessful();
+
+        $starts = Http::recorded(fn (Request $r) => str_contains($r->url(), '/values/timeseries'))
+            ->map(fn ($pair) => (int) $pair[0]['startTs'])->values()->all();
+        $this->assertSame([$this->ms('2026-06-01 00:00:00') + 1], $starts);
+    }
 }

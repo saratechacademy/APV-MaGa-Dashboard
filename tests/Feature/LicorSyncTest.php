@@ -315,4 +315,28 @@ class LicorSyncTest extends TestCase
         $this->assertSame(720, $weather->refresh()->offline_threshold_minutes);
         $this->assertSame(9, $agri->parameters()->count());
     }
+
+    public function test_history_is_fetched_day_by_day_from_a_date_keeping_what_is_stored(): void
+    {
+        $site = $this->makeSite();
+
+        $this->fakeLicor(['22034652-1' => ['Temperature', $this->minutes('11:30', '11:51', fn () => 20)]]);
+        $this->artisan('licor:sync')->assertSuccessful();
+
+        // Two days earlier, and the same recent records again.
+        $this->fakeLicor(['22034652-1' => ['Temperature', array_merge(
+            $this->minutes('2026-10-10 08:00', '2026-10-10 08:11', fn () => 15),
+            $this->minutes('11:30', '11:51', fn () => 20),
+        )]]);
+        $this->artisan('licor:sync', ['--from' => '2026-10-10'])
+            ->expectsOutputToContain('1 reading(s) stored')
+            ->assertSuccessful();
+
+        $this->assertSame(['08:00' => 15.0, '11:30' => 20.0, '11:40' => 20.0], $this->series($site, 'licor_22034652_1'));
+
+        // One request per day, from the first day asked.
+        $starts = Http::recorded(fn (Request $r) => str_contains($r->url(), '/data'))
+            ->map(fn ($pair) => (int) $pair[0]['startTime'])->values()->all();
+        $this->assertContains($this->ms('2026-10-10 00:00'), $starts);
+    }
 }

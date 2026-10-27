@@ -90,7 +90,7 @@ sudo -u $WEB php artisan thingsboard:check | grep -c " — type: "
 
 The last command returns the number of devices visible on the ThingsBoard account; an error indicates invalid credentials. Delete `apvmaga-sources.env` once the values are in place.
 
-`THINGSBOARD_LOOKBACK_DAYS` and `LICOR_LOOKBACK_DAYS` set how many days of history the initial synchronisation loads (90 and 30 in the credentials file).
+`THINGSBOARD_LOOKBACK_DAYS` and `LICOR_LOOKBACK_DAYS` set how many days of history the initial synchronisation loads (90 and 30 in the credentials file). To start from a date instead — the day the first crop was planted, 2026-06-01 — set `THINGSBOARD_HISTORY_FROM=2026-06-01` and `LICOR_HISTORY_FROM=2026-06-01`. On an installation that already has data, fetch the missing history with `sudo -u $WEB php artisan thingsboard:sync --from=2026-06-01` and `sudo -u $WEB php artisan licor:sync --from=2026-06-01` (readings already stored are kept; each can take an hour or more).
 
 ### A5. Sites
 

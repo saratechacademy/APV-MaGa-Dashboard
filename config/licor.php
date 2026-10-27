@@ -16,6 +16,11 @@ return [
     // How far back the first sync of a sensor goes.
     'lookback_days' => (int) env('LICOR_LOOKBACK_DAYS', 7),
 
+    // Or a date (YYYY-MM-DD) the first sync starts from instead, e.g. the
+    // day the first crop was planted. History of an installation that already
+    // has data is fetched with `--from` on the sync command.
+    'history_from' => env('LICOR_HISTORY_FROM'),
+
     // HOBOnet logs every minute: ~1,440 points per sensor per day, 90 sensors
     // per site. Readings are averaged into buckets of this many minutes
     // before being stored, which keeps the SQLite database a manageable size.

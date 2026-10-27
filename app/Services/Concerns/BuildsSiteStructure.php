@@ -6,6 +6,7 @@ use App\Models\Site;
 use App\Models\SiteCategory;
 use App\Models\SiteParameter;
 use App\Models\SiteParameterGroup;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
@@ -15,6 +16,20 @@ use Illuminate\Support\Str;
  */
 trait BuildsSiteStructure
 {
+    /**
+     * Where a parameter's first sync starts: the source's configured history
+     * date when set (e.g. the day the first crop was planted), otherwise its
+     * lookback in days.
+     */
+    protected function firstSyncStart(Carbon $now, string $source): Carbon
+    {
+        $from = config("{$source}.history_from");
+
+        return $from
+            ? Carbon::parse($from, config('app.timezone'))->startOfDay()
+            : $now->copy()->subDays(config("{$source}.lookback_days"));
+    }
+
     protected function ensureCategory(Site $site, string $slug, int $offlineThresholdMinutes): SiteCategory
     {
         $defaults = collect(SiteCategory::defaults())->firstWhere('slug', $slug);

@@ -49,9 +49,11 @@ Project-specific variables in `.env`:
 |---|---|---|
 | `THINGSBOARD_URL`, `THINGSBOARD_USERNAME`, `THINGSBOARD_PASSWORD` | ThingsBoard account | — |
 | `THINGSBOARD_LOOKBACK_DAYS` | History loaded by the first synchronisation | 7 |
+| `THINGSBOARD_HISTORY_FROM` | Date (`YYYY-MM-DD`) the first synchronisation starts from, instead of the lookback | — |
 | `THINGSBOARD_HEARTBEAT_URL` | URL called after each successful synchronisation (monitoring) | — |
 | `LICOR_API_TOKEN` | LI-COR Cloud API token | — |
 | `LICOR_LOOKBACK_DAYS` | History loaded by the first synchronisation | 7 |
+| `LICOR_HISTORY_FROM` | Date (`YYYY-MM-DD`) the first synchronisation starts from, instead of the lookback | — |
 | `ALERTS_SENSOR_THRESHOLD_MULTIPLIER` | Delay before a single silent sensor is reported, as a multiple of its category threshold | 3 |
 | `BACKUP_PATH` | Destination of the nightly backups | `storage/app/backups` |
 | `BACKUP_KEEP_DAYS` | Backup retention, in days | 14 |
@@ -86,6 +88,8 @@ The scheduler must run every minute:
 | `db:backup` | Back up the database | daily, 02:35 |
 | `thingsboard:check` | List ThingsBoard devices and latest values | — |
 | `thingsboard:setup`, `licor:setup` | Create or link the preset sites | — |
+
+`thingsboard:sync --from=YYYY-MM-DD` and `licor:sync --from=YYYY-MM-DD` also fetch the history from that date; readings already stored are kept. A history run can take an hour or more.
 
 Synchronisation status is shown per site in **Admin → Sites**.
 

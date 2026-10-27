@@ -30,14 +30,19 @@ class LicorSync
     /** How far behind the most advanced sensor an ordinary run looks. */
     private const RECENT_WINDOW_MS = 6 * 3600 * 1000;
 
+    /** Set for a run that also fetches the history from this date (licor:sync --from). */
+    private ?Carbon $historyFrom = null;
+
     public function __construct(private readonly LicorClient $client) {}
 
     /**
      * @param  array  $devices  every station of the account (LicorClient::devices())
      * @return array{sensors: int, created: int, stored: int, rejected: int, errors: string[]}
      */
-    public function syncSite(Site $site, array $devices): array
+    public function syncSite(Site $site, array $devices, ?Carbon $historyFrom = null): array
     {
+        $this->historyFrom = $historyFrom;
+
         $stats = ['sensors' => 0, 'created' => 0, 'stored' => 0, 'rejected' => 0, 'errors' => []];
         $now   = now();
 
@@ -121,7 +126,7 @@ class LicorSync
     {
         $oldest = min($starts);
 
-        if (Cache::add("licor-catch-up:{$site->id}", true, now()->addDay())) {
+        if ($this->historyFrom || Cache::add("licor-catch-up:{$site->id}", true, now()->addDay())) {
             return $oldest;
         }
 
@@ -167,25 +172,25 @@ class LicorSync
             ];
         }
 
-        DB::transaction(function () use ($rows) {
+        DB::transaction(function () use ($rows, &$stats) {
             foreach (array_chunk($rows, 500) as $chunk) {
-                // The table allows one reading per parameter and instant.
-                SensorReading::insertOrIgnore($chunk);
+                // The table allows one reading per parameter and instant:
+                // fetching history again leaves what is stored as it is.
+                $stats['stored'] += SensorReading::insertOrIgnore($chunk);
             }
         });
-        $stats['stored'] += count($rows);
     }
 
     /** read_at is a bucket's start: resume at the bucket after the last stored one. */
     private function nextBucketStart(SiteParameter $parameter, Carbon $now, int $bucketMs): int
     {
-        $last = SensorReading::where('site_parameter_id', $parameter->id)->max('read_at');
+        $last = $this->historyFrom ? null : SensorReading::where('site_parameter_id', $parameter->id)->max('read_at');
 
         if ($last) {
             return Carbon::parse($last, config('app.timezone'))->getTimestampMs() + $bucketMs;
         }
 
-        $start = $now->copy()->subDays(config('licor.lookback_days'))->getTimestampMs();
+        $start = ($this->historyFrom ?? $this->firstSyncStart($now, 'licor'))->getTimestampMs();
 
         return intdiv($start, $bucketMs) * $bucketMs;
     }

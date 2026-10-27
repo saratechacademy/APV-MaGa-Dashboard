@@ -6,6 +6,7 @@ use App\Models\Site;
 use App\Services\ThingsBoardClient;
 use App\Services\ThingsBoardSync;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -17,12 +18,26 @@ use RuntimeException;
 class ThingsBoardSyncCommand extends Command
 {
     protected $signature = 'thingsboard:sync
-                            {--site= : Only sync the site with this slug}';
+                            {--site= : Only sync the site with this slug}
+                            {--from= : Also fetch the history from this date (YYYY-MM-DD); readings already stored stay as they are}';
 
     protected $description = 'Pull new ThingsBoard telemetry into every site that has a ThingsBoard device prefix';
 
     public function handle(): int
     {
+        $from = null;
+        if ($this->option('from')) {
+            try {
+                $from = Carbon::createFromFormat('!Y-m-d', $this->option('from'), config('app.timezone'));
+            } catch (\Throwable) {
+            }
+            if (!$from || $from->isFuture()) {
+                $this->error('--from must be a past date written YYYY-MM-DD.');
+
+                return self::INVALID;
+            }
+        }
+
         $sites = Site::whereNotNull('thingsboard_prefix')
             ->where('status', 'active')
             ->when($this->option('site'), fn ($q, $slug) => $q->where('slug', $slug))
@@ -37,7 +52,8 @@ class ThingsBoardSyncCommand extends Command
         // Two runs at once (scheduler + a run started by hand) would both
         // read the same "last stored reading" and store every new point twice.
         // The lock expires on its own in case a run is killed mid-way.
-        $lock = Cache::lock('thingsboard-sync', 30 * 60);
+        // Fetching months of history takes far longer than a regular run.
+        $lock = Cache::lock('thingsboard-sync', ($from ? 6 * 60 : 30) * 60);
 
         if (!$lock->get()) {
             $this->line('Another ThingsBoard sync is still running; skipping this one.');
@@ -46,13 +62,13 @@ class ThingsBoardSyncCommand extends Command
         }
 
         try {
-            return $this->sync($sites);
+            return $this->sync($sites, $from);
         } finally {
             $lock->release();
         }
     }
 
-    private function sync(Collection $sites): int
+    private function sync(Collection $sites, ?Carbon $from): int
     {
         $client = ThingsBoardClient::fromConfig();
 
@@ -70,7 +86,7 @@ class ThingsBoardSyncCommand extends Command
         $failed = false;
 
         foreach ($sites as $site) {
-            $stats = $sync->syncSite($site, $devices);
+            $stats = $sync->syncSite($site, $devices, $from);
 
             $this->line("{$site->name} ({$site->thingsboard_prefix}): {$stats['devices']} device(s), "
                 . "{$stats['stored']} reading(s) stored, {$stats['rejected']} rejected, "

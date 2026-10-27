@@ -31,14 +31,22 @@ class ThingsBoardSync
     /** Cap on requests per device and per run, so one device can't hold up the others. */
     private const MAX_PAGES = 20;
 
+    /** The same cap when fetching history: months of a device in one run. */
+    private const MAX_HISTORY_PAGES = 500;
+
+    /** Set for a run that also fetches the history from this date (thingsboard:sync --from). */
+    private ?Carbon $historyFrom = null;
+
     public function __construct(private readonly ThingsBoardClient $client) {}
 
     /**
      * @param  array  $devices  every device of the ThingsBoard account (ThingsBoardClient::devices())
      * @return array{devices: int, created: int, stored: int, rejected: int, errors: string[]}
      */
-    public function syncSite(Site $site, array $devices): array
+    public function syncSite(Site $site, array $devices, ?Carbon $historyFrom = null): array
     {
+        $this->historyFrom = $historyFrom;
+
         $stats = ['devices' => 0, 'created' => 0, 'stored' => 0, 'rejected' => 0, 'errors' => []];
         $now   = now();
 
@@ -152,7 +160,9 @@ class ThingsBoardSync
     {
         $keys = array_values(array_unique(array_map(fn ($t) => $t[1]['key'], $targets)));
 
-        for ($page = 0; $keys && $page < self::MAX_PAGES; $page++) {
+        $maxPages = $this->historyFrom ? self::MAX_HISTORY_PAGES : self::MAX_PAGES;
+
+        for ($page = 0; $keys && $page < $maxPages; $page++) {
             // Only keys that still have a full page behind them are asked
             // again, from the oldest point any of them is missing.
             $pending = array_filter($targets, fn ($t) => in_array($t[1]['key'], $keys, true));
@@ -193,13 +203,13 @@ class ThingsBoardSync
 
             // All or nothing per page: a half-written page would leave some
             // parameters ahead of others with no way to tell on the next run.
-            DB::transaction(function () use ($rows) {
+            DB::transaction(function () use ($rows, &$stats) {
                 foreach (array_chunk($rows, 500) as $chunk) {
-                    // The table allows one reading per parameter and instant.
-                    SensorReading::insertOrIgnore($chunk);
+                    // The table allows one reading per parameter and instant:
+                    // fetching history again leaves what is stored as it is.
+                    $stats['stored'] += SensorReading::insertOrIgnore($chunk);
                 }
             });
-            $stats['stored'] += count($rows);
 
             $keys = array_values(array_filter($keys, fn ($key) => count($series[$key] ?? []) >= self::PAGE_SIZE));
         }
@@ -301,7 +311,8 @@ class ThingsBoardSync
      */
     private function storeDailyIncrease(Site $site, SiteParameter $parameter, SiteParameter $source): void
     {
-        $lastComputed = SensorReading::where('site_parameter_id', $parameter->id)->max('read_at');
+        // After fetching history, every day is computed again.
+        $lastComputed = $this->historyFrom ? null : SensorReading::where('site_parameter_id', $parameter->id)->max('read_at');
         $lastSource   = SensorReading::where('site_parameter_id', $source->id)->max('read_at');
 
         if (!$lastSource || $lastComputed === $lastSource) {
@@ -357,11 +368,15 @@ class ThingsBoardSync
      */
     private function syncedUntil(SiteParameter $parameter, Carbon $now): int
     {
+        if ($this->historyFrom) {
+            return $this->historyFrom->getTimestampMs() - 1;
+        }
+
         $last = SensorReading::where('site_parameter_id', $parameter->id)->max('read_at');
 
         return $last
             ? Carbon::parse($last, config('app.timezone'))->getTimestamp() * 1000 + 999
-            : $now->copy()->subDays(config('thingsboard.lookback_days'))->getTimestampMs();
+            : $this->firstSyncStart($now, 'thingsboard')->getTimestampMs();
     }
 
     private function convert(mixed $raw, SiteParameter $parameter, array $spec): ?float

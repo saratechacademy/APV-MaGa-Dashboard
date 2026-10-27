@@ -20,6 +20,11 @@ return [
     // from the parameter's last stored reading.
     'lookback_days' => (int) env('THINGSBOARD_LOOKBACK_DAYS', 7),
 
+    // Or a date (YYYY-MM-DD) the first sync starts from instead, e.g. the
+    // day the first crop was planted. History of an installation that already
+    // has data is fetched with `--from` on the sync command.
+    'history_from' => env('THINGSBOARD_HISTORY_FROM'),
+
     // A site whose last successful sync is older than this is flagged "late"
     // in the admin (the sync is scheduled every 10 minutes).
     'late_after_minutes' => 30,
