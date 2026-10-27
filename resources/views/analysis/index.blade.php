@@ -74,7 +74,7 @@
     </div>
     @endfor
   </div>
-  <div class="an-hint" data-show="free">Parameters 1 and 2 are also related to each other (correlation). Up to two different units are shown, each on its own axis.</div>
+  <div class="an-hint" data-show="free">Pick single sensors, or a zone mean (under "Zone means") to take a whole field — for example soil moisture of the APV field against the reference field and rain. Parameters 1 and 2 are also related to each other (correlation). Up to two different units are shown, each on its own axis.</div>
 
   <div class="an-controls" style="margin-top:12px">
     <div class="form-field">
@@ -134,6 +134,7 @@
 <script>
 const AN_CATALOG = @json($catalog);
 const AN_PARAMS = @json($parameters);
+const AN_ZONE_MEANS = @json($zoneMeans);
 const AN_QUANTITIES = @json($quantities);
 const AN_ZONES = @json($zones);
 const AN_PLOTS = @json($plots);
@@ -260,8 +261,10 @@ byId('an-site').innerHTML = AN_CATALOG.map(s => option(s.id, s.name)).join('');
 byId('an-sites').innerHTML = AN_CATALOG.map(s => `<label><input type="checkbox" value="${s.id}"> ${anEsc(s.name)}</label>`).join('');
 const siteNames = Object.fromEntries(AN_CATALOG.map(s => [s.id, s.name]));
 const paramGroups = {};
+// Zone means first in each site: a whole field rather than one of its sensors.
+AN_ZONE_MEANS.forEach(z => (paramGroups[`${siteNames[z.site] || 'Site ' + z.site} — Zone means`] ??= []).push({ id: z.value, name: z.name }));
 AN_PARAMS.forEach(p => (paramGroups[`${siteNames[p.site] || 'Site ' + p.site} — ${p.category}`] ??= []).push(p));
-const paramOptions = Object.entries(paramGroups).map(([g, ps]) => `<optgroup label="${anEsc(g)}">${ps.map(p => option(p.id, p.name)).join('')}</optgroup>`).join('');
+const paramOptions = Object.entries(paramGroups).map(([g, ps]) => `<optgroup label="${anEsc(g)}">${ps.map(p => option(anEsc(String(p.id)), p.name)).join('')}</optgroup>`).join('');
 document.querySelectorAll('.an-param').forEach(s => s.innerHTML = option('', '—') + paramOptions);
 
 document.querySelectorAll('.an-seg button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));

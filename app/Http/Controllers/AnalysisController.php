@@ -32,6 +32,7 @@ class AnalysisController extends Controller
         return view('analysis.index', [
             'catalog'    => $catalog['sites'],
             'parameters' => $catalog['parameters'],
+            'zoneMeans'  => $catalog['zoneMeans'],
             'quantities' => collect(config('analysis.quantities'))->map(fn ($q) => [
                 'title' => $q['title'], 'about' => $q['about'], 'only_daily' => $q['only_daily'] ?? false, 'manual' => ($q['source'] ?? null) === 'manual',
             ]),
@@ -91,7 +92,8 @@ class AnalysisController extends Controller
             'sites'    => 'required_if:mode,sites|nullable|array|min:2',
             'sites.*'  => 'integer',
             'params'   => 'required_if:mode,free|nullable|array|min:2|max:4',
-            'params.*' => 'integer',
+            // A parameter id, or a zone mean: "zone:<site>:<quantity>:<zone or plot>".
+            'params.*' => ['string', 'max:100', 'regex:/^(\d+|zone:\d+:[a-z0-9_]+:[a-z0-9_]+)$/'],
             'zone'     => 'nullable|string|max:30',
             'from'     => 'required|date',
             'to'       => 'required|date|after_or_equal:from',
@@ -209,11 +211,30 @@ class AnalysisController extends Controller
         return $parameters->isEmpty() ? null : ['label' => $label, 'parameters' => $parameters, 'quantity' => $quantity];
     }
 
-    /** Free comparison: each chosen parameter is its own series. */
+    /**
+     * Free comparison: each chosen parameter is its own series, and a zone
+     * mean is the mean of every sensor (or plot entry) of a quantity in one
+     * zone — the whole APV field rather than one of its sensors.
+     */
     private function parameterSeries(array $ids): array
     {
         $series = [];
         foreach (array_unique($ids) as $id) {
+            if (str_starts_with($id, 'zone:')) {
+                [, $siteId, $quantity, $zone] = explode(':', $id);
+                if (!config("analysis.quantities.{$quantity}")) {
+                    throw ValidationException::withMessages(['params' => 'This quantity cannot be analysed.']);
+                }
+                $site  = $this->accessibleSite($siteId);
+                $place = $this->placeSeries($site, $quantity, $zone, '');
+                if ($place) {
+                    $where = $this->isManual($quantity) ? (config('analysis.plots')[$zone] ?? $zone) : Zones::label($zone);
+                    $place['label'] = "{$site->name} – " . config("analysis.quantities.{$quantity}.title") . ", {$where} (mean)";
+                    $series[] = $place;
+                }
+                continue;
+            }
+
             $parameter = SiteParameter::with('category.site')->where('is_active', true)->findOrFail($id);
             $site = $this->accessibleSite($parameter->category->site_id);
             $quantity = $parameter->quantity();
@@ -307,7 +328,36 @@ class AnalysisController extends Controller
             'name'     => $p->name . ($p->unit ? " ({$p->unit})" : ''),
         ])->values()->all();
 
-        return ['sites' => $siteEntries, 'parameters' => $parameters];
+        // Zone means for the free comparison: a zone with at least two
+        // sensors of a quantity, or a plot field measurements were entered on.
+        $zoneMeans = [];
+        foreach ($sites as $site) {
+            $counts = [];
+            foreach ($all->filter(fn ($p) => $p->category->site_id === $site->id && $p->metric) as $p) {
+                $q = $p->quantity();
+                $manual = ($known[$q]['source'] ?? 'sensor') === 'manual';
+                if (!isset($known[$q]) || $manual !== ($p->input_type === 'manual')) {
+                    continue;
+                }
+                foreach ($manual ? ($plots[$p->id] ?? []) : array_filter([$p->zone]) as $zone) {
+                    $counts[$q][$zone] = ($counts[$q][$zone] ?? 0) + 1;
+                }
+            }
+            foreach ($counts as $q => $zones) {
+                $manual = ($known[$q]['source'] ?? 'sensor') === 'manual';
+                foreach (array_keys(array_filter($zones, fn ($n) => $manual || $n >= 2)) as $zone) {
+                    $zoneMeans[] = [
+                        'value' => "zone:{$site->id}:{$q}:{$zone}",
+                        'site'  => $site->id,
+                        'name'  => $known[$q]['title'] . ' — ' . ($manual
+                            ? (config('analysis.plots')[$zone] ?? $zone) . ' (mean of entries)'
+                            : Zones::label($zone) . " (mean of {$zones[$zone]} sensors)"),
+                    ];
+                }
+            }
+        }
+
+        return ['sites' => $siteEntries, 'parameters' => $parameters, 'zoneMeans' => $zoneMeans];
     }
 
     /**

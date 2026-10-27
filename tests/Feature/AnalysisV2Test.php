@@ -175,4 +175,55 @@ class AnalysisV2Test extends TestCase
 
         $this->actingAs($observer)->get(route('analysis'))->assertOk()->assertDontSee('"id":' . $foreign->id . ',', false);
     }
+
+    public function test_any_parameters_can_take_the_mean_of_a_whole_zone(): void
+    {
+        // Two soil moisture sensors in the APV field, one in the reference field, and rain.
+        $apv1 = $this->param('irrigation', ['name' => 'APV 1 – Moisture', 'metric' => 'soil_moisture', 'zone' => Zones::APV, 'unit' => '%']);
+        $apv2 = $this->param('irrigation', ['name' => 'APV 2 – Moisture', 'metric' => 'soil_moisture', 'zone' => Zones::APV, 'unit' => '%']);
+        $ref  = $this->param('irrigation', ['name' => 'Ref 1 – Moisture', 'metric' => 'soil_moisture', 'zone' => Zones::REFERENCE, 'unit' => '%']);
+        $rain = $this->param('weather', ['name' => 'Rain', 'metric' => 'rain', 'unit' => 'mm']);
+        $this->hours($apv1, '2026-10-17 00:00', 24, fn () => 30);
+        $this->hours($apv2, '2026-10-17 00:00', 24, fn () => 40);
+        $this->hours($ref, '2026-10-17 00:00', 24, fn () => 20);
+        $this->hours($rain, '2026-10-17 00:00', 24, fn ($h) => $h % 2);
+
+        // Offered on the page only where a zone has two or more sensors.
+        $page = $this->actingAs($this->admin)->get(route('analysis'))->assertOk();
+        $page->assertSee("zone:{$this->site->id}:soil_moisture:apv", false)
+            ->assertSee('APV field (mean of 2 sensors)', false)
+            ->assertDontSee("zone:{$this->site->id}:soil_moisture:reference", false);
+
+        $r = $this->actingAs($this->admin)->getJson(route('analysis.data', [
+            'mode' => 'free', 'step' => 'hour', 'from' => '2026-10-17', 'to' => '2026-10-17',
+            'params' => ["zone:{$this->site->id}:soil_moisture:apv", "zone:{$this->site->id}:soil_moisture:reference", (string) $rain->id],
+        ]))->assertOk()->json();
+
+        $this->assertSame([
+            'UTG – Soil moisture, APV field (mean)',
+            'UTG – Soil moisture, Reference (mean)',
+            'UTG – Rain',
+        ], array_column($r['series'], 'label'));
+        $this->assertSame([2, 1, 1], array_column($r['series'], 'sensors'));
+        $this->assertEquals(35, $r['series'][0]['stats']['mean']);   // the mean of both APV sensors
+        $this->assertEquals(20, $r['series'][1]['stats']['mean']);
+    }
+
+    public function test_a_zone_mean_of_a_site_the_user_may_not_open_is_refused(): void
+    {
+        $otherSite = Site::factory()->create(['status' => 'active']);
+        $observer  = User::factory()->create(['role' => User::ROLE_OBSERVER, 'status' => 'active']);
+        $this->site->users()->attach($observer->id, ['role' => User::ROLE_OBSERVER]);
+        $mine = $this->param('weather', ['name' => 'Temp', 'metric' => 'air_temperature', 'zone' => Zones::REFERENCE, 'unit' => '°C']);
+
+        $this->actingAs($observer)->getJson(route('analysis.data', [
+            'mode' => 'free', 'step' => 'hour', 'from' => '2026-10-17', 'to' => '2026-10-17',
+            'params' => [(string) $mine->id, "zone:{$otherSite->id}:air_temperature:reference"],
+        ]))->assertForbidden();
+
+        $this->actingAs($this->admin)->getJson(route('analysis.data', [
+            'mode' => 'free', 'step' => 'hour', 'from' => '2026-10-17', 'to' => '2026-10-17',
+            'params' => [(string) $mine->id, 'zone:1:../../etc:apv'],
+        ]))->assertStatus(422);
+    }
 }

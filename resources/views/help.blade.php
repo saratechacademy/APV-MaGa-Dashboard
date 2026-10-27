@@ -1163,12 +1163,12 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
               ['Zones of a site', 'Une grandeur entre les zones d\'un site : référence, sous les panneaux (Under PV), entre les rangées (Between PV), bord de module, parcelle APV. Pour les mesures de terrain : entre la parcelle de référence et la parcelle APV.', 'Lumière (PAR) à UTG : la zone Under PV reçoit environ 42 % de la lumière de la référence.'],
               ['Sites', 'Une grandeur entre plusieurs sites, dans la même zone. Le premier site coché sert de référence.', 'Température de l\'air de référence à UTG, AfriFarm et Fass.'],
               ['Two periods', 'Une grandeur au même endroit sur deux périodes, comparées jour par jour depuis le début de chacune.', 'Humidité du sol avant et après la plantation ; saison sèche contre saison des pluies.'],
-              ['Any parameters', '2 à 4 paramètres quelconques de vos sites sur un même graphique, avec un axe par unité. Les deux premiers sont reliés par un nuage de points et un coefficient de corrélation.', 'Humidité du sol et température de l\'air.'],
+              ['Any parameters', '2 à 4 paramètres quelconques de vos sites sur un même graphique, avec un axe par unité. Une moyenne de zone (« Zone means » dans la liste) regroupe tous les capteurs d\'une grandeur dans une zone, ou toutes les saisies d\'une parcelle. Les deux premiers sont reliés par un nuage de points et un coefficient de corrélation.', 'Humidité du sol du champ APV et du champ de référence (moyennes de zone), avec les précipitations.'],
             ] : [
               ['Zones of a site', 'One quantity between the zones of a site: reference, under the panels (Under PV), between rows (Between PV), module edge, APV field. For field measurements: between the reference plot and the APV plot.', 'Light (PAR) at UTG: Under PV receives about 42 % of the reference light.'],
               ['Sites', 'One quantity between several sites, in the same zone. The first site ticked is the baseline.', 'Reference air temperature at UTG, AfriFarm and Fass.'],
               ['Two periods', 'One quantity at the same place over two periods, compared day by day from the start of each.', 'Soil moisture before and after planting; dry season against rainy season.'],
-              ['Any parameters', '2 to 4 parameters from any of your sites on one chart, with one axis per unit. The first two are related by a scatter plot and a correlation coefficient.', 'Soil moisture and air temperature.'],
+              ['Any parameters', '2 to 4 parameters from any of your sites on one chart, with one axis per unit. A zone mean ("Zone means" in the list) takes all the sensors of a quantity in one zone, or all the entries of a plot. The first two are related by a scatter plot and a correlation coefficient.', 'Soil moisture of the APV field and of the reference field (zone means), with precipitation.'],
             ];
             @endphp
             @foreach($modes as $row)
