@@ -219,8 +219,11 @@ class ThingsBoardSync
         $label = substr($deviceName, strlen($prefix));
         $parts = explode('-', $label);
 
-        $group  = $this->lookup(config('thingsboard.zones'), $parts[0] ?? '');
         $sensor = $this->lookup(config('thingsboard.sensors'), $parts[1] ?? '');
+        // The zone as named for this kind of sensor; the label (and so the
+        // parameter slug) keeps the device's own name.
+        $zone   = $this->lookup($sensor['zone_aliases'] ?? [], $parts[0] ?? '') ?? ($parts[0] ?? '');
+        $group  = $this->lookup(config('thingsboard.zones'), $zone);
 
         if (!$group || !$sensor) {
             return null;
@@ -230,7 +233,7 @@ class ThingsBoardSync
             'group'     => $group,
             'label'     => str_replace('-', ' ', $label),
             // "APV 1 Shadow": where the sensor is, without repeating what it is.
-            'position'  => implode(' ', array_merge([$parts[0]], array_slice($parts, 2))),
+            'position'  => implode(' ', array_merge([$zone], array_slice($parts, 2))),
             'reference' => strcasecmp($parts[0], 'Reference') === 0,
         ];
     }

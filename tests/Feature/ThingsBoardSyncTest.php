@@ -251,7 +251,7 @@ class ThingsBoardSyncTest extends TestCase
         $point = [['ts' => $this->ms('2026-10-07 14:40:00'), 'value' => '1']];
         $this->fakeThingsBoard([
             'AfriFarm-APV-Valve-1'     => ['valve_state' => $point],
-            'UTG-Business-Valve-1'     => ['valve_state' => $point],
+            'UTG-Spare-Valve-1'        => ['valve_state' => $point],
             'UTG-Spare-Turbidity-1'    => ['turbidity' => $point],
             'UTG-General-collection-0' => ['tank_level' => $point],
             'UTG-APV-Valve-1'          => ['valve_state' => $point, 'fake_signal' => $point],
@@ -264,6 +264,30 @@ class ThingsBoardSyncTest extends TestCase
             SiteParameter::whereHas('category', fn ($q) => $q->where('site_id', $site->id))->pluck('slug')->all(),
         );
         $this->assertSame(1, SensorReading::count());
+    }
+
+    public function test_business_field_valves_get_their_own_group_including_utg_normal_valve(): void
+    {
+        $site = $this->makeSite();
+
+        $point = [['ts' => $this->ms('2026-10-07 14:40:00'), 'value' => 'true']];
+        $this->fakeThingsBoard([
+            'UTG-Business-valve-1'     => ['valve_state' => $point],
+            'UTG-Normal-Valve-0'       => ['valve_state' => $point],
+            'UTG-Normal-Ultrasonic-0'  => ['tank_distance' => $point],
+        ]);
+
+        $this->artisan('thingsboard:sync')->assertSuccessful();
+
+        $business = $this->param($site, 'business_valve_1_valve_state');
+        $this->assertSame(['Business 1 – Valve state', 'Business field', null], [$business->name, $business->group_name, $business->zone]);
+
+        // Named "Normal" on UTG, but it is the business field's valve.
+        $normal = $this->param($site, 'normal_valve_0_valve_state');
+        $this->assertSame(['Business 0 – Valve state', 'Business field'], [$normal->name, $normal->group_name]);
+
+        // Other "Normal" devices still cover the entire farm.
+        $this->assertSame('Entire farm', $this->param($site, 'normal_ultrasonic_0_water_level')->group_name);
     }
 
     public function test_respects_what_the_admin_changed_on_a_synced_parameter(): void

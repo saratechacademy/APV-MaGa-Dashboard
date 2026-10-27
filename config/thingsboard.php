@@ -40,6 +40,8 @@ return [
         'Reference' => 'Reference field',
         'Normal'    => 'Entire farm',
         'General'   => 'Entire farm',
+        // The commercial plot next to the trial, outside the comparison.
+        'Business'  => 'Business field',
     ],
 
     // Sensor segment of the device name => category and the parameters read
@@ -71,6 +73,9 @@ return [
         ],
         'Valve' => [
             'category'   => 'irrigation',
+            // UTG's business-field valve is named UTG-Normal-Valve-0, where
+            // the other sites use "Business".
+            'zone_aliases' => ['Normal' => 'Business'],
             'parameters' => [
                 ['key' => 'valve_state', 'name' => 'Valve state', 'data_type' => 'switch', 'metric' => 'valve_state'],
             ],
