@@ -252,7 +252,7 @@ class LicorSyncTest extends TestCase
 
     public function test_paged_responses_are_followed_without_losing_or_doubling_records(): void
     {
-        // One day back = a single day-window, so the two pages below are its only requests.
+        // One day back = two 12-hour windows: an empty one, then the two pages below.
         config(['licor.lookback_days' => 1]);
         $site = $this->makeSite();
         $temp = $this->minutes('11:30', '11:50', fn () => 25);
@@ -270,6 +270,7 @@ class LicorSyncTest extends TestCase
             ]]]]),
             // First page cut mid-station: temperature complete, rain only up to 11:34.
             'licor.test/v2/data*' => Http::sequence()
+                ->push($page([], [], false))
                 ->push($page($temp, array_slice($rain, 0, 5), true))
                 ->push($page(array_slice($temp, 5), array_slice($rain, 5), false)),
         ]);

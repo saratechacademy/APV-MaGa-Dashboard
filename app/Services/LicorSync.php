@@ -25,7 +25,13 @@ class LicorSync
 {
     use BuildsSiteStructure;
 
-    private const DAY_MS = 24 * 3600 * 1000;
+    /**
+     * Records are fetched and stored this much at a time. A whole day of a
+     * station could exceed PHP's 128 MB once decoded (it did while fetching
+     * months of history). Longer than RECENT_WINDOW_MS, so an ordinary run
+     * stays a single request.
+     */
+    private const WINDOW_MS = 12 * 3600 * 1000;
 
     /** How far behind the most advanced sensor an ordinary run looks. */
     private const RECENT_WINDOW_MS = 6 * 3600 * 1000;
@@ -84,18 +90,19 @@ class LicorSync
 
         if ($targets) {
             try {
-                // Whole station, one day at a time from the oldest bucket any
-                // sensor is missing, each day stored before the next is fetched:
-                // a week of 30 sensors does not fit in memory at once.
-                // Days are bucket-aligned, so no bucket straddles two of them.
+                // Whole station, one window at a time from the oldest bucket any
+                // sensor is missing, each window stored before the next is
+                // fetched: a week of 30 sensors does not fit in memory at once.
+                // Windows are bucket-aligned, so no bucket straddles two of them.
                 $nowMs = $now->getTimestampMs();
-                for ($dayStart = $this->fetchFrom($site, array_column($targets, 2)); $dayStart < $nowMs; $dayStart += self::DAY_MS) {
-                    $dayEnd  = min($dayStart + self::DAY_MS, $nowMs);
-                    $records = $this->client->records($site->licor_device_serial, $dayStart, $dayEnd);
+                for ($start = $this->fetchFrom($site, array_column($targets, 2)); $start < $nowMs; $start += self::WINDOW_MS) {
+                    $end     = min($start + self::WINDOW_MS, $nowMs);
+                    $records = $this->client->records($site->licor_device_serial, $start, $end);
 
                     foreach ($targets as $serial => [$parameter, $spec, $from]) {
-                        $this->storeBuckets($site, $parameter, $spec, $records[$serial] ?? [], max($from, $dayStart), $dayEnd, $bucketMs, $now, $stats);
+                        $this->storeBuckets($site, $parameter, $spec, $records[$serial] ?? [], max($from, $start), $end, $bucketMs, $now, $stats);
                     }
+                    unset($records);
                 }
             } catch (ConnectionException | RequestException $e) {
                 $stats['errors'][] = "station {$site->licor_device_serial}: {$e->getMessage()}";

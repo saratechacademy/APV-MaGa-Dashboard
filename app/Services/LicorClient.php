@@ -40,7 +40,7 @@ class LicorClient
      * Raw [epoch ms, value] records of every sensor of a station between two
      * instants, as [sensor serial => records oldest first], following the
      * API's paging. One request covers all sensors: far faster than one per
-     * sensor. Keep the range to about a day: a station logs ~43k records a day.
+     * sensor. Keep the range to a few hours: a station logs ~43k records a day.
      */
     public function records(string $deviceSerial, int $startMs, int $endMs): array
     {

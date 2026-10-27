@@ -61,6 +61,10 @@ class ThingsBoardSyncCommand extends Command
             return self::SUCCESS;
         }
 
+        // finally does not run when PHP dies (out of memory): the lock would
+        // then block every scheduled sync until it expires.
+        register_shutdown_function(fn () => $lock->release());
+
         try {
             return $this->sync($sites, $from);
         } finally {
