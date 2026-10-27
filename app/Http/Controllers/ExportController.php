@@ -36,22 +36,29 @@ class ExportController extends Controller
         foreach ($manualParams as $p) {
             $headerRow[] = $p->name . ($p->unit ? ' (' . $p->unit . ')' : '');
         }
+        // Where a field measurement was taken; empty on sensor rows.
+        $plotColumns = $manualParams->isNotEmpty();
+        if ($plotColumns) {
+            array_push($headerRow, 'Plot', 'Plant');
+        }
         $headerRow[] = 'Type';
         $emit(SafeExport::row($headerRow));
+        $plots = config('analysis.plots');
 
         // Rows are streamed straight from the database, one timestamp at a
         // time: a long window holds far more readings than fit in memory.
-        $writeRows = function ($query, string $dateColumn, $ownParams, int $leadingBlanks, int $trailingBlanks, string $type) use ($emit) {
+        $writeRows = function ($query, string $dateColumn, $ownParams, int $leadingBlanks, int $trailingBlanks, string $type) use ($emit, $plotColumns, $plots) {
             $timestamp = null;
             $values    = [];
+            $place     = $plotColumns ? ['', ''] : [];
 
             // Built once: this runs for every row of a long export, and going
             // through the parameter models each time was most of its cost.
             $ids      = $ownParams->pluck('id')->all();
             $leading  = array_fill(0, $leadingBlanks, '');
-            $trailing = array_merge(array_fill(0, $trailingBlanks, ''), [$type]);
+            $trailing = array_fill(0, $trailingBlanks, '');
 
-            $flush = function () use (&$timestamp, &$values, $emit, $ids, $leading, $trailing) {
+            $flush = function () use (&$timestamp, &$values, &$place, $emit, $ids, $leading, $trailing, $type) {
                 if ($timestamp === null) {
                     return;
                 }
@@ -59,7 +66,7 @@ class ExportController extends Controller
                 foreach ($ids as $id) {
                     $row[] = $values[$id] ?? '';
                 }
-                $emit(SafeExport::row([...$row, ...$trailing]));
+                $emit(SafeExport::row([...$row, ...$trailing, ...$place, $type]));
                 $values = [];
             };
 
@@ -67,7 +74,7 @@ class ExportController extends Controller
             // thousands of readings, and hydrating each one is most of the time.
             $columns  = $type === 'Sensor'
                 ? [$dateColumn, 'site_parameter_id', 'value', 'value_text']
-                : [$dateColumn, 'site_parameter_id', 'value'];
+                : [$dateColumn, 'site_parameter_id', 'value', 'zone', 'plant'];
             $readings = $query->toBase()->select($columns)
                 ->orderBy($dateColumn, 'desc')->orderBy('id')->cursor();
             foreach ($readings as $reading) {
@@ -75,6 +82,9 @@ class ExportController extends Controller
                 if ($at !== $timestamp) {
                     $flush();
                     $timestamp = $at;
+                    if ($type === 'Manual') {
+                        $place = [$plots[$reading->zone] ?? (string) $reading->zone, (string) $reading->plant];
+                    }
                 }
                 $values[$reading->site_parameter_id] ??= $reading->value ?? $reading->value_text ?? '';
             }
@@ -267,122 +277,84 @@ class ExportController extends Controller
         });
     }
 
+    /**
+     * Rows of a group's saved records, as on the Saved Records table: one row
+     * per record (date, plot, plant), newest first. Saved Records is a running
+     * ledger — the default is the full history (unlike the other exports'
+     * rolling "last N hours"), but from/to narrow it down when requested.
+     */
+    private function groupRows(Request $request, string $site, string $category, string $group): array
+    {
+        $site = Site::where('slug', $site)->orWhere('id', $site)->firstOrFail();
+        $this->authorizeSiteAccess($site);
+        $cat = $site->categories()->where('slug', $category)->firstOrFail();
+        $cat->load('activeParameters');
+        $params = $cat->activeParameters
+            ->where('input_type', 'manual')
+            ->filter(fn ($p) => $p->group_name === $group)
+            ->values();
+
+        $from = $request->filled('from') ? Carbon::parse($request->from)->startOfDay() : null;
+        $to   = $request->filled('to')   ? Carbon::parse($request->to)->endOfDay()     : null;
+
+        $readings = ManualReading::where('site_id', $site->id)
+            ->whereIn('site_parameter_id', $params->pluck('id'))
+            ->when($from && $to, fn ($q) => $q->whereBetween('reading_date', [$from, $to]))
+            ->orderBy('reading_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $header = ['Date', 'Plot', 'Plant'];
+        foreach ($params as $p) {
+            $header[] = $p->name . ($p->unit ? ' (' . $p->unit . ')' : '');
+        }
+        $header[] = 'Notes';
+
+        $rows = [SafeExport::row($header)];
+        foreach ($readings->groupBy(fn ($r) => $r->recordKey()) as $record) {
+            $first = $record->first();
+            $row   = [$first->reading_date->format('Y-m-d'), $first->plotLabel() ?? '', $first->plant ?? ''];
+            foreach ($params as $p) {
+                $row[] = $record->firstWhere('site_parameter_id', $p->id)?->value ?? '';
+            }
+            $row[] = $record->whereNotNull('notes')->first()?->notes ?? '';
+            $rows[] = SafeExport::row($row);
+        }
+
+        $filename = Str::slug($site->name) . '-' . $category . '-' . Str::slug($group) . '-' . now()->format('Ymd');
+
+        return [$filename, $rows];
+    }
+
     // ── Export groupe manuel CSV ───────────────────────────────
     public function groupCsv(Request $request, string $site, string $category, string $group)
     {
-        $site     = Site::where('slug', $site)->orWhere('id', $site)->firstOrFail();
-        $this->authorizeSiteAccess($site);
-        $cat      = $site->categories()->where('slug', $category)->firstOrFail();
-        $cat->load('activeParameters');
-        $params   = $cat->activeParameters
-            ->where('input_type', 'manual')
-            ->filter(fn($p) => $p->group_name === $group)
-            ->values();
+        [$filename, $rows] = $this->groupRows($request, $site, $category, $group);
 
-        $filename = Str::slug($site->name).'-'.$category.'-'.Str::slug($group).'-'.now()->format('Ymd').'.csv';
-        $headers  = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ];
-
-        // Saved Records is a running ledger — default is the full history (unlike
-        // the other exports' rolling "last N hours"), but from/to narrow it down
-        // when explicitly requested.
-        $from = $request->filled('from') ? \Carbon\Carbon::parse($request->from)->startOfDay() : null;
-        $to   = $request->filled('to')   ? \Carbon\Carbon::parse($request->to)->endOfDay()     : null;
-
-        $callback = function() use ($site, $params, $from, $to) {
-            $handle = fopen('php://output', 'w');
-            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
-
-            $row = ['Date'];
-            foreach ($params as $p) {
-                $row[] = $p->name . ($p->unit ? ' ('.$p->unit.')' : '');
+        return $this->streamCsv($filename . '.csv', function ($handle) use ($rows) {
+            foreach ($rows as $row) {
+                fputcsv($handle, $row);
             }
-            $row[] = 'Notes';
-            fputcsv($handle, SafeExport::row($row));
-
-            $readings = \App\Models\ManualReading::where('site_id', $site->id)
-                ->whereIn('site_parameter_id', $params->pluck('id'))
-                ->when($from && $to, fn($q) => $q->whereBetween('reading_date', [$from, $to]))
-                ->orderBy('reading_date', 'desc')
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            $rows = $readings->groupBy(fn($r) =>
-                $r->reading_date->format('Y-m-d') . '||' .
-                $r->created_at->format('Y-m-d H:i')
-            );
-
-            foreach ($rows as $key => $rowReadings) {
-                $date = explode('||', $key)[0];
-                $row  = [$date];
-                foreach ($params as $p) {
-                    $r     = $rowReadings->firstWhere('site_parameter_id', $p->id);
-                    $row[] = $r?->value ?? '';
-                }
-                $row[] = $rowReadings->whereNotNull('notes')->first()?->notes ?? '';
-                fputcsv($handle, SafeExport::row($row));
-            }
-            fclose($handle);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        });
     }
 
     // ── Export groupe manuel Excel ─────────────────────────────
     public function groupExcel(Request $request, string $site, string $category, string $group)
     {
-        $site     = Site::where('slug', $site)->orWhere('id', $site)->firstOrFail();
-        $this->authorizeSiteAccess($site);
-        $cat      = $site->categories()->where('slug', $category)->firstOrFail();
-        $cat->load('activeParameters');
-        $params   = $cat->activeParameters
-            ->where('input_type', 'manual')
-            ->filter(fn($p) => $p->group_name === $group)
-            ->values();
+        [$filename, $rows] = $this->groupRows($request, $site, $category, $group);
 
-        $filename = Str::slug($site->name).'-'.$category.'-'.Str::slug($group).'-'.now()->format('Ymd').'.xlsx';
-
-        $from = $request->filled('from') ? \Carbon\Carbon::parse($request->from)->startOfDay() : null;
-        $to   = $request->filled('to')   ? \Carbon\Carbon::parse($request->to)->endOfDay()     : null;
-
-        $readings = \App\Models\ManualReading::where('site_id', $site->id)
-            ->whereIn('site_parameter_id', $params->pluck('id'))
-            ->when($from && $to, fn($q) => $q->whereBetween('reading_date', [$from, $to]))
-            ->orderBy('reading_date', 'desc')
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        $rows = $readings->groupBy(fn($r) =>
-            $r->reading_date->format('Y-m-d') . '||' .
-            $r->created_at->format('Y-m-d H:i')
-        );
-
-        // Build array for Excel
-        $headers = ['Date'];
-        foreach ($params as $p) {
-            $headers[] = $p->name . ($p->unit ? ' ('.$p->unit.')' : '');
-        }
-        $headers[] = 'Notes';
-
-        $data = [SafeExport::row($headers)];
-        foreach ($rows as $key => $rowReadings) {
-            $date = explode('||', $key)[0];
-            $row  = [$date];
-            foreach ($params as $p) {
-                $r     = $rowReadings->firstWhere('site_parameter_id', $p->id);
-                $row[] = $r?->value ?? '';
-            }
-            $row[] = $rowReadings->whereNotNull('notes')->first()?->notes ?? '';
-            $data[] = SafeExport::row($row);
+        $writer = new XlsxStreamWriter();
+        $used   = [];
+        $writer->addSheet($this->sheetName($group, $used));
+        foreach ($rows as $i => $row) {
+            $writer->addRow($row, $i === 0);
         }
 
-        return \Maatwebsite\Excel\Facades\Excel::download(
-            new \App\Exports\ArrayExport($data, $group),
-            $filename
-        );
+        $path = tempnam(sys_get_temp_dir(), 'apv-export-');
+        $writer->save($path);
+
+        return response()->download($path, $filename . '.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend();
     }
-
-
 }

@@ -406,14 +406,20 @@ select.ag-input{cursor:pointer}
           <input type="date" name="reading_date" value="{{ date('Y-m-d') }}"
                  style="width:100%;margin-top:4px;font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text)" required>
         </div>
-        <div style="margin-bottom:10px">
-          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Plot</label>
-          <select name="zone" class="form-input" style="margin-top:4px">
-            <option value="">Not specified</option>
-            @foreach(config('analysis.plots') as $plotKey => $plotLabel)
-            <option value="{{ $plotKey }}" @selected(old('zone') === $plotKey)>{{ $plotLabel }}</option>
-            @endforeach
-          </select>
+        <div style="display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:8px;margin-bottom:10px">
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Plot</label>
+            <select name="zone" class="form-input" style="margin-top:4px">
+              <option value="">Not specified</option>
+              @foreach(config('analysis.plots') as $plotKey => $plotLabel)
+              <option value="{{ $plotKey }}" @selected(old('zone') === $plotKey)>{{ $plotLabel }}</option>
+              @endforeach
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Plant</label>
+            <input type="text" name="plant" value="{{ old('plant') }}" maxlength="30" placeholder="e.g. 3" class="form-input" style="margin-top:4px">
+          </div>
         </div>
         @foreach($gParams as $p)
         @php $pi = $manIndex++; @endphp
@@ -459,14 +465,20 @@ select.ag-input{cursor:pointer}
           <input type="date" name="reading_date" value="{{ date('Y-m-d') }}"
                  style="width:100%;margin-top:4px;font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text)" required>
         </div>
-        <div style="margin-bottom:10px">
-          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Plot</label>
-          <select name="zone" class="form-input" style="margin-top:4px">
-            <option value="">Not specified</option>
-            @foreach(config('analysis.plots') as $plotKey => $plotLabel)
-            <option value="{{ $plotKey }}" @selected(old('zone') === $plotKey)>{{ $plotLabel }}</option>
-            @endforeach
-          </select>
+        <div style="display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:8px;margin-bottom:10px">
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Plot</label>
+            <select name="zone" class="form-input" style="margin-top:4px">
+              <option value="">Not specified</option>
+              @foreach(config('analysis.plots') as $plotKey => $plotLabel)
+              <option value="{{ $plotKey }}" @selected(old('zone') === $plotKey)>{{ $plotLabel }}</option>
+              @endforeach
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Plant</label>
+            <input type="text" name="plant" value="{{ old('plant') }}" maxlength="30" placeholder="e.g. 3" class="form-input" style="margin-top:4px">
+          </div>
         </div>
         <input type="hidden" name="readings[{{ $pi }}][param_id]" value="{{ $p->id }}">
         @if($p->data_type === 'boolean')

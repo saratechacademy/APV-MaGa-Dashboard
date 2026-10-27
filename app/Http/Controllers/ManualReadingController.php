@@ -47,6 +47,8 @@ class ManualReadingController extends Controller
             'notes'                 => 'nullable|string',
             // The plot the measurement was taken on (reference or APV), for comparisons.
             'zone'                  => ['nullable', Rule::in(array_keys(config('analysis.plots')))],
+            // Which plant of the plot, as the researchers number them.
+            'plant'                 => 'nullable|string|max:30',
         ]);
 
         $validator->after(function ($validator) use ($request, $siteParameters) {
@@ -91,6 +93,7 @@ class ManualReadingController extends Controller
                     'value'             => $reading['value'],
                     'reading_date'      => $readingDateTime,
                     'zone'              => $request->zone ?: null,
+                    'plant'             => trim((string) $request->plant) ?: null,
                     'notes'             => $request->notes,
                 ]);
             }

@@ -12,10 +12,7 @@
       ->orderBy('reading_date', 'desc')
       ->orderBy('created_at', 'desc')
       ->get();
-    $rows = $readings->groupBy(fn($r) =>
-      $r->reading_date->format('Y-m-d') . '||' .
-      $r->created_at->format('Y-m-d H:i')
-    );
+    $rows = $readings->groupBy(fn($r) => $r->recordKey());
     $groupCounts[$gName] = $rows->count();
   }
   $firstGroup = $groupedParams->keys()->first();
@@ -66,10 +63,7 @@
       ->orderBy('reading_date', 'desc')
       ->orderBy('created_at', 'desc')
       ->get();
-    $rows = $readings->groupBy(fn($r) =>
-      $r->reading_date->format('Y-m-d') . '||' .
-      $r->created_at->format('Y-m-d H:i')
-    );
+    $rows = $readings->groupBy(fn($r) => $r->recordKey());
   @endphp
   <div id="rec-body-{{ $uid }}-{{ Str::slug($gName) }}"
        style="display:{{ $loop->first ? 'block' : 'none' }}">
@@ -81,6 +75,8 @@
         <thead>
           <tr style="background:var(--bg)">
             <th style="padding:8px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;border-bottom:1px solid var(--border)">Date</th>
+            <th style="padding:8px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;border-bottom:1px solid var(--border)">Plot</th>
+            <th style="padding:8px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;border-bottom:1px solid var(--border)">Plant</th>
             @foreach($params as $param)
             <th style="padding:8px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;border-bottom:1px solid var(--border)">
               {{ $param->name }}@if($param->unit) ({{ $param->unit }})@endif
@@ -91,11 +87,13 @@
         </thead>
         <tbody>
           @foreach($rows as $key => $rowReadings)
-          @php $date = explode('||', $key)[0]; @endphp
+          @php $date = explode('||', $key)[0]; $first = $rowReadings->first(); @endphp
           <tr style="border-top:1px solid var(--border)"
               onmouseover="this.style.background='var(--bg)'"
               onmouseout="this.style.background=''">
             <td style="padding:9px 14px;white-space:nowrap;font-size:11px;color:var(--muted)">{{ $date }}</td>
+            <td style="padding:9px 14px;white-space:nowrap;font-size:12px">{{ $first->plotLabel() ?? '—' }}</td>
+            <td style="padding:9px 14px;white-space:nowrap;font-size:12px">{{ $first->plant ?? '—' }}</td>
             @foreach($params as $param)
             @php
               $r   = $rowReadings->firstWhere('site_parameter_id', $param->id);

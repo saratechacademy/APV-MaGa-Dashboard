@@ -120,4 +120,55 @@ class ManualReadingTest extends TestCase
         $response->assertSessionHasErrors();
         $this->assertDatabaseMissing('manual_readings', ['site_parameter_id' => $param->id]);
     }
+
+    public function test_each_plant_of_a_plot_is_its_own_saved_record_and_export_row(): void
+    {
+        $agent    = User::factory()->create(['role' => 'agent']);
+        $site     = Site::factory()->create(['user_id' => $agent->id]);
+        $category = SiteCategory::factory()->create(['site_id' => $site->id, 'slug' => 'agriculture']);
+        $height   = SiteParameter::factory()->create([
+            'site_category_id' => $category->id, 'input_type' => 'manual', 'data_type' => 'float',
+            'name' => 'Plant height', 'unit' => 'cm', 'group_name' => 'Growth',
+        ]);
+
+        // Two plants of the APV plot, entered within the same minute.
+        foreach ([['1', '41'], [' 2 ', '38']] as [$plant, $value]) {
+            $this->actingAs($agent)->post(route('manual-readings.store', $site), [
+                'reading_date' => '2026-10-20',
+                'zone'         => 'apv',
+                'plant'        => $plant,
+                'readings'     => [['param_id' => $height->id, 'value' => $value]],
+            ])->assertRedirect();
+        }
+
+        $this->assertSame(['1', '2'], ManualReading::orderBy('id')->pluck('plant')->all());
+
+        $response = $this->actingAs($agent)->get(route('export.group.csv', [$site, 'agriculture', 'Growth']));
+        ob_start();
+        $response->baseResponse->sendContent();
+        $rows = array_map('str_getcsv', array_values(array_filter(explode("\n", ltrim(ob_get_clean(), "\u{FEFF}")))));
+
+        $plot = config('analysis.plots')['apv'];
+        $this->assertSame(['Date', 'Plot', 'Plant', 'Plant height (cm)', 'Notes'], $rows[0]);
+        $this->assertEqualsCanonicalizing(
+            [['2026-10-20', $plot, '1', '41', ''], ['2026-10-20', $plot, '2', '38', '']],
+            array_slice($rows, 1),
+        );
+    }
+
+    public function test_plant_is_limited_to_a_short_label(): void
+    {
+        $agent    = User::factory()->create(['role' => 'agent']);
+        $site     = Site::factory()->create(['user_id' => $agent->id]);
+        $category = SiteCategory::factory()->create(['site_id' => $site->id]);
+        $param    = SiteParameter::factory()->create(['site_category_id' => $category->id, 'input_type' => 'manual']);
+
+        $this->actingAs($agent)->post(route('manual-readings.store', $site), [
+            'reading_date' => now()->toDateString(),
+            'plant'        => str_repeat('x', 31),
+            'readings'     => [['param_id' => $param->id, 'value' => '1']],
+        ])->assertSessionHasErrors('plant');
+
+        $this->assertSame(0, ManualReading::count());
+    }
 }
