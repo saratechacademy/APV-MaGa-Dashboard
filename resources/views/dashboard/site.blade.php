@@ -25,6 +25,13 @@
 .cc-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
 /* A chart opens large over the page when clicked (see expandChart). */
 .chart-section canvas{cursor:zoom-in}
+/* Series legend above a chart, as HTML: wraps instead of eating the plot's
+   height, and a click hides or shows a series (see htmlLegend). */
+.chart-legend{display:flex;flex-wrap:wrap;gap:2px 14px;margin:-4px 0 8px}
+.lg-item{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:2px 0;font-family:'DM Sans',sans-serif;font-size:11px;color:var(--muted);cursor:pointer}
+.lg-item:hover{color:var(--text)}
+.lg-item.off{opacity:.45;text-decoration:line-through}
+.lg-swatch{display:inline-block;width:16px;height:0;border-top-width:2px}
 .chart-section.is-expanded{position:fixed;inset:24px;z-index:1001;display:flex;flex-direction:column;overflow:auto}
 .chart-section.is-expanded canvas{cursor:default}
 .chart-section.is-expanded .chart-area{flex:1;min-height:0;height:auto!important}
@@ -306,7 +313,7 @@ select.ag-input{cursor:pointer}
       <div class="cc-head">
         <div>
           <div class="cc-title">{{ $chart->title }}</div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+          <div class="cc-static-legend" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
             @foreach($chart->parameters as $p)
             <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)">
               <span style="width:10px;height:{{ $p->pivot->dashed ? '0' : '3' }}px;{{ $p->pivot->dashed ? 'border-top:2px dashed '.$p->pivot->color : 'background:'.$p->pivot->color }};display:inline-block;border-radius:2px"></span>
@@ -900,6 +907,41 @@ function buildLegend(cat) {
       ${esc(p.name)}${p.unit ? ' ('+esc(p.unit)+')' : ''}</span>`).join('');
 }
 
+// Legend above a chart: each series' colour and line style, and its name
+// without the part all of them share ("APV 1 Shadow – Moisture (%)" in a
+// "Soil moisture (%)" chart reads "APV 1 Shadow"). A click hides or shows the
+// series. Full-width charts list their series in their header instead.
+function htmlLegend(canvas, chart) {
+  const card = canvas.closest('.chart-section');
+  if (!card || card.querySelector('.cc-static-legend')) return;
+  let box = card.querySelector('.chart-legend');
+  if (!box) {
+    box = document.createElement('div');
+    box.className = 'chart-legend';
+    card.querySelector('.chart-area').before(box);
+  }
+  const names = shortLabels(chart.data.datasets.map(d => d.label));
+  box.innerHTML = chart.data.datasets.map((d, i) =>
+    `<button type="button" class="lg-item" data-i="${i}" title="${esc(d.label)}">` +
+    `<span class="lg-swatch" style="border-top-style:${d.borderDash && d.borderDash.length ? 'dashed' : 'solid'};border-top-color:${d.borderColor}"></span>${esc(names[i])}</button>`
+  ).join('');
+  box.querySelectorAll('.lg-item').forEach(item => item.addEventListener('click', () => {
+    const i = +item.dataset.i;
+    const shown = chart.isDatasetVisible(i);
+    chart.setDatasetVisibility(i, !shown);
+    item.classList.toggle('off', shown);
+    chart.update();
+  }));
+}
+
+function shortLabels(labels) {
+  const cut = labels.map(l => l.lastIndexOf(' – '));
+  const tails = labels.map((l, i) => cut[i] > 0 ? l.slice(cut[i]) : null);
+  return labels.length > 1 && tails.every(t => t && t === tails[0])
+    ? labels.map((l, i) => l.slice(0, cut[i]))
+    : labels;
+}
+
 // Admin charts via fetch — one loader per configured chart, callable again
 // whenever the top-bar time range changes (see onRangeChange below).
 const adminChartLoaders = [];
@@ -969,8 +1011,9 @@ function loadAdminChart(chartId, catSlug, paramConfigs, hasSecondAxis, chartType
       ctx._chartInstance = new Chart(ctx, {
         type: chartType,
         data: { labels: chartLabels, datasets },
-        options: { ...baseOpts, scales, plugins: { legend: { display: showLegend } } }
+        options: { ...baseOpts, scales }
       });
+      if (showLegend) htmlLegend(ctx, ctx._chartInstance);
     }).catch(() => {});
 }
 
