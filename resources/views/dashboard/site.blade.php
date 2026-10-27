@@ -1017,8 +1017,12 @@ function resizeCharts(card, ticks) {
     if (!chart) return;
     // A copy: every chart's x axis shares baseOpts.scales.x.
     chart.config.options.scales.x = { ...baseOpts.scales.x, ticks: { ...baseOpts.scales.x.ticks, maxTicksLimit: ticks } };
-    chart.resize();
-    chart.update('none');
+    // The canvas keeps its last size in pixels, which would hold the grid
+    // column at the enlarged width after closing: let it shrink, then let
+    // Chart.js measure the container once the layout has settled.
+    c.style.width = '0px';
+    c.style.height = '0px';
+    requestAnimationFrame(() => { chart.resize(); chart.update('none'); });
   });
 }
 
