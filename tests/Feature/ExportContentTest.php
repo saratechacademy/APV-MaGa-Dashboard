@@ -157,4 +157,75 @@ class ExportContentTest extends TestCase
         $this->assertStringNotContainsString(",=cmd", $content);
         $this->assertStringContainsString("'=cmd", $content);
     }
+
+    public function test_site_excel_export_has_one_sheet_per_category_with_the_values(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $site  = Site::factory()->create();
+        $solar = SiteCategory::factory()->create(['site_id' => $site->id, 'name' => 'Solar', 'slug' => 'solar']);
+        $water = SiteCategory::factory()->create(['site_id' => $site->id, 'name' => 'Water', 'slug' => 'water']);
+        $output = SiteParameter::factory()->create([
+            'site_category_id' => $solar->id, 'name' => 'Solar Output', 'unit' => 'kW', 'input_type' => 'sensor',
+        ]);
+        SiteParameter::factory()->create(['site_category_id' => $water->id, 'name' => 'Borehole Level']);
+        SensorReading::factory()->create([
+            'site_id' => $site->id, 'site_parameter_id' => $output->id, 'value' => 4.2, 'read_at' => now()->subHour(),
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('export.all.excel', $site));
+        $response->assertOk();
+
+        $sheets = $this->readXlsx($response->baseResponse->getFile()->getPathname());
+
+        $this->assertSame(['Solar', 'Water'], array_keys($sheets));
+        $this->assertSame(['Timestamp', 'Solar Output (kW)', 'Type'], $sheets['Solar'][0]);
+        $this->assertEquals(4.2, $sheets['Solar'][1][1]);
+        $this->assertSame('Sensor', $sheets['Solar'][1][2]);
+    }
+
+    public function test_excel_export_of_a_month_of_readings_does_not_run_out_of_memory(): void
+    {
+        $admin    = User::factory()->create(['role' => 'admin']);
+        $site     = Site::factory()->create();
+        $category = SiteCategory::factory()->create(['site_id' => $site->id, 'slug' => 'irrigation']);
+        $params   = SiteParameter::factory()->count(20)->create(['site_category_id' => $category->id, 'input_type' => 'sensor']);
+
+        // Each device reports at its own second, as ThingsBoard devices do:
+        // one row per reading, almost all of it empty cells.
+        $rows = [];
+        $start = now()->subDays(30)->getTimestamp();
+        foreach ($params as $i => $param) {
+            for ($t = $start + $i; $t < $start + 30 * 86400; $t += 1200) {
+                $rows[] = ['site_id' => $site->id, 'site_parameter_id' => $param->id, 'value' => 1.5, 'read_at' => date('Y-m-d H:i:s', $t)];
+            }
+        }
+        foreach (array_chunk($rows, 500) as $chunk) {
+            SensorReading::insert($chunk);
+        }
+
+        $before = memory_get_usage();
+        memory_reset_peak_usage();
+        $response = $this->actingAs($admin)->get(route('export.category.excel', [$site, 'irrigation']) . '?from=' . now()->subDays(31)->toDateString() . '&to=' . now()->toDateString());
+        $response->assertOk();
+
+        // The old in-memory workbook needed well over 128 MB for this.
+        $this->assertLessThan(32 * 1024 * 1024, memory_get_peak_usage() - $before);
+        // Too big to load back with PhpSpreadsheet: count the rows in the XML.
+        $zip = new \ZipArchive();
+        $zip->open($response->baseResponse->getFile()->getPathname());
+        $this->assertSame(count($rows) + 1, substr_count($zip->getFromName('xl/worksheets/sheet1.xml'), '<row '));
+        $zip->close();
+    }
+
+    /** @return array<string, array<int, array>> sheet name => rows */
+    private function readXlsx(string $path): array
+    {
+        $book = \PhpOffice\PhpSpreadsheet\IOFactory::createReader('Xlsx')->load($path);
+        $sheets = [];
+        foreach ($book->getWorksheetIterator() as $sheet) {
+            $sheets[$sheet->getTitle()] = $sheet->toArray(null, false, false);
+        }
+
+        return $sheets;
+    }
 }

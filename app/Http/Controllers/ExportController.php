@@ -5,40 +5,29 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\AuthorizesSiteAccess;
 use App\Http\Controllers\Concerns\ResolvesDateRange;
 use App\Models\Site;
-use App\Exports\SiteCategoryExport;
-use App\Exports\CategorySheet;
-use App\Exports\AllSitesExport;
 use App\Models\SiteCategory;
 use App\Models\SensorReading;
 use App\Models\ManualReading;
 use App\Support\SafeExport;
-use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use App\Support\XlsxStreamWriter;
 
 class ExportController extends Controller
 {
     use AuthorizesSiteAccess, ResolvesDateRange;
 
     /**
-     * Writes one category's sensor+manual readings to an open CSV handle:
-     * optional "=== label ===" section header, a column-header row, then one
-     * row per timestamp (sensor first, then manual). Shared by allCsv,
-     * categoryCsv and allSitesCsv so the CSV shape can't drift between them.
-     * A section label also triggers the trailing blank line used to visually
-     * separate categories when several blocks are written to the same file.
+     * Emits one category's sensor+manual readings as rows: a column-header
+     * row, then one row per timestamp (sensor first, then manual). Shared by
+     * every CSV and Excel export so the file shape can't drift between them.
      */
-    private function writeCsvCategoryBlock($handle, Site $site, SiteCategory $category, Carbon $from, Carbon $to, ?string $sectionLabel = null): void
+    private function eachCategoryRow(Site $site, SiteCategory $category, Carbon $from, Carbon $to, callable $emit): void
     {
         $params       = $category->activeParameters;
         $sensorParams = $params->where('input_type', 'sensor');
         $manualParams = $params->where('input_type', 'manual');
-
-        if ($sectionLabel !== null) {
-            fputcsv($handle, SafeExport::row(['=== ' . $sectionLabel . ' ===']));
-        }
 
         $headerRow = ['Timestamp'];
         foreach ($sensorParams as $p) {
@@ -48,29 +37,41 @@ class ExportController extends Controller
             $headerRow[] = $p->name . ($p->unit ? ' (' . $p->unit . ')' : '');
         }
         $headerRow[] = 'Type';
-        fputcsv($handle, SafeExport::row($headerRow));
+        $emit(SafeExport::row($headerRow));
 
         // Rows are streamed straight from the database, one timestamp at a
         // time: a long window holds far more readings than fit in memory.
-        $writeRows = function ($query, string $dateColumn, $ownParams, int $leadingBlanks, int $trailingBlanks, string $type) use ($handle) {
+        $writeRows = function ($query, string $dateColumn, $ownParams, int $leadingBlanks, int $trailingBlanks, string $type) use ($emit) {
             $timestamp = null;
             $values    = [];
 
-            $flush = function () use (&$timestamp, &$values, $handle, $ownParams, $leadingBlanks, $trailingBlanks, $type) {
+            // Built once: this runs for every row of a long export, and going
+            // through the parameter models each time was most of its cost.
+            $ids      = $ownParams->pluck('id')->all();
+            $leading  = array_fill(0, $leadingBlanks, '');
+            $trailing = array_merge(array_fill(0, $trailingBlanks, ''), [$type]);
+
+            $flush = function () use (&$timestamp, &$values, $emit, $ids, $leading, $trailing) {
                 if ($timestamp === null) {
                     return;
                 }
-                $row = array_merge([$timestamp], array_fill(0, $leadingBlanks, ''));
-                foreach ($ownParams as $p) {
-                    $row[] = $values[$p->id] ?? '';
+                $row = [$timestamp, ...$leading];
+                foreach ($ids as $id) {
+                    $row[] = $values[$id] ?? '';
                 }
-                $row = array_merge($row, array_fill(0, $trailingBlanks, ''), [$type]);
-                fputcsv($handle, SafeExport::row($row));
+                $emit(SafeExport::row([...$row, ...$trailing]));
                 $values = [];
             };
 
-            foreach ($query->orderBy($dateColumn, 'desc')->orderBy('id')->cursor() as $reading) {
-                $at = $reading->{$dateColumn}->format('Y-m-d H:i:s');
+            // Plain rows rather than models: a long export reads hundreds of
+            // thousands of readings, and hydrating each one is most of the time.
+            $columns  = $type === 'Sensor'
+                ? [$dateColumn, 'site_parameter_id', 'value', 'value_text']
+                : [$dateColumn, 'site_parameter_id', 'value'];
+            $readings = $query->toBase()->select($columns)
+                ->orderBy($dateColumn, 'desc')->orderBy('id')->cursor();
+            foreach ($readings as $reading) {
+                $at = substr((string) $reading->{$dateColumn}, 0, 19);
                 if ($at !== $timestamp) {
                     $flush();
                     $timestamp = $at;
@@ -93,145 +94,177 @@ class ExportController extends Controller
                 ->whereBetween('reading_date', [$from, $to]),
             'reading_date', $manualParams, $sensorParams->count(), 0, 'Manual',
         );
+    }
+
+    /**
+     * Writes one category to an open CSV handle, optionally under a
+     * "=== label ===" section header followed by a blank line, so several
+     * categories can share one file.
+     */
+    private function writeCsvCategoryBlock($handle, Site $site, SiteCategory $category, Carbon $from, Carbon $to, ?string $sectionLabel = null): void
+    {
+        if ($sectionLabel !== null) {
+            fputcsv($handle, SafeExport::row(['=== ' . $sectionLabel . ' ===']));
+        }
+
+        $this->eachCategoryRow($site, $category, $from, $to, fn (array $row) => fputcsv($handle, $row));
 
         if ($sectionLabel !== null) {
             fputcsv($handle, []); // Ligne vide entre catégories
         }
     }
 
-    // ── Export toutes catégories Excel ─────────────────────────
-    public function allExcel(Request $request, string $site)
+    private function streamCsv(string $filename, callable $write)
     {
-        $site  = Site::where('slug', $site)->orWhere('id', $site)->firstOrFail();
+        return response()->stream(function () use ($write) {
+            $handle = fopen('php://output', 'w');
+            // BOM UTF-8 pour Excel
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+            $write($handle);
+            fclose($handle);
+        }, 200, [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+    /**
+     * Excel workbook with one sheet per [sheet name, site, category]. Rows go
+     * straight to a temporary file as they are read: building the workbook in
+     * memory ran out of memory past about a week of ThingsBoard data.
+     */
+    private function downloadXlsx(string $filename, iterable $sheets, Carbon $from, Carbon $to)
+    {
+        $writer = new XlsxStreamWriter();
+        $used   = [];
+
+        foreach ($sheets as [$name, $site, $category]) {
+            $writer->addSheet($this->sheetName($name, $used));
+
+            $isHeader = true;
+            $this->eachCategoryRow($site, $category, $from, $to, function (array $row) use ($writer, &$isHeader) {
+                $writer->addRow($row, $isHeader);
+                $isHeader = false;
+            });
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'apv-export-');
+        $writer->save($path);
+
+        return response()->download($path, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend();
+    }
+
+    /** Excel sheet names: at most 31 characters, none of []:*?/\, unique. */
+    private function sheetName(string $name, array &$used): string
+    {
+        $base = mb_substr(trim(str_replace(['[', ']', ':', '*', '?', '/', '\\'], ' ', $name)), 0, 31) ?: 'Sheet';
+        $candidate = $base;
+        for ($n = 2; in_array(mb_strtolower($candidate), $used, true); $n++) {
+            $candidate = mb_substr($base, 0, 31 - strlen(" ($n)")) . " ($n)";
+        }
+        $used[] = mb_strtolower($candidate);
+
+        return $candidate;
+    }
+
+    private function exportSite(string $site): Site
+    {
+        $site = Site::where('slug', $site)->orWhere('id', $site)->firstOrFail();
         $this->authorizeSiteAccess($site);
         $site->load(['activeCategories.activeParameters']);
 
-        [$from, $to] = $this->resolveDateRange($request, 24);
-        $filename = $site->slug . '_data_' . now()->format('Ymd_His') . '.xlsx';
+        return $site;
+    }
 
-        return Excel::download(new SiteCategoryExport($site, $from, $to), $filename);
+    private function exportSites(): \Illuminate\Support\Collection
+    {
+        // Tout utilisateur connecté peut exporter — mais uniquement les sites
+        // auxquels il a accès (les admins n'ont pas de filtre : null = tous).
+        $siteIds = $this->accessibleSiteIds();
+
+        return Site::where('status', 'active')
+            ->when($siteIds !== null, fn ($q) => $q->whereIn('id', $siteIds))
+            ->with(['activeCategories.activeParameters'])
+            ->get();
+    }
+
+    // ── Export toutes catégories Excel ─────────────────────────
+    public function allExcel(Request $request, string $site)
+    {
+        $site = $this->exportSite($site);
+        [$from, $to] = $this->resolveDateRange($request, 24);
+
+        $sheets = $site->activeCategories->map(fn ($c) => [$c->name, $site, $c]);
+
+        return $this->downloadXlsx($site->slug . '_data_' . now()->format('Ymd_His') . '.xlsx', $sheets, $from, $to);
     }
 
     // ── Export toutes catégories CSV ───────────────────────────
     public function allCsv(Request $request, string $site)
     {
-        $site  = Site::where('slug', $site)->orWhere('id', $site)->firstOrFail();
-        $this->authorizeSiteAccess($site);
-        $site->load(['activeCategories.activeParameters']);
-
+        $site = $this->exportSite($site);
         [$from, $to] = $this->resolveDateRange($request, 24);
 
-        $filename = $site->slug . '_data_' . now()->format('Ymd_His') . '.csv';
-
-        $headers = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ];
-
-        $callback = function () use ($site, $from, $to) {
-            $handle = fopen('php://output', 'w');
-            // BOM UTF-8 pour Excel
-            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
-
+        return $this->streamCsv($site->slug . '_data_' . now()->format('Ymd_His') . '.csv', function ($handle) use ($site, $from, $to) {
             foreach ($site->activeCategories as $category) {
                 $this->writeCsvCategoryBlock($handle, $site, $category, $from, $to, $category->name);
             }
-
-            fclose($handle);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        });
     }
 
     // ── Export une catégorie Excel ─────────────────────────────
     public function categoryExcel(Request $request, string $site, string $category)
     {
-        $site  = Site::where('slug', $site)->orWhere('id', $site)->firstOrFail();
-        $this->authorizeSiteAccess($site);
-        $site->load(['activeCategories.activeParameters']);
-
-        $cat = $site->activeCategories->firstWhere('slug', $category);
-        if (!$cat) abort(404);
-
+        $site = $this->exportSite($site);
+        $cat  = $site->activeCategories->firstWhere('slug', $category) ?? abort(404);
         [$from, $to] = $this->resolveDateRange($request, 24);
-        $filename = $site->slug . '_' . $category . '_' . now()->format('Ymd_His') . '.xlsx';
 
-        return Excel::download(new CategorySheet($site, $cat, $from, $to), $filename);
+        return $this->downloadXlsx($site->slug . '_' . $category . '_' . now()->format('Ymd_His') . '.xlsx', [[$cat->name, $site, $cat]], $from, $to);
     }
 
     // ── Export une catégorie CSV ───────────────────────────────
     public function categoryCsv(Request $request, string $site, string $category)
     {
-        $site  = Site::where('slug', $site)->orWhere('id', $site)->firstOrFail();
-        $this->authorizeSiteAccess($site);
-        $site->load(['activeCategories.activeParameters']);
-
-        $cat = $site->activeCategories->firstWhere('slug', $category);
-        if (!$cat) abort(404);
-
+        $site = $this->exportSite($site);
+        $cat  = $site->activeCategories->firstWhere('slug', $category) ?? abort(404);
         [$from, $to] = $this->resolveDateRange($request, 24);
-        $filename = $site->slug . '_' . $category . '_' . now()->format('Ymd_His') . '.csv';
 
-        $headers = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ];
-
-        $callback = function () use ($site, $cat, $from, $to) {
-            $handle = fopen('php://output', 'w');
-            // BOM UTF-8 pour Excel
-            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
-
+        return $this->streamCsv($site->slug . '_' . $category . '_' . now()->format('Ymd_His') . '.csv', function ($handle) use ($site, $cat, $from, $to) {
             $this->writeCsvCategoryBlock($handle, $site, $cat, $from, $to);
-
-            fclose($handle);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        });
     }
 
     // ── Export tous les sites Excel ────────────────────────────
     public function allSitesExcel(Request $request)
     {
-        // Tout utilisateur connecté peut exporter — mais uniquement les sites
-        // auxquels il a accès (les admins n'ont pas de filtre : null = tous).
-        $siteIds  = $this->accessibleSiteIds();
         [$from, $to] = $this->resolveDateRange($request, 24);
-        $filename = 'all_sites_data_' . now()->format('Ymd_His') . '.xlsx';
 
-        return Excel::download(new AllSitesExport($from, $to, $siteIds), $filename);
+        $sheets = [];
+        foreach ($this->exportSites() as $site) {
+            foreach ($site->activeCategories as $category) {
+                // "Fass - Solar": the site part is cut first to fit 31 characters.
+                $sheets[] = [mb_substr($site->name, 0, 15) . ' - ' . $category->name, $site, $category];
+            }
+        }
+
+        return $this->downloadXlsx('all_sites_data_' . now()->format('Ymd_His') . '.xlsx', $sheets, $from, $to);
     }
 
     // ── Export tous les sites CSV ──────────────────────────────
     public function allSitesCsv(Request $request)
     {
-        $siteIds  = $this->accessibleSiteIds();
         [$from, $to] = $this->resolveDateRange($request, 24);
-        $filename = 'all_sites_data_' . now()->format('Ymd_His') . '.csv';
+        $sites = $this->exportSites();
 
-        $sites = Site::where('status', 'active')
-            ->when($siteIds !== null, fn ($q) => $q->whereIn('id', $siteIds))
-            ->with(['activeCategories.activeParameters'])
-            ->get();
-
-        $headers = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ];
-
-        $callback = function () use ($sites, $from, $to) {
-            $handle = fopen('php://output', 'w');
-            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
-
+        return $this->streamCsv('all_sites_data_' . now()->format('Ymd_His') . '.csv', function ($handle) use ($sites, $from, $to) {
             foreach ($sites as $site) {
                 foreach ($site->activeCategories as $category) {
                     $this->writeCsvCategoryBlock($handle, $site, $category, $from, $to, $site->name . ' — ' . $category->name);
                 }
             }
-            fclose($handle);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        });
     }
 
     // ── Export groupe manuel CSV ───────────────────────────────

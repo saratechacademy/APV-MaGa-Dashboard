@@ -154,4 +154,53 @@ class ChartDataAlignmentTest extends TestCase
         $this->assertContains(111.1, $dataset['data']);
         $this->assertNotContains(222.2, $dataset['data']);
     }
+
+    public function test_a_long_window_is_averaged_into_buckets_so_the_chart_stays_small(): void
+    {
+        $admin    = User::factory()->create(['role' => 'admin']);
+        $site     = Site::factory()->create();
+        $category = SiteCategory::factory()->create(['site_id' => $site->id, 'slug' => 'irrigation']);
+        $params   = SiteParameter::factory()->count(10)->create(['site_category_id' => $category->id, 'input_type' => 'sensor']);
+
+        // A month of readings every 20 minutes, each device at its own second:
+        // read raw, that is one axis slot per reading — over 20,000.
+        $rows = [];
+        $start = strtotime('2026-06-01 00:00:00');
+        foreach ($params as $i => $param) {
+            for ($t = $start + $i; $t < $start + 30 * 86400; $t += 1200) {
+                $rows[] = ['site_id' => $site->id, 'site_parameter_id' => $param->id, 'value' => $i, 'read_at' => date('Y-m-d H:i:s', $t)];
+            }
+        }
+        foreach (array_chunk($rows, 500) as $chunk) {
+            SensorReading::insert($chunk);
+        }
+
+        $json = $this->actingAs($admin)->getJson(
+            route('dashboard.chart-data', [$site, 'irrigation']) . '?from=2026-06-01&to=2026-06-30'
+        )->assertOk()->json();
+
+        $this->assertSame(120, $json['bucket_minutes']);
+        $this->assertLessThanOrEqual(600, count($json['labels']));
+        // Every device lands in the same buckets, with its own average.
+        $dataset = collect($json['datasets'])->firstWhere('slug', $params[3]->slug);
+        $this->assertSame([3], array_values(array_unique(array_filter($dataset['data'], fn ($v) => $v !== null))));
+        $this->assertNotContains(null, $dataset['data']);
+    }
+
+    public function test_up_to_two_days_the_readings_are_not_averaged(): void
+    {
+        $admin    = User::factory()->create(['role' => 'admin']);
+        $site     = Site::factory()->create();
+        $category = SiteCategory::factory()->create(['site_id' => $site->id, 'slug' => 'solar']);
+        $param    = SiteParameter::factory()->create(['site_category_id' => $category->id, 'slug' => 'output']);
+        SensorReading::factory()->create(['site_id' => $site->id, 'site_parameter_id' => $param->id, 'value' => 1, 'read_at' => '2026-06-01 10:00:00']);
+        SensorReading::factory()->create(['site_id' => $site->id, 'site_parameter_id' => $param->id, 'value' => 3, 'read_at' => '2026-06-01 10:01:00']);
+
+        $json = $this->actingAs($admin)->getJson(
+            route('dashboard.chart-data', [$site, 'solar']) . '?from=2026-06-01&to=2026-06-02'
+        )->assertOk()->json();
+
+        $this->assertSame(0, $json['bucket_minutes']);
+        $this->assertEquals([1, 3], $json['datasets'][0]['data']);
+    }
 }

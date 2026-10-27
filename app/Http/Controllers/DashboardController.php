@@ -121,10 +121,37 @@ class DashboardController extends Controller
         // Past two days a bare "14:20" no longer says which day it was.
         $sensorLabel   = $from->diffInHours($to) > 48 ? 'd/m H:i' : 'H:i';
 
+        // Each ThingsBoard device reports at its own second, so a month of a
+        // category is tens of thousands of axis slots — enough to freeze the
+        // browser. Past two days, readings are averaged per bucket instead.
+        $bucket = $this->chartBucketSeconds($from, $to);
+        if ($bucket >= 86400) {
+            $sensorLabel = 'd/m';
+        }
+
         foreach ($parameters as $param) {
             if (in_array($param->data_type, ['string', 'boolean', 'switch'])) continue;
 
-            if ($param->input_type === 'sensor') {
+            if ($param->input_type === 'sensor' && $bucket) {
+                $sums = [];
+                $readings = \App\Models\SensorReading::where('site_id', $site->id)
+                    ->where('site_parameter_id', $param->id)
+                    ->whereBetween('read_at', [$from, $to])
+                    ->whereNotNull('value')
+                    ->toBase()->select('read_at', 'value')->cursor();
+                foreach ($readings as $r) {
+                    $at = strtotime($r->read_at);
+                    $at -= $at % $bucket;
+                    $sums[$at][0] = ($sums[$at][0] ?? 0) + $r->value;
+                    $sums[$at][1] = ($sums[$at][1] ?? 0) + 1;
+                }
+                ksort($sums);
+                $rows = collect($sums)->map(fn ($s, $at) => [
+                    'key'   => date('Y-m-d H:i', $at),
+                    'label' => date($sensorLabel, $at),
+                    'value' => round($s[0] / $s[1], 3),
+                ])->values();
+            } elseif ($param->input_type === 'sensor') {
                 $rows = \App\Models\SensorReading::where('site_id', $site->id)
                     ->where('site_parameter_id', $param->id)
                     ->whereBetween('read_at', [$from, $to])
@@ -221,10 +248,32 @@ class DashboardController extends Controller
             // silence between two points really was.
             'timestamps'      => array_map(fn ($key) => \Illuminate\Support\Carbon::parse($key, config('app.timezone'))->getTimestamp(), $timeKeys),
             'datasets'        => $datasets,
+            // Sensor values are averages over this many minutes (0 = raw).
+            'bucket_minutes'  => intdiv($bucket, 60),
             'from'            => $from->toISOString(),
             'to'              => $to->toISOString(),
             'last_reading_at' => $lastReadingAt ? \Illuminate\Support\Carbon::parse($lastReadingAt)->toISOString() : null,
         ]);
+    }
+
+    /**
+     * Averaging interval for a chart window: none up to two days, then the
+     * smallest round interval that keeps a chart under about 600 points.
+     */
+    private function chartBucketSeconds(\Carbon\Carbon $from, \Carbon\Carbon $to): int
+    {
+        $window = $to->getTimestamp() - $from->getTimestamp();
+        if ($window <= 48 * 3600) {
+            return 0;
+        }
+
+        foreach ([600, 1800, 3600, 2 * 3600, 3 * 3600, 6 * 3600, 12 * 3600] as $step) {
+            if ($window / $step <= 600) {
+                return $step;
+            }
+        }
+
+        return 86400;
     }
 
     // ── Raw Data (HTML partial) ────────────────────────────────
