@@ -23,6 +23,15 @@
 .chart-section{margin-bottom:14px}
 .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:16px}
 .cc-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+/* A chart opens large over the page when clicked (see expandChart). */
+.chart-section canvas{cursor:zoom-in}
+.chart-section.is-expanded{position:fixed;inset:24px;z-index:1001;display:flex;flex-direction:column;overflow:auto}
+.chart-section.is-expanded canvas{cursor:default}
+.chart-section.is-expanded .chart-area{flex:1;min-height:0;height:auto!important}
+.chart-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1000}
+.chart-close{display:none;margin-left:auto;border:1px solid var(--border);background:var(--surface);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--muted);cursor:pointer}
+.chart-section.is-expanded .chart-close{display:inline-block}
+@media (max-width:640px){.chart-section.is-expanded{inset:8px}}
 .cc-title{font-size:13px;font-weight:600}
 .charts-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .charts-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
@@ -307,7 +316,7 @@ select.ag-input{cursor:pointer}
           </div>
         </div>
       </div>
-      <div style="position:relative;height:{{ $chart->height }}px">
+      <div class="chart-area" style="position:relative;height:{{ $chart->height }}px">
         <canvas id="admin-chart-{{ $chart->id }}" data-site="{{ $site->slug }}" data-category="{{ $category->slug }}"></canvas>
       </div>
     </div>
@@ -319,7 +328,7 @@ select.ag-input{cursor:pointer}
         <div class="cc-head">
           <div class="cc-title">{{ $chart->title }}</div>
         </div>
-        <div style="position:relative;height:{{ $chart->height }}px">
+        <div class="chart-area" style="position:relative;height:{{ $chart->height }}px">
           <canvas id="admin-chart-{{ $chart->id }}" data-site="{{ $site->slug }}" data-category="{{ $category->slug }}"></canvas>
         </div>
       </div>
@@ -333,7 +342,7 @@ select.ag-input{cursor:pointer}
         <div class="cc-head">
           <div class="cc-title">{{ $chart->title }}</div>
         </div>
-        <div style="position:relative;height:{{ $chart->height }}px">
+        <div class="chart-area" style="position:relative;height:{{ $chart->height }}px">
           <canvas id="admin-chart-{{ $chart->id }}" data-site="{{ $site->slug }}" data-category="{{ $category->slug }}"></canvas>
         </div>
       </div>
@@ -347,7 +356,7 @@ select.ag-input{cursor:pointer}
     <div class="cc-head">
       <div><div class="cc-title">{{ $category->icon }} {{ $category->name }} — Trends</div></div>
     </div>
-    <div style="position:relative;height:220px">
+    <div class="chart-area" style="position:relative;height:220px">
       <canvas id="chart-main-{{ $category->slug }}"></canvas>
     </div>
   </div>
@@ -982,6 +991,49 @@ function loadAdminChart(chartId, catSlug, paramConfigs, hasSecondAxis, chartType
   @endforeach
 @endforeach
 adminChartLoaders.forEach(load => load());
+
+// A chart opens large over the page when clicked, with more dates on its
+// axis; ✕, Esc or a click outside puts it back.
+function expandChart(card) {
+  if (card.classList.contains('is-expanded')) return;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'chart-backdrop';
+  backdrop.addEventListener('click', () => collapseChart(card));
+  document.body.appendChild(backdrop);
+  card._backdrop = backdrop;
+  card.classList.add('is-expanded');
+  resizeCharts(card, 14);
+}
+
+function collapseChart(card) {
+  card.classList.remove('is-expanded');
+  card._backdrop?.remove();
+  resizeCharts(card, 6);
+}
+
+function resizeCharts(card, ticks) {
+  card.querySelectorAll('canvas').forEach(c => {
+    const chart = c._chartInstance;
+    if (!chart) return;
+    // A copy: every chart's x axis shares baseOpts.scales.x.
+    chart.config.options.scales.x = { ...baseOpts.scales.x, ticks: { ...baseOpts.scales.x.ticks, maxTicksLimit: ticks } };
+    chart.resize();
+    chart.update('none');
+  });
+}
+
+document.querySelectorAll('.chart-section').forEach(card => {
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'chart-close';
+  close.textContent = '✕ Close';
+  close.addEventListener('click', e => { e.stopPropagation(); collapseChart(card); });
+  (card.querySelector('.cc-head') || card).appendChild(close);
+  card.querySelector('.chart-area')?.addEventListener('click', () => expandChart(card));
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.chart-section.is-expanded').forEach(collapseChart);
+});
 
 // Top-bar 1H/6H/24H/7D buttons (layouts/dashboard.blade.php's setRange) call this.
 function onRangeChange(r, from, to) {
