@@ -937,8 +937,14 @@ function htmlLegend(canvas, chart) {
 function shortLabels(labels) {
   const cut = labels.map(l => l.lastIndexOf(' – '));
   const tails = labels.map((l, i) => cut[i] > 0 ? l.slice(cut[i]) : null);
-  return labels.length > 1 && tails.every(t => t && t === tails[0])
-    ? labels.map((l, i) => l.slice(0, cut[i]))
+  if (labels.length > 1 && tails.every(t => t && t === tails[0])) {
+    return labels.map((l, i) => l.slice(0, cut[i]));
+  }
+  // Different quantities in one chart (wind and gusts): at least drop the
+  // unit they share, which the chart title already gives.
+  const units = labels.map(l => (l.match(/ \([^()]*\)$/) || [null])[0]);
+  return labels.length > 1 && units.every(u => u && u === units[0])
+    ? labels.map(l => l.slice(0, -units[0].length))
     : labels;
 }
 
