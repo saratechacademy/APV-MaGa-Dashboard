@@ -221,12 +221,11 @@ select.ag-input{cursor:pointer}
   @endphp
 
   @php
-    // Un groupe d'un seul paramètre n'apporte rien visuellement : traité comme standalone.
+    // Every group keeps its label, even with one parameter: the label says
+    // where the sensor is (UTG's business field has a single valve).
     $sensorByGroup     = $sensorDashParams->filter(fn($p) => $p->site_parameter_group_id)->groupBy('site_parameter_group_id');
-    $sensorGroups      = $sensorByGroup->filter(fn($g) => $g->count() > 1)
-                          ->sortBy(fn($gParams) => $gParams->first()->group->sort_order ?? 0);
-    $sensorStandalone  = $sensorDashParams->filter(fn($p) => !$p->site_parameter_group_id)
-                          ->merge($sensorByGroup->filter(fn($g) => $g->count() <= 1)->flatMap(fn($g) => $g));
+    $sensorGroups      = $sensorByGroup->sortBy(fn($gParams) => $gParams->first()->group->sort_order ?? 0);
+    $sensorStandalone  = $sensorDashParams->filter(fn($p) => !$p->site_parameter_group_id);
   @endphp
 
   @if($sensorDashParams->count() > 0)
@@ -257,10 +256,8 @@ select.ag-input{cursor:pointer}
 
   @php
     $manualByGroup     = $manualDashParams->filter(fn($p) => $p->site_parameter_group_id)->groupBy('site_parameter_group_id');
-    $manualGroups      = $manualByGroup->filter(fn($g) => $g->count() > 1)
-                          ->sortBy(fn($gParams) => $gParams->first()->group->sort_order ?? 0);
-    $manualStandalone  = $manualDashParams->filter(fn($p) => !$p->site_parameter_group_id)
-                          ->merge($manualByGroup->filter(fn($g) => $g->count() <= 1)->flatMap(fn($g) => $g));
+    $manualGroups      = $manualByGroup->sortBy(fn($gParams) => $gParams->first()->group->sort_order ?? 0);
+    $manualStandalone  = $manualDashParams->filter(fn($p) => !$p->site_parameter_group_id);
   @endphp
 
   @if($manualDashParams->count() > 0)

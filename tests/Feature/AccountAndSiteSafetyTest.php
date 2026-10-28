@@ -264,4 +264,20 @@ class AccountAndSiteSafetyTest extends TestCase
         $this->assertStringContainsString('label: ' . $asJson, $html);
         $this->assertStringNotContainsString("label: 'Farmer", $html);
     }
+
+    public function test_a_field_group_keeps_its_label_with_a_single_sensor(): void
+    {
+        $admin = $this->admin();
+        $site  = Site::factory()->create(['status' => 'active']);
+        $cat   = SiteCategory::factory()->create(['site_id' => $site->id, 'slug' => 'irrigation', 'is_active' => true]);
+        $group = \App\Models\SiteParameterGroup::create(['site_category_id' => $cat->id, 'name' => 'Business field', 'color' => '#8b5cf6', 'sort_order' => 2]);
+        SiteParameter::factory()->create([
+            'site_category_id' => $cat->id, 'name' => 'Business 0 – Valve state', 'data_type' => 'switch',
+            'group_name' => 'Business field', 'site_parameter_group_id' => $group->id, 'is_active' => true,
+        ]);
+
+        $html = $this->actingAs($admin)->get(route('dashboard.site', $site))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('/class="pg-head"[^>]*>\s*<span class="pg-dot"[^>]*><\/span>\s*Business field/', $html);
+    }
 }
