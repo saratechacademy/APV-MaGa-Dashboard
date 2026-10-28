@@ -1,9 +1,10 @@
 # APV-MaGa — Deployment Guide
 
-This guide covers two procedures:
+This guide covers three procedures:
 
 - **A. Deploying an installation connected to the APV-MaGa data sources.** The server builds its sites, sensors and history from ThingsBoard and LI-COR Cloud. The database starts empty.
 - **B. Moving an existing installation to another server.** The database, including accounts and manual entries, is transferred.
+- **C. Updating an installation in service** to the latest version of the code. The database and settings are kept.
 
 Commands are run as root from the project root. Commands that must run as the web server user are prefixed with `sudo -u $WEB`, where `$WEB` is that user (`www` on AAPanel, `www-data` on Debian/Ubuntu):
 
@@ -202,6 +203,88 @@ The database file contains password hashes and API keys. Transfer it only over S
 
 ---
 
+## C. Updating an installation in service
+
+The site stays online during the update; the database, accounts and settings are kept. Run the steps in order from the project root.
+
+### C1. Back up the database
+
+```bash
+STAMP=$(date +%Y%m%d-%H%M)
+sqlite3 -cmd ".timeout 300000" database/database.sqlite ".backup /root/apvmaga-before-update-$STAMP.sqlite"
+cp .env /root/apvmaga-env-before-update-$STAMP
+PREVIOUS=$(sudo -u $WEB git rev-parse HEAD)    # the version to return to if needed
+```
+
+### C2. Check the working copy
+
+```bash
+sudo -u $WEB git status --short
+```
+
+The output must be empty. A modified tracked file (` M`) means someone edited the server copy: compare it with `sudo -u $WEB git diff` before going on, since the update would conflict with it. Untracked files (`??`) are handled as in A2. Files the hosting panel creates in the project root (on AAPanel: `.htaccess`, `.user.ini`, `404.html`, `502.html`, `index.html`) are not part of the project: leave them in place and hide them from git once:
+
+```bash
+printf '.htaccess
+.user.ini
+404.html
+502.html
+/index.html
+' >> .git/info/exclude
+```
+
+### C3. Fetch the new version
+
+```bash
+sudo -u $WEB git fetch origin
+sudo -u $WEB git log --oneline HEAD..origin/main     # what the update brings
+sudo -u $WEB git merge --ff-only origin/main
+```
+
+`--ff-only` stops without changing anything if the server copy has diverged from GitHub (see C2).
+
+### C4. Dependencies, database and caches
+
+```bash
+sudo -u $WEB git diff --quiet $PREVIOUS HEAD -- composer.lock || composer install --no-dev --optimize-autoloader
+chown -R $WEB:$WEB .
+sudo -u $WEB php artisan migrate --force
+sudo -u $WEB php artisan optimize:clear
+sudo -u $WEB php artisan config:cache
+```
+
+`composer install` runs only when the dependencies changed. `migrate` applies only the new migrations; it prints `Nothing to migrate` otherwise. Run `config:cache` again after every later change to `.env`, otherwise the change is ignored.
+
+PHP-FPM does not need restarting: new code is picked up on the next request.
+
+### C5. Verify
+
+- [ ] The login page opens, and **All Sites** shows every site with its status.
+- [ ] One page per site opens with its charts.
+- [ ] **Admin → Sites** shows `ok` for the ThingsBoard and LI-COR links ten minutes later.
+- [ ] `storage/logs/laravel-$(date +%F).log` has no new `ERROR` line.
+
+### C6. Roll back
+
+If the new version misbehaves:
+
+```bash
+sudo -u $WEB git reset --hard $PREVIOUS
+sudo -u $WEB php artisan optimize:clear && sudo -u $WEB php artisan config:cache
+```
+
+Restore the database backup only if the update ran migrations (C4 listed some) — readings and entries recorded since the backup are then lost:
+
+```bash
+cp /root/apvmaga-before-update-$STAMP.sqlite database/database.sqlite && chown $WEB:$WEB database/database.sqlite
+```
+
+### C7. Updating PHP
+
+PHP updates (security releases) are independent of the application. On AAPanel the PHP version is shared by every site on the server, so an update affects all of them and restarts PHP-FPM; plan it and check each site afterwards. The application requires PHP 8.2 or later.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Cause / action |
@@ -212,4 +295,6 @@ The database file contains password hashes and API keys. Transfer it only over S
 | `Permission denied`, `readonly database` | `chown -R $WEB:$WEB .` |
 | `detected dubious ownership in repository` | Run git as the web server user: `sudo -u $WEB git …` |
 | Badge `late` in Admin → Sites | The scheduler is not running; check `/etc/cron.d/apvmaga-scheduler` and `which php` |
+| `Not possible to fast-forward` (C3) | The server copy has local commits or edits; see C2. To discard them: `sudo -u $WEB git reset --hard origin/main` |
+| A change to `.env` has no effect | The configuration is cached: `sudo -u $WEB php artisan config:cache` |
 | Merge conflicts after `git pull` | `sudo -u $WEB git merge --abort`, then `sudo -u $WEB git fetch origin` and `sudo -u $WEB git reset --hard origin/main` |
