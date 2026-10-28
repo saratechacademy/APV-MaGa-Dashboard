@@ -523,13 +523,9 @@ select.ag-input{cursor:pointer}
 {{-- RAW DATA TAB --}}
 <div class="tab-panel" id="tab-raw">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-    <div style="display:flex;gap:6px" id="raw-period-btns">
-      @foreach(['1h'=>'1H','6h'=>'6H','24h'=>'24H','7d'=>'7D','30d'=>'30D'] as $val=>$lbl)
-      <button onclick="setRawPeriod('{{ $val }}', this)" data-period="{{ $val }}"
-        style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid {{ $val==='24h' ? '#1d6ed8' : 'var(--border)' }};background:{{ $val==='24h' ? '#1d6ed8' : 'var(--surface)' }};color:{{ $val==='24h' ? '#fff' : 'var(--muted)' }}">
-        {{ $lbl }}
-      </button>
-      @endforeach
+    {{-- The table and its downloads follow the period chosen in the top bar. --}}
+    <div style="font-size:13px;color:var(--muted)">
+      Period: <b id="raw-period-label" style="color:var(--text)">last 24 hours</b> · change it at the top of the page
     </div>
     <div style="display:flex;gap:8px">
       <a href="/export/{{ $site->slug }}/all/csv?hours=24" id="btn-all-csv" class="btn" style="text-decoration:none">All CSV</a>
@@ -1101,23 +1097,29 @@ function onRangeChange(r, from, to) {
   // afterward shows the new range instead of a stale cached one.
   catCharts.forEach(cat => loadCategoryData(cat));
   adminChartLoaders.forEach(load => load());
+  // Raw Data follows the same period: a download made there must cover what
+  // the top bar says, not a range of its own.
+  rawCurrentPage = 1;
+  showRawPeriod();
+  if (document.getElementById('tab-raw')?.classList.contains('active')) fetchRawData();
 }
 
-let rawCurrentHours = 24, rawCurrentPage = 1;
+let rawCurrentPage = 1;
 
-function setRawPeriod(period, btn) {
-  document.querySelectorAll('#raw-period-btns button').forEach(b => {
-    b.style.background = 'var(--surface)'; b.style.color = 'var(--muted)'; b.style.borderColor = 'var(--border)';
-  });
-  btn.style.background = '#1d6ed8'; btn.style.color = '#fff'; btn.style.borderColor = '#1d6ed8';
-  const map = {'1h':1,'6h':6,'24h':24,'7d':168,'30d':720};
-  rawCurrentHours = map[period] || 1; rawCurrentPage = 1;
+function showRawPeriod() {
+  const label = document.getElementById('raw-period-label');
+  if (label) {
+    const fmt = d => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    label.textContent = (siteCustomFrom && siteCustomTo)
+      ? `${fmt(siteCustomFrom)} → ${fmt(siteCustomTo)}`
+      : ({ 1: 'last hour', 6: 'last 6 hours', 24: 'last 24 hours', 168: 'last 7 days' }[HOURS] || `last ${HOURS} hours`);
+  }
   const csvBtn = document.getElementById('btn-all-csv');
   const excelBtn = document.getElementById('btn-all-excel');
-  if (csvBtn)   csvBtn.href   = `/export/${SITE_SLUG}/all/csv?hours=${rawCurrentHours}`;
-  if (excelBtn) excelBtn.href = `/export/${SITE_SLUG}/all/excel?hours=${rawCurrentHours}`;
-  fetchRawData();
+  if (csvBtn)   csvBtn.href   = `/export/${SITE_SLUG}/all/csv?${dateRangeQuery()}`;
+  if (excelBtn) excelBtn.href = `/export/${SITE_SLUG}/all/excel?${dateRangeQuery()}`;
 }
+showRawPeriod();
 
 // Phones get one list per sensor; the timestamp table is for wider screens.
 const rawPhone = window.matchMedia('(max-width: 640px)');
@@ -1128,8 +1130,8 @@ function fetchRawData(page) {
   if (!container) return;
   container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">Loading...</div>';
   const url = rawPhone.matches
-    ? `/dashboard/sites/${SITE_SLUG}/raw-sensors?hours=${rawCurrentHours}`
-    : `/dashboard/sites/${SITE_SLUG}/raw-data?hours=${rawCurrentHours}&page=${rawCurrentPage}`;
+    ? `/dashboard/sites/${SITE_SLUG}/raw-sensors?${dateRangeQuery()}`
+    : `/dashboard/sites/${SITE_SLUG}/raw-data?${dateRangeQuery()}&page=${rawCurrentPage}`;
   fetch(url)
     .then(r => r.text()).then(html => { container.innerHTML = html; })
     .catch(() => { container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Error loading data</div>'; });
@@ -1138,7 +1140,7 @@ function fetchRawData(page) {
 function rawSensorMore(btn, parameterId, before) {
   btn.disabled = true;
   btn.textContent = 'Loading...';
-  fetch(`/dashboard/sites/${SITE_SLUG}/raw-sensors?hours=${rawCurrentHours}&parameter=${parameterId}&before=${encodeURIComponent(before)}`)
+  fetch(`/dashboard/sites/${SITE_SLUG}/raw-sensors?${dateRangeQuery()}&parameter=${parameterId}&before=${encodeURIComponent(before)}`)
     .then(r => r.text())
     .then(html => { const item = btn.closest('li'); item.insertAdjacentHTML('beforebegin', html); item.remove(); })
     .catch(() => { btn.disabled = false; btn.textContent = 'Show older readings'; });

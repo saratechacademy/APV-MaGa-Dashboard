@@ -222,6 +222,15 @@ class BusinessRulesTest extends TestCase
             ->assertSee('Page 1 of 3')->assertSee('2026-10-13 11:50:00')->assertDontSee('2026-10-13 08:30:00');
         $this->get($url . '?page=3')->assertOk()
             ->assertSee('Page 3 of 3')->assertSee('2026-10-13 02:00:00')->assertDontSee('2026-10-13 11:50:00');
+
+        // A custom period from the top bar: the table and its download links
+        // cover those days, not a range of their own.
+        $this->get($url . '?from=2026-10-12&to=2026-10-13')->assertOk()
+            ->assertSee('2026-10-13 11:50:00')
+            ->assertSee('/weather/csv?from=2026-10-12&amp;to=2026-10-13', false)
+            ->assertSee('/weather/excel?from=2026-10-12&amp;to=2026-10-13', false)
+            ->assertDontSee('/weather/csv?hours=', false);
+        $this->get($url)->assertSee('/weather/csv?hours=24', false);
     }
 
     public function test_csv_export_includes_manual_text_values(): void
