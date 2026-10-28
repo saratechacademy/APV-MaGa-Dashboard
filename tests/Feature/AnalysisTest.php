@@ -130,8 +130,13 @@ class AnalysisTest extends TestCase
         $this->analyse(['mode' => 'site', 'site' => $site->id, 'quantity' => 'air_temperature', 'step' => 'hour'])
             ->assertStatus(422)->assertJsonPath('errors.quantity.0', 'This site measures this quantity in fewer than two zones: there is nothing to compare.');
 
-        $this->actingAs($this->admin)->getJson(route('analysis.data', ['mode' => 'site', 'site' => $site->id, 'quantity' => 'air_temperature', 'step' => 'day', 'from' => '2026-01-01', 'to' => '2026-10-17']))
-            ->assertStatus(422)->assertJsonValidationErrors('to');
+        $period = fn (string $step, string $from) => $this->actingAs($this->admin)->getJson(route('analysis.data',
+            ['mode' => 'site', 'site' => $site->id, 'quantity' => 'air_temperature', 'step' => $step, 'from' => $from, 'to' => '2026-10-17']));
+
+        // A whole season compares in daily values, not in hourly ones; nothing beyond a year.
+        $period('day', '2026-06-01')->assertStatus(422)->assertJsonMissingValidationErrors('to');
+        $period('hour', '2026-06-01')->assertStatus(422)->assertJsonPath('errors.to.0', 'With hourly values a period is limited to 92 days: choose daily values for a longer one.');
+        $period('day', '2025-06-01')->assertStatus(422)->assertJsonValidationErrors('to');
     }
 
     public function test_only_the_sites_a_user_may_open_can_be_analysed(): void

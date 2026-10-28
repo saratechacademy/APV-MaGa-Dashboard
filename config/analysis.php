@@ -11,8 +11,11 @@
 //              its unit (PAR → daily light integral).
 // 'diurnal'    the hour-of-day profile is meaningful.
 // 'about'      plain-language explanation shown with the results.
+//
+// 'max_days'   longest period per step: a season compares in daily values,
+//              hourly values stop at three months.
 return [
-    'max_days' => 92,
+    'max_days' => ['hour' => 92, 'day' => 366],
 
     'quantities' => [
         'par' => [

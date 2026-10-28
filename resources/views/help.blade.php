@@ -1182,12 +1182,12 @@ X-API-Key: apv-xxxxxxxxxxxxxxxxxx</div>
           @php
           $anSteps = $lang==='fr' ? [
             'Choisissez le mode, puis le site (ou les sites, ou les paramètres) et la grandeur. Seules les combinaisons réellement mesurées sont proposées.',
-            'Choisissez la période (boutons 7, 30 ou 90 jours, ou dates précises ; 92 jours au plus) et le pas : valeurs horaires ou journalières.',
+            'Choisissez la période (boutons 7, 30, 90 jours ou 1 an, ou dates précises ; 92 jours au plus en valeurs horaires, un an en journalières) et le pas : valeurs horaires ou journalières.',
             'Cliquez sur <strong>Analyse</strong>. Les résultats s\'affichent sous le formulaire.',
             'Pour recommencer, cliquez sur <strong>New analysis</strong> : l\'écran est vidé, aucune donnée n\'est effacée.',
           ] : [
             'Choose the mode, then the site (or sites, or parameters) and the quantity. Only combinations that are actually measured are offered.',
-            'Choose the period (7, 30 or 90 days, or exact dates; 92 days at most) and the step: hourly or daily values.',
+            'Choose the period (7, 30, 90 days or 1 year, or exact dates; 92 days at most with hourly values, one year with daily ones) and the step: hourly or daily values.',
             'Click <strong>Analyse</strong>. The results appear below the form.',
             'To start again, click <strong>New analysis</strong>: the screen is cleared, no data is deleted.',
           ];

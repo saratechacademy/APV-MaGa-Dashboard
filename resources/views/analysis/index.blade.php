@@ -99,6 +99,7 @@
         <button type="button" class="btn" data-days="7">7 days</button>
         <button type="button" class="btn" data-days="30">30 days</button>
         <button type="button" class="btn" data-days="90">90 days</button>
+        <button type="button" class="btn" data-days="365">1 year</button>
       </div>
     </div>
     <div class="form-field">
@@ -272,6 +273,11 @@ byId('an-site').addEventListener('change', () => refreshQuantities());
 document.querySelectorAll('#an-sites input').forEach(i => i.addEventListener('change', () => refreshQuantities()));
 byId('an-quantity').addEventListener('change', () => { refreshZones(); refreshAbout(); });
 document.querySelectorAll('.an-presets button').forEach(b => b.addEventListener('click', () => setPeriod(+b.dataset.days)));
+// Hourly values stop at {{ config('analysis.max_days.hour') }} days: a longer period switches to daily ones.
+['an-from', 'an-to', 'an-from2', 'an-to2'].forEach(id => byId(id).addEventListener('change', () => {
+  const span = (a, b) => (new Date(byId(b).value) - new Date(byId(a).value)) / 864e5 + 1;
+  if (span('an-from', 'an-to') > {{ config('analysis.max_days.hour') }} || (mode === 'periods' && span('an-from2', 'an-to2') > {{ config('analysis.max_days.hour') }})) byId('an-step').value = 'day';
+}));
 byId('an-run').addEventListener('click', run);
 
 // Clears the results and goes back to a blank selection (nothing is deleted).

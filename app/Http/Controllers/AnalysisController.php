@@ -102,13 +102,13 @@ class AnalysisController extends Controller
             'step'     => 'required|in:hour,day',
         ]);
 
-        [$from, $to] = $this->window($data['from'], $data['to'], 'to');
+        [$from, $to] = $this->window($data['from'], $data['to'], 'to', $data['step']);
 
         $series = match ($data['mode']) {
             'site'    => $this->zoneSeries($this->accessibleSite($data['site']), $data['quantity'], $data['zone'] ?? null),
             'sites'   => $this->siteSeries($data['sites'], $data['quantity'], $data['zone'] ?? Zones::REFERENCE),
             'periods' => $this->periodSeries($this->accessibleSite($data['site']), $data['quantity'], $data['zone'] ?? 'any',
-                [$from, $to], $this->window($data['from2'], $data['to2'], 'to2')),
+                [$from, $to], $this->window($data['from2'], $data['to2'], 'to2', $data['step'])),
             'free'    => $this->parameterSeries($data['params']),
         };
 
@@ -127,12 +127,15 @@ class AnalysisController extends Controller
     }
 
     /** @return array{0: Carbon, 1: Carbon} whole UTC days, end exclusive */
-    private function window(string $from, string $to, string $field): array
+    private function window(string $from, string $to, string $field, string $step): array
     {
         $start = Carbon::parse($from, 'UTC')->startOfDay();
         $end   = Carbon::parse($to, 'UTC')->addDay()->startOfDay();
-        if ($start->diffInDays($end) > config('analysis.max_days')) {
-            throw ValidationException::withMessages([$field => 'A period is limited to ' . config('analysis.max_days') . ' days.']);
+        $max   = config("analysis.max_days.{$step}");
+        if ($start->diffInDays($end) > $max) {
+            throw ValidationException::withMessages([$field => $step === 'hour'
+                ? "With hourly values a period is limited to {$max} days: choose daily values for a longer one."
+                : "A period is limited to {$max} days."]);
         }
 
         return [$start, $end];
