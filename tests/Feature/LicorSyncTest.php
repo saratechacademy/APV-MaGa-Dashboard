@@ -14,6 +14,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Sleep;
 use Tests\TestCase;
 
 /**
@@ -225,6 +226,7 @@ class LicorSyncTest extends TestCase
 
     public function test_a_failing_station_is_reported_without_blocking_the_other_sites(): void
     {
+        Sleep::fake();
         Log::spy();
         $site  = $this->makeSite();
         $other = Site::factory()->create(['status' => 'active']);
@@ -248,6 +250,29 @@ class LicorSyncTest extends TestCase
         $this->assertSame('ok', $other->refresh()->licorSyncState());
         $this->assertSame('failed', $site->refresh()->licorSyncState());
         $this->assertStringStartsWith('station 22490036: ', $site->licor_sync_error);
+    }
+
+    public function test_a_rate_limit_is_waited_out_instead_of_failing_the_run(): void
+    {
+        Sleep::fake();
+        $site = $this->makeSite();
+
+        Http::fake([
+            'licor.test/v2/devices*' => Http::sequence()
+                ->push('slow down', 429, ['Retry-After' => '30'])
+                ->push('slow down', 429)
+                ->push(['devices' => [['deviceSerialNumber' => '22490036', 'sensors' => [['sensorSerialNumber' => 'P-1', 'measurementType' => 'Pressure']]]]]),
+            'licor.test/v2/data*' => Http::response(['moreResults' => false, 'sensors' => [[
+                'sensorSerialNumber' => 'P-1',
+                'data' => [['records' => $this->minutes('11:30', '11:45', fn () => 1012)]],
+            ]]]),
+        ]);
+
+        $this->artisan('licor:sync')->assertSuccessful();
+
+        $this->assertSame(['11:30' => 1012.0], $this->series($site, 'licor_P_1'));
+        // Retry-After honoured, then the default wait for a bare 429.
+        Sleep::assertSequence([Sleep::for(30)->seconds(), Sleep::for(40)->seconds()]);
     }
 
     public function test_paged_responses_are_followed_without_losing_or_doubling_records(): void

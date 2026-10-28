@@ -110,11 +110,22 @@ class LicorClient
         }
 
         // Retry only what a second attempt can fix: network errors, 429 and 5xx.
+        // A rate limit is waited out (Retry-After when given, else 20 s, 40 s,
+        // 60 s): two seconds later the cloud still refuses, and a long history
+        // load would stop on it.
         return Http::baseUrl(rtrim((string) $this->url, '/'))
             ->withToken($this->token)
             ->acceptJson()
             ->timeout(120)
-            ->retry(3, 2000, fn ($e) => $e instanceof ConnectionException
+            ->retry(4, function (int $attempt, $e) {
+                if ($e instanceof RequestException && $e->response->status() === 429) {
+                    $after = (int) $e->response->header('Retry-After');
+
+                    return 1000 * ($after > 0 ? min($after, 300) : 20 * min($attempt, 3));
+                }
+
+                return 2000;
+            }, fn ($e) => $e instanceof ConnectionException
                 || ($e instanceof RequestException && ($e->response->serverError() || $e->response->status() === 429)));
     }
 }
