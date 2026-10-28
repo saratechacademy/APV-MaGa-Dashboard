@@ -143,7 +143,7 @@
               [$lang==='fr' ? 'Tâches planifiées' : 'Scheduled tasks', 'Laravel scheduler (cron)'],
               ['E-mail', 'SMTP'],
               [$lang==='fr' ? 'Graphiques' : 'Charts', 'Chart.js 4'],
-              [$lang==='fr' ? 'Export' : 'Export', 'Maatwebsite/Excel (CSV / XLSX)'],
+              [$lang==='fr' ? 'Export' : 'Export', 'CSV (gzip) / XLSX, streamed'],
               [$lang==='fr' ? 'Authentification' : 'Authentication', 'Laravel Breeze (session-based)'],
               [$lang==='fr' ? 'Hébergement' : 'Hosting', 'Hostinger VPS + AAPanel + Nginx'],
               ['SSL', "Let's Encrypt"],
