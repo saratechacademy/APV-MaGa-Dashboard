@@ -16,11 +16,12 @@ class LicorClient
     public function __construct(
         private readonly ?string $url,
         private readonly ?string $token,
+        private readonly int $maxWindowBytes = 4 * 1024 * 1024,
     ) {}
 
     public static function fromConfig(): self
     {
-        return new self(config('licor.url'), config('licor.token'));
+        return new self(config('licor.url'), config('licor.token'), (int) config('licor.max_window_bytes', 4 * 1024 * 1024));
     }
 
     public function isConfigured(): bool
@@ -41,17 +42,40 @@ class LicorClient
      * instants, as [sensor serial => records oldest first], following the
      * API's paging. One request covers all sensors: far faster than one per
      * sensor. Keep the range to a few hours: a station logs ~43k records a day.
+     *
+     * @throws LicorWindowTooLarge when the window holds more than maxWindowBytes
      */
     public function records(string $deviceSerial, int $startMs, int $endMs): array
     {
         $records = [];
+        $bytes   = 0;
+        $window  = [$startMs, $endMs];
 
         while ($startMs < $endMs) {
-            $body = $this->request()->get('/data', [
+            // Read as a stream, counting: a station that uploads weeks of
+            // buffered data at once can answer with more than PHP may hold.
+            $response = $this->request()->withOptions(['stream' => true])->get('/data', [
                 'deviceSerialNumber' => $deviceSerial,
                 'startTime'          => $startMs,
                 'endTime'            => $endMs,
-            ])->throw()->json();
+            ])->throw();
+
+            $stream = $response->toPsrResponse()->getBody();
+            if ($stream->isSeekable()) {
+                $stream->rewind();   // a body already read once (test fakes reuse theirs)
+            }
+            $json   = '';
+            while (!$stream->eof()) {
+                $json .= $stream->read(1024 * 1024);
+                if ($bytes + strlen($json) > $this->maxWindowBytes) {
+                    $stream->close();
+                    throw new LicorWindowTooLarge(sprintf('station %s: more than %s bytes of data between %s and %s',
+                        $deviceSerial, number_format($this->maxWindowBytes), date('Y-m-d H:i', intdiv($window[0], 1000)), date('Y-m-d H:i', intdiv($window[1], 1000))));
+                }
+            }
+            $bytes += strlen($json);
+            $body = json_decode($json, true) ?? [];
+            unset($json);
 
             // Keyed by timestamp: overlapping pages can't duplicate a record.
             $pageLast = [];

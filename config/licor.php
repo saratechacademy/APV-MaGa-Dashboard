@@ -21,6 +21,12 @@ return [
     // has data is fetched with `--from` on the sync command.
     'history_from' => env('LICOR_HISTORY_FROM'),
 
+    // Raw response bytes loaded at once for one fetch window. A normal 12-hour
+    // window of a station is about half a megabyte; a heavier one (a station
+    // uploading a backlog) is fetched in shorter windows. Decoded, a byte of
+    // JSON takes some 20 bytes of memory: this stays well inside PHP's 128 MB.
+    'max_window_bytes' => 4 * 1024 * 1024,
+
     // HOBOnet logs every minute: ~1,440 points per sensor per day, 90 sensors
     // per site. Readings are averaged into buckets of this many minutes
     // before being stored, which keeps the SQLite database a manageable size.

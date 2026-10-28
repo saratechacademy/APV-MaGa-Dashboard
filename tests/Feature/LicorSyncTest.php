@@ -340,4 +340,34 @@ class LicorSyncTest extends TestCase
             ->map(fn ($pair) => (int) $pair[0]['startTime'])->values()->all();
         $this->assertContains($this->ms('2026-10-10 00:00'), $starts);
     }
+
+    public function test_a_window_too_heavy_to_load_is_fetched_in_shorter_windows(): void
+    {
+        // A backlog: so many records that a whole window would not fit.
+        config(['licor.lookback_days' => 1, 'licor.max_window_bytes' => 6000]);
+        $site = $this->makeSite();
+        $this->fakeLicor(['22034652-1' => ['Temperature', $this->minutes('2026-10-11 12:00', '12:00', fn () => 20)]]);
+
+        $this->artisan('licor:sync')->assertSuccessful();
+
+        // Every bucket of the day arrived, through windows far shorter than 12 hours.
+        $param = SiteParameter::where('slug', 'licor_22034652_1')->firstOrFail();
+        $this->assertSame(144, SensorReading::where('site_parameter_id', $param->id)->count());
+        $windows = Http::recorded(fn (Request $r) => str_contains($r->url(), '/data'))
+            ->map(fn ($pair) => ((int) $pair[0]['endTime'] - (int) $pair[0]['startTime']) / 60000)->all();
+        $this->assertLessThan(720, min($windows));
+        $this->assertNull($site->refresh()->licor_sync_error);
+    }
+
+    public function test_a_station_too_heavy_even_for_ten_minutes_is_reported_not_crashed(): void
+    {
+        config(['licor.lookback_days' => 1, 'licor.max_window_bytes' => 50]);
+        $site = $this->makeSite();
+        $this->fakeLicor(['22034652-1' => ['Temperature', $this->minutes('2026-10-11 12:00', '12:00', fn () => 20)]]);
+
+        $this->artisan('licor:sync')->assertFailed();
+
+        $this->assertStringContainsString('bytes of data between', $site->refresh()->licor_sync_error);
+        $this->assertSame(0, SensorReading::count());
+    }
 }

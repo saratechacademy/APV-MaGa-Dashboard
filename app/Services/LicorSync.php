@@ -94,17 +94,32 @@ class LicorSync
                 // sensor is missing, each window stored before the next is
                 // fetched: a week of 30 sensors does not fit in memory at once.
                 // Windows are bucket-aligned, so no bucket straddles two of them.
+                // A window too heavy to load (a station uploading a backlog)
+                // is halved, down to one bucket; after that the windows grow
+                // back two-fold, rather than at once, which would only fail
+                // and be split again on every window of the backlog.
                 $nowMs = $now->getTimestampMs();
-                for ($start = $this->fetchFrom($site, array_column($targets, 2)); $start < $nowMs; $start += self::WINDOW_MS) {
-                    $end     = min($start + self::WINDOW_MS, $nowMs);
-                    $records = $this->client->records($site->licor_device_serial, $start, $end);
+                $step  = self::WINDOW_MS;
+                for ($start = $this->fetchFrom($site, array_column($targets, 2)); $start < $nowMs; ) {
+                    $end = min($start + $step, $nowMs);
+                    try {
+                        $records = $this->client->records($site->licor_device_serial, $start, $end);
+                    } catch (LicorWindowTooLarge $e) {
+                        if ($step <= $bucketMs) {
+                            throw $e;
+                        }
+                        $step = max($bucketMs, intdiv($step, 2 * $bucketMs) * $bucketMs);
+                        continue;
+                    }
 
                     foreach ($targets as $serial => [$parameter, $spec, $from]) {
                         $this->storeBuckets($site, $parameter, $spec, $records[$serial] ?? [], max($from, $start), $end, $bucketMs, $now, $stats);
                     }
                     unset($records);
+                    $start = $end;
+                    $step  = min(self::WINDOW_MS, $step * 2);
                 }
-            } catch (ConnectionException | RequestException $e) {
+            } catch (ConnectionException | RequestException | LicorWindowTooLarge $e) {
                 $stats['errors'][] = "station {$site->licor_device_serial}: {$e->getMessage()}";
             }
         }
