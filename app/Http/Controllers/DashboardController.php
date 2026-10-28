@@ -73,7 +73,8 @@ class DashboardController extends Controller
             'activeCategories.activeParameters.latestReading',
             'activeCategories.activeParameters.latestManualReading',
             'activeCategories.activeParameters.actuatorCommand',
-            'activeCategories.activeCharts.parameters',
+            // A sensor switched off leaves the charts that list it, not an empty series.
+            'activeCategories.activeCharts.parameters' => fn ($q) => $q->where('site_parameters.is_active', true),
         ]);
 
         $hasManual = $site->activeCategories

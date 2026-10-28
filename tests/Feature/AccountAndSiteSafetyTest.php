@@ -265,6 +265,20 @@ class AccountAndSiteSafetyTest extends TestCase
         $this->assertStringNotContainsString("label: 'Farmer", $html);
     }
 
+    public function test_a_sensor_switched_off_leaves_the_charts_that_list_it(): void
+    {
+        $site = Site::factory()->create(['status' => 'active']);
+        $cat  = SiteCategory::factory()->create(['site_id' => $site->id, 'slug' => 'weather', 'is_active' => true]);
+        $on   = SiteParameter::factory()->create(['site_category_id' => $cat->id, 'name' => 'Wind speed – live', 'is_active' => true]);
+        $off  = SiteParameter::factory()->create(['site_category_id' => $cat->id, 'name' => 'Wind speed – phantom', 'is_active' => false]);
+        $chart = $cat->charts()->create(['title' => 'Wind', 'chart_type' => 'line', 'is_active' => true]);
+        $chart->chartParameters()->create(['site_parameter_id' => $on->id]);
+        $chart->chartParameters()->create(['site_parameter_id' => $off->id]);
+
+        $this->actingAs($this->admin())->get(route('dashboard.site', $site))->assertOk()
+            ->assertSee('Wind speed – live')->assertDontSee('Wind speed – phantom');
+    }
+
     public function test_a_field_group_keeps_its_label_with_a_single_sensor(): void
     {
         $admin = $this->admin();
