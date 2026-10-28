@@ -55,12 +55,12 @@ class AnalysisController extends Controller
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, ['# ' . $result['title'] . ($result['unit'] ? " ({$result['unit']})" : '') . ', '
-                . ($result['step'] === 'day' ? 'daily' : 'hourly') . ' values, UTC']);
+                . ($result['step'] === 'day' ? 'daily' : 'hourly') . ' values, UTC'], escape: '\\');
             fputcsv($out, array_merge([$result['relative'] ? ($result['step'] === 'day' ? 'day_of_period' : 'hour_of_period') : 'time_utc'],
-                array_map(fn ($s) => $s['label'] . ($result['unit'] === null && $s['unit'] ? " ({$s['unit']})" : ''), $result['series'])));
+                array_map(fn ($s) => $s['label'] . ($result['unit'] === null && $s['unit'] ? " ({$s['unit']})" : ''), $result['series'])), escape: '\\');
             foreach ($result['labels'] as $i => $label) {
                 $time = $result['relative'] ? $label + 1 : gmdate($result['step'] === 'day' ? 'Y-m-d' : 'Y-m-d H:i', intdiv($label, 1000));
-                fputcsv($out, array_merge([$time], array_map(fn ($s) => SafeExport::cell($s['points'][$i] ?? ''), $result['series'])));
+                fputcsv($out, array_merge([$time], array_map(fn ($s) => SafeExport::cell($s['points'][$i] ?? ''), $result['series'])), escape: '\\');
             }
             fclose($out);
         }, $name, ['Content-Type' => 'text/csv; charset=UTF-8']);

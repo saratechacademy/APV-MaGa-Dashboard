@@ -228,4 +228,26 @@ class ExportContentTest extends TestCase
 
         return $sheets;
     }
+
+    public function test_csv_is_gzip_compressed_when_the_browser_accepts_it(): void
+    {
+        $admin    = User::factory()->create(['role' => 'admin']);
+        $site     = Site::factory()->create();
+        $category = SiteCategory::factory()->create(['site_id' => $site->id, 'slug' => 'solar']);
+        $param    = SiteParameter::factory()->create(['site_category_id' => $category->id, 'name' => 'Solar Output', 'input_type' => 'sensor']);
+        SensorReading::factory()->create(['site_id' => $site->id, 'site_parameter_id' => $param->id, 'value' => 4.2, 'read_at' => now()]);
+
+        $plain = $this->actingAs($admin)->get(route('export.category.csv', [$site, 'solar']));
+        $this->assertNull($plain->headers->get('Content-Encoding'));
+        $plainContent = $this->streamedContent($plain);
+
+        $gzip = $this->actingAs($admin)->get(route('export.category.csv', [$site, 'solar']), ['Accept-Encoding' => 'gzip, deflate, br']);
+        $this->assertSame('gzip', $gzip->headers->get('Content-Encoding'));
+        $this->assertSame('Accept-Encoding', $gzip->headers->get('Vary'));
+        $compressed = $this->streamedContent($gzip);
+
+        $this->assertSame("\x1f\x8b", substr($compressed, 0, 2));
+        $this->assertSame($plainContent, gzdecode($compressed));
+        $this->assertStringContainsString('4.2', $plainContent);
+    }
 }

@@ -114,28 +114,42 @@ class ExportController extends Controller
     private function writeCsvCategoryBlock($handle, Site $site, SiteCategory $category, Carbon $from, Carbon $to, ?string $sectionLabel = null): void
     {
         if ($sectionLabel !== null) {
-            fputcsv($handle, SafeExport::row(['=== ' . $sectionLabel . ' ===']));
+            fputcsv($handle, SafeExport::row(['=== ' . $sectionLabel . ' ===']), escape: '\\');
         }
 
-        $this->eachCategoryRow($site, $category, $from, $to, fn (array $row) => fputcsv($handle, $row));
+        $this->eachCategoryRow($site, $category, $from, $to, fn (array $row) => fputcsv($handle, $row, escape: '\\'));
 
         if ($sectionLabel !== null) {
-            fputcsv($handle, []); // Ligne vide entre catégories
+            fputcsv($handle, [], escape: '\\'); // Ligne vide entre catégories
         }
     }
 
+    /**
+     * CSV streamed to the browser, gzip-compressed when the browser accepts
+     * it: dates and numbers shrink 5-10 times, which is what makes a long
+     * export downloadable on a slow connection. Done here rather than by the
+     * web server so it holds on any installation, whatever its configuration.
+     */
     private function streamCsv(string $filename, callable $write)
     {
-        return response()->stream(function () use ($write) {
+        $gzip = str_contains(strtolower((string) request()->header('Accept-Encoding')), 'gzip');
+
+        return response()->stream(function () use ($write, $gzip) {
             $handle = fopen('php://output', 'w');
+            if ($gzip) {
+                // Window 31 = 15 bits plus the gzip header and trailer.
+                stream_filter_append($handle, 'zlib.deflate', STREAM_FILTER_WRITE, ['window' => 31, 'level' => 6]);
+            }
             // BOM UTF-8 pour Excel
-            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+            fwrite($handle, chr(0xEF).chr(0xBB).chr(0xBF));
             $write($handle);
             fclose($handle);
-        }, 200, [
+        }, 200, array_filter([
             'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ]);
+            'Content-Encoding'    => $gzip ? 'gzip' : null,
+            'Vary'                => 'Accept-Encoding',
+        ]));
     }
 
     /**
@@ -333,7 +347,7 @@ class ExportController extends Controller
 
         return $this->streamCsv($filename . '.csv', function ($handle) use ($rows) {
             foreach ($rows as $row) {
-                fputcsv($handle, $row);
+                fputcsv($handle, $row, escape: '\\');
             }
         });
     }
