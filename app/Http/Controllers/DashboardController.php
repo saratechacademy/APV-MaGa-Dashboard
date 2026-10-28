@@ -19,6 +19,7 @@ class DashboardController extends Controller
         $cards = $sites->mapWithKeys(fn (Site $site) => [$site->id => [
             'tiles'     => $overview->tiles($site),
             'status'    => $overview->status($site),
+            'silent'    => $overview->silentCategories($site),
             'sparkline' => $overview->sparklineMetric($site),
         ]]);
 

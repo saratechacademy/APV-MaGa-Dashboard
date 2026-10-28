@@ -17,6 +17,7 @@
     'normal'   => ['card' => '',          'badge' => 'badge-ok',   'label' => 'Normal'],
     'warning'  => ['card' => 'warn-card', 'badge' => 'badge-warn', 'label' => 'Warning'],
     'critical' => ['card' => 'err-card',  'badge' => 'badge-err',  'label' => 'Critical'],
+    'partial'  => ['card' => 'warn-card', 'badge' => 'badge-warn', 'label' => 'Partly offline'],
     'offline'  => ['card' => 'warn-card', 'badge' => 'badge-warn', 'label' => 'No recent data'],
     'nodata'   => ['card' => 'warn-card', 'badge' => 'badge-warn', 'label' => 'No data'],
   ];
@@ -37,7 +38,7 @@
     <div class="card-head">
       <div class="card-name">{{ $site->name }}</div>
       <span class="country-chip">{{ \App\Support\Countries::code($site->country) }}</span>
-      <span class="badge {{ $ui['badge'] }}" style="margin-left:auto;display:inline-flex;align-items:center;gap:4px">
+      <span class="badge {{ $ui['badge'] }}" style="margin-left:auto;display:inline-flex;align-items:center;gap:4px"@if($card['silent']) title="No recent data: {{ implode(', ', $card['silent']) }}"@endif>
         {!! $card['status'] === 'normal' ? $iconCheckCircle : $iconWarnTriangle !!} {{ $ui['label'] }}
       </span>
     </div>

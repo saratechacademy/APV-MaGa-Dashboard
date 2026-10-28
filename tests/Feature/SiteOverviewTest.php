@@ -110,8 +110,11 @@ class SiteOverviewTest extends TestCase
         $cards = $response->viewData('cards');
 
         $this->assertSame('nodata', $cards[$never->id]['status']);
-        // One source still reporting is enough for the site to be up.
-        $this->assertSame('normal', $cards[$mixed->id]['status']);
+        // A source still reporting keeps the site up, but a family of sensors
+        // gone quiet is said, by name.
+        $this->assertSame('partial', $cards[$mixed->id]['status']);
+        $this->assertCount(1, $cards[$mixed->id]['silent']);
+        $response->assertSee('Partly offline');
     }
 
     public function test_a_tile_averages_the_sensors_still_reporting(): void

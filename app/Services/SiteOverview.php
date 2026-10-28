@@ -178,7 +178,36 @@ class SiteOverview
             return $anyReading ? 'offline' : 'nodata';
         }
 
+        // Nor is a site where whole sources have gone quiet, even though
+        // another one still reports.
+        if ($status === 'normal' && $this->silentCategories($site)) {
+            return 'partial';
+        }
+
         return $status;
+    }
+
+    /**
+     * Names of the categories that have reported before but have nothing
+     * recent: a sensor family that went quiet while the rest of the site
+     * still reports. Categories that never reported are left out.
+     *
+     * @return string[]
+     */
+    public function silentCategories(Site $site): array
+    {
+        $silent = [];
+
+        foreach ($site->activeCategories as $category) {
+            $freshSince = now()->subMinutes($category->offlineThresholdMinutes());
+            $readings   = $category->activeParameters->map->latestReading->filter();
+
+            if ($readings->isNotEmpty() && $readings->every(fn ($r) => $r->read_at->lt($freshSince))) {
+                $silent[] = $category->name;
+            }
+        }
+
+        return $silent;
     }
 
     /**
