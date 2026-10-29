@@ -243,6 +243,14 @@ sudo -u $WEB git merge --ff-only origin/main
 
 `--ff-only` stops without changing anything if the server copy has diverged from GitHub (see C2).
 
+On a server installed before 13 October 2026, the merge always stops with `Not possible to fast-forward`: the repository history was rewritten on that date. Check with C2 that the server copy has no local edits, then replace the merge with:
+
+```bash
+sudo -u $WEB git reset --hard origin/main
+```
+
+Later updates use the merge normally.
+
 ### C4. Dependencies, database and caches
 
 ```bash
