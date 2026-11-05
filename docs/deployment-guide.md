@@ -18,6 +18,7 @@ WEB=www
 - PHP 8.2 or later with the `pdo_sqlite` extension
 - Composer 2
 - git
+- the `sqlite3` command-line tool (backups and transfers)
 - cron
 - an SMTP account for outgoing e-mail
 - the ThingsBoard and LI-COR Cloud credentials, provided separately by Saratech
@@ -205,7 +206,7 @@ The database file contains password hashes and API keys. Transfer it only over S
 
 ## C. Updating an installation in service
 
-The site stays online during the update; the database, accounts and settings are kept. Run the steps in order from the project root.
+The site stays online during the update; the database, accounts and settings are kept. Run the steps in order from the project root, in the same terminal session: C4 and C6 reuse the `$WEB`, `STAMP` and `PREVIOUS` variables set earlier.
 
 ### C1. Back up the database
 
@@ -225,12 +226,7 @@ sudo -u $WEB git status --short
 The output must be empty. A modified tracked file (` M`) means someone edited the server copy: compare it with `sudo -u $WEB git diff` before going on, since the update would conflict with it. Untracked files (`??`) are handled as in A2. Files the hosting panel creates in the project root (on AAPanel: `.htaccess`, `.user.ini`, `404.html`, `502.html`, `index.html`) are not part of the project: leave them in place and hide them from git once:
 
 ```bash
-printf '.htaccess
-.user.ini
-404.html
-502.html
-/index.html
-' >> .git/info/exclude
+printf '%s\n' .htaccess .user.ini 404.html 502.html /index.html >> .git/info/exclude
 ```
 
 ### C3. Fetch the new version
@@ -254,7 +250,7 @@ Later updates use the merge normally.
 ### C4. Dependencies, database and caches
 
 ```bash
-sudo -u $WEB git diff --quiet $PREVIOUS HEAD -- composer.lock || composer install --no-dev --optimize-autoloader
+sudo -u $WEB git diff --quiet $PREVIOUS HEAD -- composer.lock || COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction
 find . ! -user $WEB ! -name .user.ini -exec chown $WEB:$WEB {} +
 sudo -u $WEB php artisan migrate --force
 sudo -u $WEB php artisan optimize:clear
