@@ -252,14 +252,14 @@ Later updates use the merge normally.
 ### C4. Dependencies, database and caches
 
 ```bash
-sudo -u $WEB git diff --quiet $PREVIOUS HEAD -- composer.lock || COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction
+sudo -u $WEB git diff --quiet $PREVIOUS HEAD -- composer.lock || sudo -u $WEB env HOME=/tmp COMPOSER_HOME=/tmp/composer-$WEB composer install --no-dev --optimize-autoloader --no-interaction
 find . ! -user $WEB ! -name .user.ini -exec chown $WEB:$WEB {} +
 sudo -u $WEB php artisan migrate --force
 sudo -u $WEB php artisan optimize:clear
 sudo -u $WEB php artisan config:cache
 ```
 
-`composer install` runs only when the dependencies changed. The `find … chown` line hands back to `$WEB` the files composer created as root; it skips `.user.ini`, which AAPanel locks (`chown -R` stops on it with `Operation not permitted`). `migrate` applies only the new migrations; it prints `Nothing to migrate` otherwise. Run `config:cache` again after every later change to `.env`, otherwise the change is ignored.
+`composer install` runs only when the dependencies changed, as the web server user (which has no home directory on AAPanel, hence `HOME` and `COMPOSER_HOME`). The `find … chown` line hands back to `$WEB` any file created as root; it skips `.user.ini`, which AAPanel locks (`chown -R` stops on it with `Operation not permitted`). `migrate` applies only the new migrations; it prints `Nothing to migrate` otherwise. Run `config:cache` again after every later change to `.env`, otherwise the change is ignored.
 
 PHP-FPM does not need restarting: new code is picked up on the next request.
 
