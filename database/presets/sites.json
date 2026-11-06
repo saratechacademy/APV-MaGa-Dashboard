@@ -1,5 +1,5 @@
 {
-  "_comment": "Site presets used by `php artisan thingsboard:setup` and `php artisan licor:setup` to create or link sites on a fresh installation. This is deployment data, not code: edit it, or pass another file with --presets=path. Nothing here is needed once a site exists; everything can also be set per site in Admin > Sites > Edit, and new sources can be linked from Admin > Data sources. Source: the partners' 'Sensor Set Up and Parameters' document (The Gambia). 'match' finds an existing site whose name contains it.",
+  "_comment": "Site presets used by `php artisan thingsboard:setup` and `php artisan licor:setup` to create or link sites on a fresh installation. This is deployment data, not code: edit it, or pass another file with --presets=path. Nothing here is needed once a site exists; everything can also be set per site in Admin > Sites > Edit, and new sources can be linked from Admin > Data sources. Source: the partners' 'Sensor Set Up and Parameters' document (The Gambia); IPR Katibougou (Mali) has no sensor locations yet. 'match' finds an existing site whose name contains it.",
   "sites": [
     {
       "name": "University of The Gambia",
@@ -74,6 +74,14 @@
         "22261673": "Between PV",
         "22261667": "Module edge"
       }
+    },
+    {
+      "name": "IPR Katibougou",
+      "match": "IPR",
+      "country": "Mali",
+      "thingsboard_prefix": "IPR",
+      "tank_count": 1,
+      "licor_device_serial": "22225708"
     }
   ]
 }
