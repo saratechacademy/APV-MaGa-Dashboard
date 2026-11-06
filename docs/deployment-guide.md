@@ -105,7 +105,9 @@ sudo -u $WEB php artisan thingsboard:setup
 sudo -u $WEB php artisan licor:setup
 ```
 
-Expected result: the sites University of The Gambia and AfriFarm are created by `thingsboard:setup`. `licor:setup` links them to their weather station ("already linked to") and creates Fass Community Garden. Both commands are idempotent.
+Expected result: the sites University of The Gambia, AfriFarm and IPR Katibougou are created by `thingsboard:setup`. `licor:setup` links them to their weather station ("already linked to") and creates Fass Community Garden. Both commands are idempotent.
+
+On IPR Katibougou, the LI-COR station lists two sensors installed in The Gambia (22256147 and 22256148), which send no data for this site. Switch off their five wind parameters in **Admin → IPR Katibougou → Weather → Parameters**.
 
 Loading the LI-COR history takes a few minutes.
 
@@ -166,7 +168,7 @@ Set `APP_URL` to `https://` only once the TLS certificate is installed: HTTP req
 ### A10. Verification
 
 - [ ] `sudo -u $WEB php artisan thingsboard:sync` and `sudo -u $WEB php artisan licor:sync` complete without error.
-- [ ] **All Sites** shows University of The Gambia, AfriFarm and Fass Community Garden.
+- [ ] **All Sites** shows University of The Gambia, AfriFarm, Fass Community Garden and IPR Katibougou.
 - [ ] **Admin → Sites** shows `ok` for every ThingsBoard and LI-COR link, ten minutes after the scheduler is installed.
 - [ ] `db:backup` writes `apvmaga-<date>.sqlite.gz`.
 - [ ] The test e-mail is received.
@@ -206,7 +208,7 @@ The database file contains password hashes and API keys. Transfer it only over S
 
 ## C. Updating an installation in service
 
-The site stays online during the update; the database, accounts and settings are kept. Run the steps in order from the project root, in the same terminal session: C4 and C6 reuse the `$WEB`, `STAMP` and `PREVIOUS` variables set earlier.
+The site stays online during the update; the database, accounts and settings are kept. Run the steps in order from the project root, in the same terminal session: C4 and C7 reuse the `$WEB`, `STAMP` and `PREVIOUS` variables set earlier.
 
 ### C1. Back up the database
 
@@ -261,14 +263,25 @@ sudo -u $WEB php artisan config:cache
 
 PHP-FPM does not need restarting: new code is picked up on the next request.
 
-### C5. Verify
+### C5. Sites
+
+```bash
+sudo -u $WEB php artisan thingsboard:setup
+sudo -u $WEB php artisan licor:setup
+```
+
+A new version can add a site to `database/presets/sites.json` (IPR Katibougou, November 2026). These commands create the sites the installation does not have yet and connect them to their data sources; the existing ones are reported as `already linked to` and left as they are. Nothing set in the administration is overwritten: accounts, site access, names, locations, thresholds, charts and switched-off parameters stay as they were. Each command ends with a synchronisation.
+
+A site created here is set up as in A5; check its parameters in **Admin → Sites**.
+
+### C6. Verify
 
 - [ ] The login page opens, and **All Sites** shows every site with its status.
 - [ ] One page per site opens with its charts.
 - [ ] **Admin → Sites** shows `ok` for the ThingsBoard and LI-COR links ten minutes later.
 - [ ] `storage/logs/laravel-$(date +%F).log` has no new `ERROR` line.
 
-### C6. Roll back
+### C7. Roll back
 
 If the new version misbehaves:
 
@@ -283,7 +296,7 @@ Restore the database backup only if the update ran migrations (C4 listed some) �
 cp /root/apvmaga-before-update-$STAMP.sqlite database/database.sqlite && chown $WEB:$WEB database/database.sqlite
 ```
 
-### C7. Updating PHP
+### C8. Updating PHP
 
 PHP updates (security releases) are independent of the application. On AAPanel the PHP version is shared by every site on the server, so an update affects all of them and restarts PHP-FPM; plan it and check each site afterwards. The application requires PHP 8.2 or later.
 
