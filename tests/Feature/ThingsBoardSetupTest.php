@@ -42,6 +42,7 @@ class ThingsBoardSetupTest extends TestCase
                 ['id' => ['id' => 'a'], 'name' => 'UTG-APV-Valve-1'],
                 ['id' => ['id' => 'b'], 'name' => 'AfriFarm-Reference-Valve-2'],
                 ['id' => ['id' => 'c'], 'name' => 'IPR-APV-Valve-1'],
+                ['id' => ['id' => 'd'], 'name' => 'Other-APV-Valve-1'],   // not in the presets: ignored
             ]]),
             'tb.test/api/plugins/telemetry/*' => Http::response(['valve_state' => $point]),
         ]);
@@ -59,10 +60,12 @@ class ThingsBoardSetupTest extends TestCase
         $this->artisan('thingsboard:setup')
             ->expectsOutputToContain('UTG: creating site "University of The Gambia" — 1 device(s).')
             ->expectsOutputToContain('AfriFarm: creating site "AfriFarm" — 1 device(s).')
+            ->expectsOutputToContain('IPR: creating site "IPR Katibougou" — 1 device(s).')
             ->expectsOutputToContain('schedule:run')
             ->assertSuccessful();
 
-        $this->assertSame(['UTG', 'AfriFarm'], Site::orderBy('id')->pluck('thingsboard_prefix')->all());
+        $this->assertSame(['UTG', 'AfriFarm', 'IPR'], Site::orderBy('id')->pluck('thingsboard_prefix')->all());
+        $this->assertSame('Mali', Site::where('thingsboard_prefix', 'IPR')->value('country'));
 
         $utg = Site::where('thingsboard_prefix', 'UTG')->first();
         $this->assertSame('active', $utg->status);
@@ -71,10 +74,10 @@ class ThingsBoardSetupTest extends TestCase
         $this->assertNotNull($utg->thingsboard_synced_at);
 
         $this->assertSame(
-            ['apv_valve_1_valve_state', 'reference_valve_2_valve_state'],
+            ['apv_valve_1_valve_state', 'reference_valve_2_valve_state', 'apv_valve_1_valve_state'],
             SiteParameter::orderBy('id')->pluck('slug')->all(),
         );
-        $this->assertSame(2, SensorReading::count());
+        $this->assertSame(3, SensorReading::count());
     }
 
     public function test_links_a_site_that_already_exists_under_a_longer_name_instead_of_duplicating_it(): void
@@ -103,9 +106,9 @@ class ThingsBoardSetupTest extends TestCase
             ->expectsOutputToContain('UTG: already linked to site "University of The Gambia"')
             ->assertSuccessful();
 
-        $this->assertSame(2, Site::count());
-        $this->assertSame(2, SiteParameter::count());
-        $this->assertSame(2, SensorReading::count());
+        $this->assertSame(3, Site::count());
+        $this->assertSame(3, SiteParameter::count());
+        $this->assertSame(3, SensorReading::count());
     }
 
     public function test_dry_run_reports_without_writing(): void
